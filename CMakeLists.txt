@@ -15,9 +15,12 @@ INCLUDE_DIRECTORIES(
 FILE(GLOB SRCS src/*.cpp)
 FILE(GLOB HDRS include/*.h)
 
-add_executable(bin src/main.cpp)
+add_library(cutlass STATIC src/main.cpp)
 
-TARGET_LINK_LIBRARIES(bin
+TARGET_LINK_LIBRARIES(cutlass
    "/usr/lib/libvulkan.so"
    "/usr/lib/libglfw.so.3.2"
 )
+
+install(TARGETS cutlass ARCHIVE DESTINATION lib LIBRARY DESTINATION lib)
+install(FILES include/cutlass.hpp DESTINATION include)
