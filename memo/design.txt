@@ -1,0 +1,16 @@
+
+class startMenu : public Scene<std::string, mySharingData>
+{
+public:
+    virtual void init() override;
+    virtual void update() override;
+    virtual void draw() override;
+
+private:
+
+}
+
+int main()
+{
+    
+}

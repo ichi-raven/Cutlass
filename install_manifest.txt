@@ -1,0 +1,2 @@
+/usr/local/lib/libcutlass.a
+/usr/local/include/cutlass.hpp
