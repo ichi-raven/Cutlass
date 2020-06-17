@@ -1,16 +1,9 @@
-
-class startMenu : public Scene<std::string, mySharingData>
+template<typename Key, typename SharedData>
+class Scene
 {
-public:
-    virtual void init() override;
-    virtual void update() override;
-    virtual void draw() override;
-
-private:
 
 }
 
-int main()
-{
-    
-}
+Rendererの初期化問題
+なんやかんやのバッファを作ってコマンドバッファ提出するところをやる
+コンストラクタで初期化し、各シーンにポインタ渡す

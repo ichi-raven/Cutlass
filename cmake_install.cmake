@@ -1,4 +1,4 @@
-# Install script for directory: /home/ichi/C++_dir/CutlassEngine
+# Install script for directory: /home/ichi/C++/CutlassEngine
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -38,11 +38,11 @@ if(NOT DEFINED CMAKE_CROSSCOMPILING)
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY FILES "/home/ichi/C++_dir/CutlassEngine/libcutlass.a")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY FILES "/home/ichi/C++/CutlassEngine/libcutlass.a")
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/include" TYPE FILE FILES "/home/ichi/C++_dir/CutlassEngine/include/cutlass.hpp")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/include" TYPE FILE FILES "/home/ichi/C++/CutlassEngine/include/cutlass.hpp")
 endif()
 
 if(CMAKE_INSTALL_COMPONENT)
@@ -53,5 +53,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/home/ichi/C++_dir/CutlassEngine/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/home/ichi/C++/CutlassEngine/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

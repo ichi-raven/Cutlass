@@ -1,7 +1,7 @@
 file(REMOVE_RECURSE
-  "CMakeFiles/cutlass.dir/src/main.cpp.o"
-  "libcutlass.pdb"
+  "CMakeFiles/cutlass.dir/src/Device.cpp.o"
   "libcutlass.a"
+  "libcutlass.pdb"
 )
 
 # Per-language clean rules from dependency scanning.

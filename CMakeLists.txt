@@ -13,9 +13,9 @@ INCLUDE_DIRECTORIES(
 )
 
 FILE(GLOB SRCS src/*.cpp)
-FILE(GLOB HDRS include/*.h)
+FILE(GLOB HDRS include/*.hpp)
 
-add_library(cutlass STATIC src/main.cpp)
+add_library(cutlass STATIC ${SRCS})
 
 TARGET_LINK_LIBRARIES(cutlass
    "/usr/lib/libvulkan.so"
