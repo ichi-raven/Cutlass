@@ -1,1 +1,0 @@
-/usr/bin/c++     CMakeFiles/bin.dir/src/main.cpp.o  -o bin /usr/lib/libvulkan.so /usr/lib/libglfw.so.3.2 
