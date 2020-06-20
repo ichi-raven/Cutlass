@@ -2,7 +2,7 @@
 
 #include <iostream>
 #include <vector>
-#include <array>
+
 
 namespace Cutlass
 {
@@ -41,42 +41,107 @@ namespace Cutlass
 
     }
 
-    void Device::init()
+    Result Device::initialize(const InitializeInfo& initializeInfo)
     {
+        mInitializeInfo = initializeInfo;
+        Result result;
 
+        //GLFW初期化
+        glfwInit();
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+        glfwWindowHint(GLFW_RESIZABLE, 0);
+        mWindow = glfwCreateWindow(
+            mInitializeInfo.width,
+            mInitializeInfo.height,
+            mInitializeInfo.appName.c_str(),
+            nullptr,
+            nullptr
+            );
+
+        result = initializeInstance();
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
+
+        result = selectPhysicalDevice();
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
+
+        result = createDevice();
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
+
+        result = createCommandPool();
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
+
+        result = createSwapchain(mWindow);
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
+
+        result = createSemaphores();
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
+
+        return Result::eSuccess;
     }
 
-    void Device::checkResult(VkResult result)
+    Result Device::checkResult(VkResult result)
     {
         if (result != VK_SUCCESS)
         {
-            std::cout << "error : " << result << "\n";
-            exit(1);
+            std::cout << "ERROR!\nvulkan error : " << result << "\n";
+            return Result::eFailure;//ここをSwitchで分岐して独自結果を返す
         }
+
+        return Result::eSuccess;
     }
 
-    void Device::initializeInstance(const char* appName)
+    Result Device::initializeInstance()
     {
+        Result result;
+
         std::vector<const char*> extensions;
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-        appInfo.pApplicationName = appName;
-        appInfo.pEngineName = appName;
+        appInfo.pApplicationName = mInitializeInfo.appName.c_str();
+        appInfo.pEngineName = ENGINE_NAME;
         appInfo.apiVersion = VK_API_VERSION_1_1;
         appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
 
-        // 拡張情報の取得.
+        // 拡張情報の取得
         std::vector<VkExtensionProperties> props;
-        {
-          uint32_t count = 0;
-          vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
-          props.resize(count);
-          vkEnumerateInstanceExtensionProperties(nullptr, &count, props.data());
 
-          for (const auto& v : props)
-          {
-            extensions.push_back(v.extensionName);
-          }
+        {
+            uint32_t count = 0;
+            result = checkResult(vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr));
+            if (Result::eSuccess != result)
+            {
+                return result;
+            }   
+
+            props.resize(count);
+            result = checkResult(vkEnumerateInstanceExtensionProperties(nullptr, &count, props.data()));
+            if (Result::eSuccess != result)
+            {
+                return result;
+            }
+
+            for (const auto& v : props)
+            {
+              extensions.push_back(v.extensionName);
+            }
         }
 
         VkInstanceCreateInfo ci{};
@@ -84,30 +149,49 @@ namespace Cutlass
         ci.enabledExtensionCount = uint32_t(extensions.size());
         ci.ppEnabledExtensionNames = extensions.data();
         ci.pApplicationInfo = &appInfo;
-        #define _DEBUG
-        #ifdef _DEBUG
-        // デバッグビルド時には検証レイヤーを有効化
-        const char* layers[] = { "VK_LAYER_KHRONOS_validation" };
-        ci.enabledLayerCount = 1;
-        ci.ppEnabledLayerNames = layers;
-        #endif
+
+        if(mInitializeInfo.debugFlag)
+        {
+            // デバッグ時には検証レイヤーを有効化
+            const char* layers[] = { "VK_LAYER_KHRONOS_validation" };
+            ci.enabledLayerCount = 1;
+            ci.ppEnabledLayerNames = layers;
+        }
 
         // インスタンス生成
-        auto result = vkCreateInstance(&ci, nullptr, &mInstance);
-        checkResult(result);
+        result = checkResult(vkCreateInstance(&ci, nullptr, &mInstance));
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
+
+        return result;
     }
 
-    void Device::selectPhysicalDevice()
+    Result Device::selectPhysicalDevice()
     {
+        Result result;
+
         uint32_t devCount = 0;
-        vkEnumeratePhysicalDevices(mInstance, &devCount, nullptr);
+        result = checkResult(vkEnumeratePhysicalDevices(mInstance, &devCount, nullptr));
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
+
         std::vector<VkPhysicalDevice> physDevs(devCount);
-        vkEnumeratePhysicalDevices(mInstance, &devCount, physDevs.data());
+        result = checkResult(vkEnumeratePhysicalDevices(mInstance, &devCount, physDevs.data()));
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
 
         // 最初のデバイスを使用する
         mPhysDev = physDevs[0];
         // メモリプロパティを取得しておく
         vkGetPhysicalDeviceMemoryProperties(mPhysDev, &mPhysMemProps);
+
+        return Result::eSuccess;
     }
 
     uint32_t Device::searchGraphicsQueueIndex()
@@ -128,8 +212,10 @@ namespace Cutlass
         return graphicsQueue;
     }
 
-    void Device::createDevice()
+    Result Device::createDevice()
     {
+        Result result;
+
         const float defaultQueuePriority(1.0f);
         VkDeviceQueueCreateInfo devQueueCI{};
         devQueueCI.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -141,9 +227,18 @@ namespace Cutlass
         {
             // 拡張情報の取得.
             uint32_t count = 0;
-            vkEnumerateDeviceExtensionProperties(mPhysDev, nullptr, &count, nullptr);
+            result = checkResult(vkEnumerateDeviceExtensionProperties(mPhysDev, nullptr, &count, nullptr));
+            if (Result::eSuccess != result)
+            {
+                return result;
+            }
+
             devExtProps.resize(count);
-            vkEnumerateDeviceExtensionProperties(mPhysDev, nullptr, &count, devExtProps.data());
+            result = checkResult(vkEnumerateDeviceExtensionProperties(mPhysDev, nullptr, &count, devExtProps.data()));
+            if (Result::eSuccess != result)
+            {
+                return result;
+            }
         }
 
         std::vector<const char *> extensions;
@@ -153,8 +248,6 @@ namespace Cutlass
                 extensions.push_back(v.extensionName);
         }
 
-        std::cout << "\n\n\n";
-
         VkDeviceCreateInfo ci{};
         ci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
         ci.pQueueCreateInfos = &devQueueCI;
@@ -162,31 +255,55 @@ namespace Cutlass
         ci.ppEnabledExtensionNames = extensions.data();
         ci.enabledExtensionCount = uint32_t(extensions.size());
 
-        auto result = vkCreateDevice(mPhysDev, &ci, nullptr, &mDevice);
-        checkResult(result);
+        result = checkResult(vkCreateDevice(mPhysDev, &ci, nullptr, &mDevice));
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
 
         // デバイスキューの取得
         vkGetDeviceQueue(mDevice, mGraphicsQueueIndex, 0, &mDeviceQueue);
+
+        return Result::eSuccess;
     }
 
-    void Device::prepareCommandPool()
+    Result Device::createCommandPool()
     {
+        Result result;
+
         VkCommandPoolCreateInfo ci{};
         ci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         ci.queueFamilyIndex = mGraphicsQueueIndex;
         ci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-        auto result = vkCreateCommandPool(mDevice, &ci, nullptr, &mCommandPool);
-        checkResult(result);
+
+        result = checkResult(vkCreateCommandPool(mDevice, &ci, nullptr, &mCommandPool));
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
+
+        return Result::eSuccess;
     }
 
-    void Device::selectSurfaceFormat(VkFormat format)
+    Result Device::selectSurfaceFormat(VkFormat format)
     {
-        uint32_t surfaceFormatCount = 0;
-        vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysDev, mSurface, &surfaceFormatCount, nullptr);
-        std::vector<VkSurfaceFormatKHR> formats(surfaceFormatCount);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysDev, mSurface, &surfaceFormatCount, formats.data());
+        Result result;
 
-        // 検索して一致するフォーマットを見つける.
+        uint32_t surfaceFormatCount = 0;//個数取得
+        result = checkResult(vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysDev, mSurface, &surfaceFormatCount, nullptr));
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
+
+        std::vector<VkSurfaceFormatKHR> formats(surfaceFormatCount);//実際のフォーマット取得
+        result = checkResult(vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysDev, mSurface, &surfaceFormatCount, formats.data()));
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
+
+        // 検索して一致するフォーマット探す
         for (const auto &f : formats)
         {
             if (f.format == format)
@@ -194,15 +311,19 @@ namespace Cutlass
                 mSurfaceFormat = f;
             }
         }
+
+        return Result::eSuccess;
     }
 
-    void Device::createSwapchain(GLFWwindow* pWindow)
+    Result Device::createSwapchain(GLFWwindow* pWindow)
     {
+        Result result;
+
         auto imageCount = (std::max)(2u, mSurfaceCaps.minImageCount);
         auto extent = mSurfaceCaps.currentExtent;
         if (extent.width == ~0u)
         {
-            // 値が無効なのでウィンドウサイズを使用する.
+            // 値が無効なのでウィンドウサイズを使用する
             int width, height;
             glfwGetWindowSize(pWindow, &width, &height);
             extent.width = uint32_t(width);
@@ -227,13 +348,21 @@ namespace Cutlass
         ci.clipped = VK_TRUE;
         ci.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 
-        auto result = vkCreateSwapchainKHR(mDevice, &ci, nullptr, &mSwapchain);
-        checkResult(result);
+        result = checkResult(vkCreateSwapchainKHR(mDevice, &ci, nullptr, &mSwapchain));
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
+
         mSwapchainExtent = extent;
+
+        return Result::eSuccess;
     }
 
-    void Device::createDepthBuffer()
+    Result Device::createDepthBuffer()
     {
+        Result result;
+
         VkImageCreateInfo ci{};
         ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         ci.imageType = VK_IMAGE_TYPE_2D;
@@ -245,8 +374,13 @@ namespace Cutlass
         ci.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
         ci.samples = VK_SAMPLE_COUNT_1_BIT;
         ci.arrayLayers = 1;
-        auto result = vkCreateImage(mDevice, &ci, nullptr, &mDepthBuffer);
-        checkResult(result);
+        //imageオブジェクト作成
+        result = checkResult(vkCreateImage(mDevice, &ci, nullptr, &mDepthBuffer));
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
+
 
         VkMemoryRequirements reqs;
         vkGetImageMemoryRequirements(mDevice, mDepthBuffer, &reqs);
@@ -258,12 +392,24 @@ namespace Cutlass
         vkBindImageMemory(mDevice, mDepthBuffer, mDepthBufferMemory, 0);
     }
 
-    void Device::createViews()
+    Result Device::createViews()
     {
+        Result result;
+
         uint32_t imageCount;
-        vkGetSwapchainImagesKHR(mDevice, mSwapchain, &imageCount, nullptr);
+        result = checkResult(vkGetSwapchainImagesKHR(mDevice, mSwapchain, &imageCount, nullptr));
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
+
         mSwapchainImages.resize(imageCount);
-        vkGetSwapchainImagesKHR(mDevice, mSwapchain, &imageCount, mSwapchainImages.data());
+        result = checkResult(vkGetSwapchainImagesKHR(mDevice, mSwapchain, &imageCount, mSwapchainImages.data()));
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
+
         mSwapchainViews.resize(imageCount);
 
         for (uint32_t i = 0; i < imageCount; ++i)
@@ -280,8 +426,10 @@ namespace Cutlass
             };
             ci.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
             ci.image = mSwapchainImages[i];
-            auto result = vkCreateImageView(mDevice, &ci, nullptr, &mSwapchainViews[i]);
-            checkResult(result);
+            if (Result::eSuccess != result)
+            {
+                return result;
+            }
         }
 
         // for depthbuffer
@@ -298,9 +446,14 @@ namespace Cutlass
             };
             ci.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
             ci.image = mDepthBuffer;
-            auto result = vkCreateImageView(mDevice, &ci, nullptr, &mDepthBufferView);
-            checkResult(result);
+            result = checkResult(vkCreateImageView(mDevice, &ci, nullptr, &mDepthBufferView));
+            if (Result::eSuccess != result)
+            {
+                return result;
+            }
         }
+
+        return Result::eSuccess;
     }
 
     void Device::createRenderPass()
@@ -401,12 +554,23 @@ namespace Cutlass
         }
     }
 
-    void Device::prepareSemaphores()
+    Result Device::createSemaphores()
     {
+        Result result;
+
         VkSemaphoreCreateInfo ci{};
         ci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-        vkCreateSemaphore(mDevice, &ci, nullptr, &mRenderCompletedSem);
-        vkCreateSemaphore(mDevice, &ci, nullptr, &mPresentCompletedSem);
+        result = checkResult(vkCreateSemaphore(mDevice, &ci, nullptr, &mRenderCompletedSem));
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
+
+        result = checkResult(vkCreateSemaphore(mDevice, &ci, nullptr, &mPresentCompletedSem));
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
     }
 
     uint32_t Device::getMemoryTypeIndex(uint32_t requestBits, VkMemoryPropertyFlags requestProps) const
@@ -428,8 +592,10 @@ namespace Cutlass
         return result;
     }
 
-    void Device::enableDebugReport()
+    Result Device::enableDebugReport()
     {
+        std::cout << "Debug mode enabled.\n";
+
         GetInstanceProcAddr(vkCreateDebugReportCallbackEXT);
         GetInstanceProcAddr(vkDebugReportMessageEXT);
         GetInstanceProcAddr(vkDestroyDebugReportCallbackEXT);
@@ -441,10 +607,14 @@ namespace Cutlass
         drcCI.flags = flags;
         drcCI.pfnCallback = &DebugReportCallback;
         mvkCreateDebugReportCallbackEXT(mInstance, &drcCI, nullptr, &mDebugReport);
+
+        return Result::eSuccess;
     }
 
     void Device::disableDebugReport()
     {
+        std::cout << "Debug mode disabled.\n";
+
         if (mvkDestroyDebugReportCallbackEXT)
         {
             mvkDestroyDebugReportCallbackEXT(mInstance, mDebugReport, nullptr);

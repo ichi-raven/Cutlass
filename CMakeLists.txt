@@ -23,4 +23,4 @@ TARGET_LINK_LIBRARIES(cutlass
 )
 
 install(TARGETS cutlass ARCHIVE DESTINATION lib LIBRARY DESTINATION lib)
-install(FILES include/cutlass.hpp DESTINATION include)
+#install(FILES include/cutlass.hpp DESTINATION include)

@@ -13,26 +13,41 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/hash.hpp>
 
-#include <queue>
-
+#include <vector>
+#include <unordered_map>
+#include <optional>
 
 namespace Cutlass
 {
+    #define ENGINE_NAME ("CutlassEngine")
+
     using HBuffer = uint64_t;
     using HTexture = uint64_t;
     using HSampler = uint64_t;
     using HRenderPipeline = uint64_t;
 
+    enum class Result
+    {
+        eSuccess = 0,
+        eFailure,
+    };
+
     enum class ResourceType
     {
+        eUint = 1,
         eInt,
-        eUint,
         eVec2,
         eVec3,
         eVec4,
         eMat2,
         eMat3,
         eMat4,
+    };
+
+    enum class RenderDSTType
+    {
+        eColor,
+        eDepth,
     };
 
     enum class BufferUsage
@@ -42,88 +57,186 @@ namespace Cutlass
         eUniform,
     };
 
+    enum class TextureUsage
+    {
+        eShaderResource,
+        eRenderTarget,
+        eUnordered,
+    };
+
+    enum class ColorBlend
+    {
+        eDefault = 0,
+    };
+
+    enum class RasterizerState
+    {
+        eDefault = 0,
+    };
+
+    enum class MultiSampleState
+    {
+        eDefault = 0,
+    };
+
+    enum class DepthStencilState
+    {
+        eDefault = 0,
+    };
+
     struct VertexLayout
     {
-        std::queue<ResourceType> layouts;
-        std::queue<std::string> names;
+        std::vector<ResourceType> layouts;
+        std::vector<std::string> names;
     };
 
     struct ShaderResourceLayout
     {
-        std::queue<HBuffer> constantBuffers;
-        std::queue<HTexture> Textures;
+        uint32_t uniformBufferCount;
+        uint32_t combinedTextureCount;
+    };
+
+    struct ShaderResource
+    {
+        std::vector<HBuffer>    uniformBuffer;
+        std::vector<HTexture>   combinedTexture;
+    };
+
+    struct RenderPipelineInfo
+    {
+        VertexLayout                vertexLayout;
+        ColorBlend                  colorBlend;
+        RasterizerState             rasterizerState;
+        MultiSampleState            multiSampleState;
+        std::vector<RenderDSTType>  renderDSTs;
+        std::string                 vertexShaderPath;
+        std::string                 fragmentShaderPath;
+        ShaderResourceLayout        SRLayouts;
+    };
+
+    struct InitializeInfo
+    {
+        uint32_t    width;
+        uint32_t    height;
+        std::string appName;
+        uint32_t    frameCount;
+        bool        debugFlag;
+    };
+
+    struct Command
+    {
+        std::optional<HBuffer> hVertexBuffer;
+        std::optional<HBuffer> hIndexBuffer;
+        ShaderResource         shaderResource;
+        uint32_t               firstIndex;
+        uint32_t               indexCount;
+        uint32_t               instanceCount;
+        uint32_t               vertexOffset;
+        uint32_t               firstInstance;
     };
 
     class Device
     {
     public:
         Device();
+        ~Device();
 
-        bool init();
+        //初期化
+        Result initialize(const InitializeInfo& initializeInfo);
 
-        bool createBuffer(BufferUsage bufferUsage, HBuffer* hBuffer);
+        //バッファ作成
+        Result createBuffer(BufferUsage bufferUsage, size_t HBuffer *hBuffer);
 
-        bool createTexture(HTexture* hTexture);
+        //バッファ書き込み
+        Result writeBuffer(const HBuffer& hBuffer, void *data, size_t bytesize);
 
-        bool createSampler(HSampler *hSampler);
+        //テクスチャ作成(ファイル読み込み可)
+        Result createTexture(TextureUsage textureUsage, HTexture *hTexture);
+        Result createTexture(const std::string &fileName, TextureUsage textureUsage, HTexture *hTexture);
 
-        bool createRenderPipeline(HRenderPipeline* hRenderPipeline);
+        //サンプラー作成
+        Result createSampler(HSampler *hSampler);
 
-        bool writeCommand();
+        //画像に使用するサンプラーをアタッチ
+        Result attachSampler(const HTexture &hTexture, const HSampler &hSampler);
 
-        bool submitCommand();
+        //描画パイプライン構築
+        Result createRenderPipeline(const RenderPipelineInfo& info, HRenderPipeline* hRenderPipeline);
 
-        bool present();
+        //コマンド記述
+        Result writeCommand(const Command& command);
 
-    private: 
+        //コマンド送信
+        Result submitCommand();
+
+        //バックバッファ表示
+        Result present();
+
+        //破棄
+        Result destroy();
+
+    private:
     
         struct BufferObject
         {
-            VkBuffer buffer;
-            VkDeviceMemory memory;
+            VkBuffer        mBuffer;
+            VkDeviceMemory  mMemory;
         };
 
         struct ImageObject
         {
-            VkImage image;
-            VkDeviceMemory memory;
-            VkImageView view;
+            VkImage             mImage;
+            VkDeviceMemory      mMemory;
+            VkImageView         mView;
+            HSampler            mHSampler;
         };
 
-        static void checkResult(VkResult);
-        void initializeInstance(const char* appName);
+        struct RenderPipelineObject
+        {
+            VkRenderPass            mRenderPass;
+            VkPipelineLayout        mPipelineLayout;
+            VkPipeline              mPipeline;
+            VkDescriptorSetLayout   mDescriptorSetLayout;
+        };
 
-        void selectPhysicalDevice();
+        static inline Result checkResult(VkResult);
+        Result initializeInstance();
+
+        Result selectPhysicalDevice();
+        Result createDevice();
+        Result createCommandPool();
+        Result selectSurfaceFormat(VkFormat format);
+        Result createSwapchain(GLFWwindow* window);
+        Result createDepthBuffer();
+        Result createViews();
+
+        Result createFramebuffer();
+
+        Result createSemaphores();
+
         uint32_t searchGraphicsQueueIndex();
-        void createDevice();
-        void prepareCommandPool();
-        void selectSurfaceFormat(VkFormat format);
-        void createSwapchain(GLFWwindow* window);
-        void createDepthBuffer();
-        void createViews();
-
-        void createRenderPass();
-        void createFramebuffer();
-
-        void prepareCommandBuffers();
-        void prepareSemaphores();
-
         uint32_t getMemoryTypeIndex(uint32_t requestBits, VkMemoryPropertyFlags requestProps)const;
 
-        void enableDebugReport();
-        void disableDebugReport();
+        Result enableDebugReport();
+        Result disableDebugReport();
 
+
+        //ユーザ指定
+        InitializeInfo mInitializeInfo;
+
+
+        //API
         GLFWwindow* mWindow;
 
         VkInstance  mInstance;
         VkDevice    mDevice;
         VkPhysicalDevice  mPhysDev;
-        
+
+        VkPhysicalDeviceMemoryProperties mPhysMemProps;
+
         VkSurfaceKHR        mSurface;
         VkSurfaceFormatKHR  mSurfaceFormat;
         VkSurfaceCapabilitiesKHR  mSurfaceCaps;
-        
-        VkPhysicalDeviceMemoryProperties mPhysMemProps;
         
         uint32_t mGraphicsQueueIndex;
         VkQueue mDeviceQueue;
@@ -139,7 +252,7 @@ namespace Cutlass
         VkDeviceMemory  mDepthBufferMemory;
         VkImageView     mDepthBufferView;
         
-        VkRenderPass      mRenderPass;
+        //VkRenderPass      mRenderPass;
         std::vector<VkFramebuffer>    mFramebuffers;
         
         std::vector<VkFence>          mFences;
