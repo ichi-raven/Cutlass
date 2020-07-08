@@ -1,9 +1,0 @@
-template<typename Key, typename SharedData>
-class Scene
-{
-
-}
-
-Rendererの初期化問題
-なんやかんやのバッファを作ってコマンドバッファ提出するところをやる
-コンストラクタで初期化し、各シーンにポインタ渡す

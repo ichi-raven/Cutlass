@@ -1,18 +1,41 @@
 #pragma once
-#include "Device.hpp"
+
+#include <cstdint>
+#include <utility>
+#include "Utility.hpp"
 
 namespace Cutlass
 {
 
-    class Texture
+    enum class TextureUsage
     {
-    public:
-        Texture();
-        ~Texture();
+        eShaderResource,
+        eColorTarget,
+        eDepthTarget,
+        eSwapchainImage,//自分で指定しても破損するだけです
+        //eUnordered,
+    };
 
-        void create();
+    enum class TextureDimention
+    {
+        e2D,
+        //e3D, //現段階ではまだ未定
+    };
 
-    private:
+    enum class TextureFormatType
+    {
+        eUNorm,
+        eFloat,
+    };
 
+    struct TextureInfo
+    {
+        TextureUsage usage;
+        TextureDimention dimention;
+        std::pair<ResourceType, TextureFormatType> format;
+        bool isHostVisible;
+        uint32_t width;
+        uint32_t height;
+        uint32_t depth;
     };
 };

@@ -1,14 +1,15 @@
 
 cmake_minimum_required(VERSION 3.11)
 
+project(CutlassEngine CXX)
+
 add_definitions("-g -O0 -std=c++17")
 
 INCLUDE_DIRECTORIES(
-   "/usr/include/vulkan"
-   "/usr/include/GLFW"
-   "/usr/include/glm"
-   "/usr/include/tinyobjloader"
-   "/usr/include/stb"
+   vulkan
+   glfw
+   glm
+   stb
    ${PROJECT_SOURCE_DIR}/include
 )
 
@@ -18,9 +19,9 @@ FILE(GLOB HDRS include/*.hpp)
 add_library(cutlass STATIC ${SRCS})
 
 TARGET_LINK_LIBRARIES(cutlass
-   "/usr/lib/libvulkan.so"
-   "/usr/lib/libglfw.so.3.2"
+   vulkan
+   glfw
 )
 
 install(TARGETS cutlass ARCHIVE DESTINATION lib LIBRARY DESTINATION lib)
-#install(FILES include/cutlass.hpp DESTINATION include)
+install(FILES include/Cutlass.hpp DESTINATION include)

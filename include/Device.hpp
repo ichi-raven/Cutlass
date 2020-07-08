@@ -6,159 +6,76 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtx/hash.hpp>
 
 #include <vector>
+#include <string>
 #include <unordered_map>
 #include <optional>
+
+#include "Utility.hpp"
+#include "Buffer.hpp"
+#include "Texture.hpp"
+#include "RenderPipeline.hpp"
+#include "Command.hpp"
 
 namespace Cutlass
 {
     #define ENGINE_NAME ("CutlassEngine")
 
-    using HBuffer = uint64_t;
-    using HTexture = uint64_t;
-    using HSampler = uint64_t;
-    using HRenderPipeline = uint64_t;
-
-    enum class Result
+    struct windowInfo
     {
-        eSuccess = 0,
-        eFailure,
-    };
-
-    enum class ResourceType
-    {
-        eUint = 1,
-        eInt,
-        eVec2,
-        eVec3,
-        eVec4,
-        eMat2,
-        eMat3,
-        eMat4,
-    };
-
-    enum class RenderDSTType
-    {
-        eColor,
-        eDepth,
-    };
-
-    enum class BufferUsage
-    {
-        eVertex,
-        eIndex,
-        eUniform,
-    };
-
-    enum class TextureUsage
-    {
-        eShaderResource,
-        eRenderTarget,
-        eUnordered,
-    };
-
-    enum class ColorBlend
-    {
-        eDefault = 0,
-    };
-
-    enum class RasterizerState
-    {
-        eDefault = 0,
-    };
-
-    enum class MultiSampleState
-    {
-        eDefault = 0,
-    };
-
-    enum class DepthStencilState
-    {
-        eDefault = 0,
-    };
-
-    struct VertexLayout
-    {
-        std::vector<ResourceType> layouts;
-        std::vector<std::string> names;
-    };
-
-    struct ShaderResourceLayout
-    {
-        uint32_t uniformBufferCount;
-        uint32_t combinedTextureCount;
-    };
-
-    struct ShaderResource
-    {
-        std::vector<HBuffer>    uniformBuffer;
-        std::vector<HTexture>   combinedTexture;
-    };
-
-    struct RenderPipelineInfo
-    {
-        VertexLayout                vertexLayout;
-        ColorBlend                  colorBlend;
-        RasterizerState             rasterizerState;
-        MultiSampleState            multiSampleState;
-        std::vector<RenderDSTType>  renderDSTs;
-        std::string                 vertexShaderPath;
-        std::string                 fragmentShaderPath;
-        ShaderResourceLayout        SRLayouts;
+        uint32_t width;
+        uint32_t height;
+        std::string windowName;
     };
 
     struct InitializeInfo
     {
-        uint32_t    width;
-        uint32_t    height;
-        std::string appName;
-        uint32_t    frameCount;
-        bool        debugFlag;
-    };
-
-    struct Command
-    {
-        std::optional<HBuffer> hVertexBuffer;
-        std::optional<HBuffer> hIndexBuffer;
-        ShaderResource         shaderResource;
-        uint32_t               firstIndex;
-        uint32_t               indexCount;
-        uint32_t               instanceCount;
-        uint32_t               vertexOffset;
-        uint32_t               firstInstance;
+        std::vector<windowInfo>     windows;
+        std::string                 appName;
+        uint32_t                    frameCount;
+        bool                        debugFlag;
     };
 
     class Device
     {
     public:
-        Device();
+        Device() : mNextSwapchainHandle(1),
+                   mNextBufferHandle(1),
+                   mNextTextureHandle(1),
+                   mNextSamplerHandle(1),
+                   mNextRPHandle(1)
+                   {}
+
         ~Device();
 
         //初期化
-        Result initialize(const InitializeInfo& initializeInfo);
+        Result initialize(const InitializeInfo& info, std::vector<HSwapchain>* hSwapchains);
+
+        //スワップチェインのテクスチャハンドル取得(指定したフレーム数)
+        Result getSwapchainImages(HSwapchain handle, std::vector<HTexture>* hSwapchainImages);
 
         //バッファ作成
-        Result createBuffer(BufferUsage bufferUsage, size_t HBuffer *hBuffer);
+        Result createBuffer(const BufferInfo& info, HBuffer *pHandle);
 
         //バッファ書き込み
-        Result writeBuffer(const HBuffer& hBuffer, void *data, size_t bytesize);
+        Result writeBuffer(const HBuffer& handle, void *data, size_t bytesize);
 
         //テクスチャ作成(ファイル読み込み可)
-        Result createTexture(TextureUsage textureUsage, HTexture *hTexture);
-        Result createTexture(const std::string &fileName, TextureUsage textureUsage, HTexture *hTexture);
+        Result createTexture(const TextureInfo& info, HTexture *pHandle);
+        Result createTextureFromFile(const char* fileName, HTexture *pHandle);
+
+        //データ書き込み(動かない)
+        Result writeTexture(const size_t size, const void* const pData, const HTexture& handle);
+
+        //用途変更
+        Result changeUsage(TextureUsage prev, TextureUsage next, const HTexture &handle);
 
         //サンプラー作成
-        Result createSampler(HSampler *hSampler);
+        Result createSampler(HSampler *pHandle);
 
         //画像に使用するサンプラーをアタッチ
-        Result attachSampler(const HTexture &hTexture, const HSampler &hSampler);
+        Result attachSampler(const HTexture &handle, const HSampler &hSampler);
 
         //描画パイプライン構築
         Result createRenderPipeline(const RenderPipelineInfo& info, HRenderPipeline* hRenderPipeline);
@@ -176,57 +93,89 @@ namespace Cutlass
         Result destroy();
 
     private:
-    
+
+        struct SwapchainObject
+        {
+            std::optional<GLFWwindow*> mpWindow;
+
+            std::optional<VkSurfaceKHR>             mSurface;
+            std::optional<VkSwapchainKHR>           mSwapchain;
+
+            VkSurfaceCapabilitiesKHR    mSurfaceCaps;
+            VkSurfaceFormatKHR          mSurfaceFormat;
+            VkPresentModeKHR            mPresentMode;
+            VkExtent2D                  mSwapchainExtent;
+            std::vector<HTexture>       mSwapchainImages;
+        };
+
         struct BufferObject
         {
-            VkBuffer        mBuffer;
-            VkDeviceMemory  mMemory;
+            std::optional<VkBuffer>        mBuffer;
+            std::optional<VkDeviceMemory>  mMemory;
+            bool mIsHostVisible;
         };
 
         struct ImageObject
         {
-            VkImage             mImage;
-            VkDeviceMemory      mMemory;
-            VkImageView         mView;
-            HSampler            mHSampler;
+            std::optional<VkImage>          mImage;
+            std::optional<VkDeviceMemory>   mMemory;
+            std::optional<VkImageView>      mView;
+            std::optional<HSampler>         mHSampler;
+            std::optional<VkFramebuffer>    mFrameBuffer;
+            bool                            mIsHostVisible;
+            VkFormat                        format;
+            TextureUsage                    usage;
         };
 
         struct RenderPipelineObject
         {
-            VkRenderPass            mRenderPass;
-            VkPipelineLayout        mPipelineLayout;
-            VkPipeline              mPipeline;
-            VkDescriptorSetLayout   mDescriptorSetLayout;
+            std::optional<VkRenderPass>            mRenderPass;
+            std::optional<VkPipelineLayout>        mPipelineLayout;
+            std::optional<VkPipeline>              mPipeline;
+            std::optional<VkDescriptorSetLayout>   mDescriptorSetLayout;
         };
 
-        static inline Result checkResult(VkResult);
-        Result initializeInstance();
 
+        static inline Result checkVkResult(VkResult);
+        Result createInstance();
         Result selectPhysicalDevice();
         Result createDevice();
         Result createCommandPool();
-        Result selectSurfaceFormat(VkFormat format);
-        Result createSwapchain(GLFWwindow* window);
-        Result createDepthBuffer();
-        Result createViews();
+        Result createCommandBuffers();
 
-        Result createFramebuffer();
+        Result createSurface(SwapchainObject* pSO);
+        Result selectSurfaceFormat(SwapchainObject* pSO, VkFormat format);
+        Result createSwapchain(SwapchainObject* pSO);
+
+        //Result createDepthBuffer();
+        Result createSwapchainImages(SwapchainObject* pSO);
+
+        Result createDefaultFramebuffer();
 
         Result createSemaphores();
 
-        uint32_t searchGraphicsQueueIndex();
+        Result searchGraphicsQueueIndex();
         uint32_t getMemoryTypeIndex(uint32_t requestBits, VkMemoryPropertyFlags requestProps)const;
 
         Result enableDebugReport();
         Result disableDebugReport();
-
+        Result setImageMemoryBarrier(VkCommandBuffer command, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
 
         //ユーザ指定
         InitializeInfo mInitializeInfo;
 
+        //隠蔽
+        HSwapchain              mNextSwapchainHandle;
+        HBuffer                 mNextBufferHandle;
+        HTexture                mNextTextureHandle;
+        HSampler                mNextSamplerHandle;
+        HRenderPipeline         mNextRPHandle;
+        std::unordered_map<HSwapchain, SwapchainObject> mSwapchainMap;
+        std::unordered_map<HBuffer, BufferObject> mBufferMap;
+        std::unordered_map<HTexture, ImageObject> mImageMap;
+        std::unordered_map<HRenderPipeline, RenderPipelineObject> mRPMap;
+        std::unordered_map<HSampler, VkSampler> mSamplerMap;
 
-        //API
-        GLFWwindow* mWindow;
 
         VkInstance  mInstance;
         VkDevice    mDevice;
@@ -234,26 +183,21 @@ namespace Cutlass
 
         VkPhysicalDeviceMemoryProperties mPhysMemProps;
 
-        VkSurfaceKHR        mSurface;
-        VkSurfaceFormatKHR  mSurfaceFormat;
-        VkSurfaceCapabilitiesKHR  mSurfaceCaps;
+        // VkSurfaceKHR        mSurface;
+        // VkSurfaceFormatKHR  mSurfaceFormat;
+        // VkSurfaceCapabilitiesKHR  mSurfaceCaps;
         
         uint32_t mGraphicsQueueIndex;
         VkQueue mDeviceQueue;
         
         VkCommandPool mCommandPool;
-        VkPresentModeKHR mPresentMode;
-        VkSwapchainKHR  mSwapchain;
-        VkExtent2D    mSwapchainExtent;
-        std::vector<VkImage> mSwapchainImages;
-        std::vector<VkImageView> mSwapchainViews;
-        
-        VkImage         mDepthBuffer;
-        VkDeviceMemory  mDepthBufferMemory;
-        VkImageView     mDepthBufferView;
-        
-        //VkRenderPass      mRenderPass;
-        std::vector<VkFramebuffer>    mFramebuffers;
+        // VkPresentModeKHR mPresentMode;
+        // VkSwapchainKHR  mSwapchain;
+        // VkExtent2D    mSwapchainExtent;
+        // std::vector<VkImage> mSwapchainImages;
+        // std::vector<VkImageView> mSwapchainViews;
+
+        ImageObject mDepthBuffer;
         
         std::vector<VkFence>          mFences;
         VkSemaphore   mRenderCompletedSem, mPresentCompletedSem;
@@ -267,7 +211,6 @@ namespace Cutlass
         std::vector<VkCommandBuffer> mCommands;
         
         uint32_t  mImageIndex;
-
     };
 
 };

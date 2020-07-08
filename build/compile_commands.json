@@ -1,0 +1,7 @@
+[
+{
+  "directory": "/home/ichi/C++/CutlassEngine/build",
+  "command": "/usr/bin/c++   -I../vulkan -I../glfw -I../glm -I../stb -I../include  -g   -g -O0 -std=c++17 -o CMakeFiles/cutlass.dir/src/Device.cpp.o -c /home/ichi/C++/CutlassEngine/src/Device.cpp",
+  "file": "/home/ichi/C++/CutlassEngine/src/Device.cpp"
+}
+]
