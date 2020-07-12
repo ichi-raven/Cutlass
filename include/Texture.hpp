@@ -11,7 +11,7 @@ namespace Cutlass
     {
         eShaderResource,
         eColorTarget,
-        eDepthTarget,
+        eDepthStencilTarget,
         eSwapchainImage,//自分で指定しても破損するだけです
         //eUnordered,
     };

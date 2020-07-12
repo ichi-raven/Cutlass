@@ -4,7 +4,6 @@
 
 namespace Cutlass
 {
-    
     using HSwapchain = uint32_t;
     using HBuffer = uint32_t;
     using HTexture = uint32_t;

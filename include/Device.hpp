@@ -18,11 +18,12 @@
 #include "RenderPipeline.hpp"
 #include "Command.hpp"
 
+
 namespace Cutlass
 {
     #define ENGINE_NAME ("CutlassEngine")
 
-    struct windowInfo
+    struct WindowInfo
     {
         uint32_t width;
         uint32_t height;
@@ -31,7 +32,7 @@ namespace Cutlass
 
     struct InitializeInfo
     {
-        std::vector<windowInfo>     windows;
+        std::vector<WindowInfo>     windows;
         std::string                 appName;
         uint32_t                    frameCount;
         bool                        debugFlag;
@@ -50,16 +51,19 @@ namespace Cutlass
         ~Device();
 
         //初期化
-        Result initialize(const InitializeInfo& info, std::vector<HSwapchain>* hSwapchains);
+        Result initialize(const InitializeInfo& info, std::vector<HSwapchain>& handlesRef);
 
-        //スワップチェインのテクスチャハンドル取得(指定したフレーム数)
-        Result getSwapchainImages(HSwapchain handle, std::vector<HTexture>* hSwapchainImages);
+        // //スワップチェインのテクスチャハンドル取得(指定フレーム)
+        // Result getSwapchainImageHandle(HSwapchain handle, std::vector<HTexture>& handlesRef);
+
+        // //スワップチェインのデプスバッファを取得
+        // Result getSwapchainDepthBuffer(HSwapchain handle, HTexture *pHandle);
 
         //バッファ作成
         Result createBuffer(const BufferInfo& info, HBuffer *pHandle);
 
         //バッファ書き込み
-        Result writeBuffer(const HBuffer& handle, void *data, size_t bytesize);
+        Result writeBuffer(HBuffer handle, void *data, size_t bytesize);
 
         //テクスチャ作成(ファイル読み込み可)
         Result createTexture(const TextureInfo& info, HTexture *pHandle);
@@ -69,13 +73,13 @@ namespace Cutlass
         Result writeTexture(const size_t size, const void* const pData, const HTexture& handle);
 
         //用途変更
-        Result changeUsage(TextureUsage prev, TextureUsage next, const HTexture &handle);
+        Result changeTextureUsage(TextureUsage prev, TextureUsage next, const HTexture &handle);
 
         //サンプラー作成
         Result createSampler(HSampler *pHandle);
 
         //画像に使用するサンプラーをアタッチ
-        Result attachSampler(const HTexture &handle, const HSampler &hSampler);
+        Result attachSampler(HTexture handle, const HSampler &hSampler);
 
         //描画パイプライン構築
         Result createRenderPipeline(const RenderPipelineInfo& info, HRenderPipeline* hRenderPipeline);
@@ -96,16 +100,16 @@ namespace Cutlass
 
         struct SwapchainObject
         {
-            std::optional<GLFWwindow*> mpWindow;
-
-            std::optional<VkSurfaceKHR>             mSurface;
-            std::optional<VkSwapchainKHR>           mSwapchain;
+            std::optional<GLFWwindow*>      mpWindow;
+            std::optional<VkSurfaceKHR>     mSurface;
+            std::optional<VkSwapchainKHR>   mSwapchain;
 
             VkSurfaceCapabilitiesKHR    mSurfaceCaps;
             VkSurfaceFormatKHR          mSurfaceFormat;
             VkPresentModeKHR            mPresentMode;
             VkExtent2D                  mSwapchainExtent;
             std::vector<HTexture>       mSwapchainImages;
+            HTexture                    mHDepthBuffer;
         };
 
         struct BufferObject
@@ -125,6 +129,7 @@ namespace Cutlass
             bool                            mIsHostVisible;
             VkFormat                        format;
             TextureUsage                    usage;
+            VkExtent3D                      extent;
         };
 
         struct RenderPipelineObject
@@ -133,8 +138,8 @@ namespace Cutlass
             std::optional<VkPipelineLayout>        mPipelineLayout;
             std::optional<VkPipeline>              mPipeline;
             std::optional<VkDescriptorSetLayout>   mDescriptorSetLayout;
+            std::optional<VkFramebuffer>           mFramebuffer;
         };
-
 
         static inline Result checkVkResult(VkResult);
         Result createInstance();
@@ -146,9 +151,8 @@ namespace Cutlass
         Result createSurface(SwapchainObject* pSO);
         Result selectSurfaceFormat(SwapchainObject* pSO, VkFormat format);
         Result createSwapchain(SwapchainObject* pSO);
-
-        //Result createDepthBuffer();
         Result createSwapchainImages(SwapchainObject* pSO);
+        Result createDepthBuffer(SwapchainObject* pSO);
 
         Result createDefaultFramebuffer();
 
@@ -180,37 +184,25 @@ namespace Cutlass
         VkInstance  mInstance;
         VkDevice    mDevice;
         VkPhysicalDevice  mPhysDev;
-
         VkPhysicalDeviceMemoryProperties mPhysMemProps;
-
-        // VkSurfaceKHR        mSurface;
-        // VkSurfaceFormatKHR  mSurfaceFormat;
-        // VkSurfaceCapabilitiesKHR  mSurfaceCaps;
-        
         uint32_t mGraphicsQueueIndex;
         VkQueue mDeviceQueue;
-        
         VkCommandPool mCommandPool;
-        // VkPresentModeKHR mPresentMode;
-        // VkSwapchainKHR  mSwapchain;
-        // VkExtent2D    mSwapchainExtent;
-        // std::vector<VkImage> mSwapchainImages;
-        // std::vector<VkImageView> mSwapchainViews;
 
-        ImageObject mDepthBuffer;
+        //ImageObject mDepthBuffer;
         
         std::vector<VkFence>          mFences;
         VkSemaphore   mRenderCompletedSem, mPresentCompletedSem;
-        
+        std::vector<VkCommandBuffer> mCommands;
+
         // デバッグレポート関連
         PFN_vkCreateDebugReportCallbackEXT	mvkCreateDebugReportCallbackEXT;
         PFN_vkDebugReportMessageEXT	mvkDebugReportMessageEXT;
         PFN_vkDestroyDebugReportCallbackEXT mvkDestroyDebugReportCallbackEXT;
         VkDebugReportCallbackEXT  mDebugReport;
+
         
-        std::vector<VkCommandBuffer> mCommands;
-        
-        uint32_t  mImageIndex;
+        uint32_t  mSwapchainImageIndex;//現在のフレームが指すスワップチェインイメージ
     };
 
 };

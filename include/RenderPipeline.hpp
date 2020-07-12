@@ -7,11 +7,15 @@
 
 namespace Cutlass
 {
-    enum class RenderDSTType
-    {
-        eColor,
-        eDepth,
-    };
+    // enum class RenderDSTType
+    // {
+    //     eColor,
+    //     eDepth,
+    // };
+
+    using Viewport = std::array<std::array<float, 3>, 2>;
+    using Scissor = std::array<std::array<float, 2>, 2>;
+
 
     enum class ColorBlend
     {
@@ -36,13 +40,16 @@ namespace Cutlass
 
     enum class DepthStencilState
     {
-        eDefault,
+        eNone,
+        eDepth,
+        eStencil,
+        eBoth,
     };
 
     struct VertexLayout
     {
-        size_t sizeOfType;//型のサイズ
-        std::vector<std::pair<ResourceType, const char*>> layouts;
+        size_t sizeOfType;//全体としての型のサイズ
+        std::vector<std::pair<ResourceType, std::string>> layouts;
         //std::vector<std::string> names;
     };
 
@@ -60,8 +67,8 @@ namespace Cutlass
 
     struct Shader
     {
-        const char* path;
-        const char* entryPoint;
+        std::string path;
+        std::string entryPoint;
     };
 
     struct RenderPipelineInfo
@@ -71,10 +78,14 @@ namespace Cutlass
         Topology topology;
         RasterizerState rasterizerState;
         MultiSampleState multiSampleState;
-        std::vector<std::pair<RenderDSTType, HTexture>> renderDSTs;
+        DepthStencilState depthStencilState;
         Shader vertexShader;
         Shader fragmentShader;
         ShaderResourceLayout SRLayouts;
+        std::optional<Viewport> viewport; //左上手前、右下奥3次元(Depthは正規化座標)
+        std::optional<Scissor> scissor;  //左上、右下2次元
+        std::optional<std::vector<HSwapchain>> swapchains;
+        std::optional<std::vector<HTexture>> renderDSTs;
+        bool depthTestEnable;
     };
-
 };

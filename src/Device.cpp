@@ -56,14 +56,13 @@ namespace Cutlass
         return;
     }
 
-    Result Device::initialize(const InitializeInfo& initializeInfo, std::vector<HSwapchain>* hSwapchains)
+    Result Device::initialize(const InitializeInfo& initializeInfo, std::vector<HSwapchain>& handlesRef)
     {
         mInitializeInfo = initializeInfo;
         Result result;
 
         std::cout << "initialize started...\n";
 
- 
         //GLFW初期化
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -123,7 +122,7 @@ namespace Cutlass
 
         //ウィンドウサーフェス、スワップチェイン作成
         {
-            int time;
+            int time = 0;
             for (auto &w : mInitializeInfo.windows)
             {
                 std::cout << "Swapchain No. " << time++ << "------\n";
@@ -150,10 +149,23 @@ namespace Cutlass
                 }
                 std::cout << "created VkSwapChainKHR\n";
 
+                result = createSwapchainImages(&so);
+                if (Result::eSuccess != result)
+                {
+                    return result;
+                }
+                std::cout << "created swapchain images\n";
+
+                result = createDepthBuffer(&so);
+                if (Result::eSuccess != result)
+                {
+                    return result;
+                }
+                std::cout << "created swapchain depthbuffer\n";
 
                 //スワップチェインオブジェクト格納
                 mSwapchainMap.emplace(mNextSwapchainHandle, so);
-                hSwapchains->emplace_back(++mNextSwapchainHandle);
+                handlesRef.emplace_back(++mNextSwapchainHandle);
             }
 
             std::cout << "all swapchain object created.\n";
@@ -233,16 +245,19 @@ namespace Cutlass
         vkDestroySemaphore(mDevice, mRenderCompletedSem, nullptr);
         std::cout << "destroyed semaphores\n";
 
-        // vkFreeCommandBuffers(mDevice, mCommandPool, uint32_t(mCommands.size()), mCommands.data());
-        // mCommands.clear();
-        // std::cout << "destroyed command buffers\n";
+        if(mCommands.size() > 0)//現状こうしてある
+        {
+            vkFreeCommandBuffers(mDevice, mCommandPool, uint32_t(mCommands.size()), mCommands.data());
+            mCommands.clear();
+            std::cout << "destroyed command buffers\n";
+        }
 
         vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
         std::cout << "destroyed command pool\n";
 
         for(auto& so : mSwapchainMap)
         {
-            std::cout << "destroyed swapchain imageViews\n";
+            //std::cout << "destroyed swapchain imageViews\n";
             
             vkDestroySwapchainKHR(mDevice, so.second.mSwapchain.value(), nullptr);
             std::cout << "destroyed swapchain\n";
@@ -622,6 +637,7 @@ namespace Cutlass
             io.mView = swapchainViews[i];
             io.usage = TextureUsage::eSwapchainImage;
             io.mIsHostVisible = false;
+            io.extent = { pSO->mSwapchainExtent.width, pSO->mSwapchainExtent.height, 1.f};
         }
 
         return Result::eSuccess;
@@ -648,9 +664,38 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
+    // Result Device::getSwapchainImages(HSwapchain handle, std::vector<HTexture>& handlesRef)
+    // {
+    //     if(mSwapchainMap.count(handle) <= 0)
+    //     {
+    //         return Result::eFailure;
+    //     }
+
+    //     auto &images = mSwapchainMap[handle].mSwapchainImages;
+    //     handlesRef.resize(images.size());
+    //     for(size_t i = 0; i < handlesRef.size(); ++i)
+    //     {
+    //         handlesRef.at(i) = images[i];
+    //     }
+
+    //     return Result::eSuccess;
+    // }
+
+    // Result Device::getSwapchainDepthBuffer(HSwapchain handle, HTexture *pHandle)
+    // {
+    //     if(mSwapchainMap.count(handle) <= 0)
+    //     {
+    //         return Result::eFailure;
+    //     }
+
+    //     *pHandle = mSwapchainMap[handle].mHDepthBuffer;
+
+    //     return Result::eSuccess;
+    // }
+
     Result Device::enableDebugReport()
     {
-        std::cout << "Debug mode enabled.\n";
+        std::cout << "enabled debug mode\n";
 
         GetInstanceProcAddr(vkCreateDebugReportCallbackEXT);
         GetInstanceProcAddr(vkDebugReportMessageEXT);
@@ -675,14 +720,14 @@ namespace Cutlass
             mvkDestroyDebugReportCallbackEXT(mInstance, mDebugReport, nullptr);
         }
 
-        std::cout << "Debug mode disabled.\n";
+        std::cout << " disabled debug mode\n";
 
         return Result::eSuccess;
     }
 
     uint32_t Device::getMemoryTypeIndex(uint32_t requestBits, VkMemoryPropertyFlags requestProps) const
     {
-        uint32_t result = ~0u;
+        uint32_t result = 0;
         for (uint32_t i = 0; i < mPhysMemProps.memoryTypeCount; ++i)
         {
             if (requestBits & 1)
@@ -852,10 +897,10 @@ namespace Cutlass
                 ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
                 break;
             case TextureUsage::eColorTarget:
-                ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+                ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
                 break;
-            case TextureUsage::eDepthTarget:
-                ci.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+            case TextureUsage::eDepthStencilTarget:
+                ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
                 break;
             // case TextureUsage::eUnordered: //不定なのでこまった
             //     ci.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
@@ -871,6 +916,8 @@ namespace Cutlass
             ci.mipLevels = 1;
             ci.samples = VK_SAMPLE_COUNT_1_BIT;
             ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+            io.extent = ci.extent;
 
             result = checkVkResult(vkCreateImage(mDevice, &ci, nullptr, &io.mImage.value()));
             if (Result::eSuccess != result)
@@ -935,7 +982,7 @@ namespace Cutlass
 
             switch(info.usage)
             {
-                case TextureUsage::eDepthTarget:
+                case TextureUsage::eDepthStencilTarget:
                     ci.subresourceRange = {
                         VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
                     break;
@@ -984,6 +1031,8 @@ namespace Cutlass
                 std::cout << "Failed to load texture file!\n";
                 return Result::eFailure;
             }
+
+            io.extent = {static_cast<float>(width), static_cast<float>(height), 1.f};
 
             // テクスチャのVkImageを生成
             ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -1200,50 +1249,57 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    // Result Device::createDepthBuffer()
-    // {
-    //     Result result;
+    Result Device::createDepthBuffer(SwapchainObject* pSO)
+    {
+        Result result;
 
-    //     VkImageCreateInfo ci{};
-    //     ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    //     ci.imageType = VK_IMAGE_TYPE_2D;
-    //     ci.format = VK_FORMAT_D32_SFLOAT;
-    //     ci.extent.width = mSwapchainExtent.width;
-    //     ci.extent.height = mSwapchainExtent.height;
-    //     ci.extent.depth = 1;
-    //     ci.mipLevels = 1;
-    //     ci.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    //     ci.samples = VK_SAMPLE_COUNT_1_BIT;
-    //     ci.arrayLayers = 1;
-    //     //imageオブジェクト作成
-    //     result = checkVkResult(vkCreateImage(mDevice, &ci, nullptr, &mDepthBuffer.mImage));
-    //     if (Result::eSuccess != result)
-    //     {
-    //         return result;
-    //     }
+        ImageObject io;
+
+        VkImageCreateInfo ci{};
+        ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        ci.imageType = VK_IMAGE_TYPE_2D;
+        ci.format = VK_FORMAT_D32_SFLOAT;
+        ci.extent.width = pSO->mSwapchainExtent.width;
+        ci.extent.height = pSO->mSwapchainExtent.height;
+        ci.extent.depth = 1;
+        ci.mipLevels = 1;
+        ci.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        ci.samples = VK_SAMPLE_COUNT_1_BIT;
+        ci.arrayLayers = 1;
+        //imageオブジェクト作成
+        result = checkVkResult(vkCreateImage(mDevice, &ci, nullptr, &io.mImage.value()));
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
 
 
-    //     VkMemoryRequirements reqs;
-    //     vkGetImageMemoryRequirements(mDevice, mDepthBuffer.mImage, &reqs);
-    //     VkMemoryAllocateInfo ai{};
-    //     ai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    //     ai.allocationSize = reqs.size;
-    //     ai.memoryTypeIndex = getMemoryTypeIndex(reqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        VkMemoryRequirements reqs;
+        vkGetImageMemoryRequirements(mDevice, io.mImage.value(), &reqs);
+        VkMemoryAllocateInfo ai{};
+        ai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        ai.allocationSize = reqs.size;
+        ai.memoryTypeIndex = getMemoryTypeIndex(reqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         
-    //     result = checkVkResult(vkAllocateMemory(mDevice, &ai, nullptr, &mDepthBuffer.mMemory));
-    //     if (Result::eSuccess != result)
-    //     {
-    //         return result;
-    //     }
+        result = checkVkResult(vkAllocateMemory(mDevice, &ai, nullptr, &io.mMemory.value()));
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
 
-    //     result = checkVkResult(vkBindImageMemory(mDevice, mDepthBuffer.mImage, mDepthBuffer.mMemory, 0));
-    //     if (Result::eSuccess != result)
-    //     {
-    //         return result;
-    //     }
+        result = checkVkResult(vkBindImageMemory(mDevice, io.mImage.value(), io.mMemory.value(), 0));
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
 
-    //     return Result::eSuccess;
-    // }
+        io.usage = TextureUsage::eDepthStencilTarget;
+
+        mImageMap.emplace(mNextTextureHandle, io);
+        pSO->mHDepthBuffer = mNextTextureHandle++;
+
+        return Result::eSuccess;
+    }
 
     
 
@@ -1276,49 +1332,113 @@ namespace Cutlass
         Result result;
         RenderPipelineObject rpo;
 
-        //Renderpass, 対象に応じたFramebuffer構築??????
+        //Renderpass, 対象に応じたFramebuffer構築
+        if(info.swapchains)
         {
-            VkRenderPassCreateInfo ci;
-            std::vector<VkAttachmentDescription> ad_vec;
-            std::vector<VkAttachmentReference> ar_vec;
-
-            ad_vec.reserve((info.renderDSTs.size()));
-            ar_vec.reserve((info.renderDSTs.size()));
-
-            for (auto &e : info.renderDSTs)
+            if(info.renderDSTs->empty())
             {
-                if(mImageMap.count(e.second) <= 0)
+                std::cout << "renderDST is empty\n";
+                return Result::eFailure;
+            }
+
+            VkRenderPassCreateInfo ci;
+            std::vector<VkAttachmentDescription> adVec;
+            std::vector<VkAttachmentReference> arVec;
+
+            adVec.reserve(info.renderDSTs->size());
+            arVec.reserve(info.renderDSTs->size());
+
+            for (size_t i = 0; i < info.renderDSTs->size(); ++i)
+            {
+                auto &rdst = info.renderDSTs[i];
+
+                if (mImageMap.count(rdst) <= 0)
                 {
                     return Result::eFailure;
                 }
 
-                auto &io = mImageMap[e.second];
+                auto &io = mImageMap[rdst];
 
-                ad_vec.emplace_back();
-                ad_vec.back().format = io.format;
-                ad_vec.back().samples = VK_SAMPLE_COUNT_1_BIT;
-                ad_vec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-                ad_vec.back().storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                ad_vec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                adVec.emplace_back();
+                adVec.back().format = io.format;
+                adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
+                adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+                adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-                switch(io.usage)
+                arVec.emplace_back().attachment = i;
+
+                switch (io.usage)
                 {
                 case TextureUsage::eColorTarget:
-                    ad_vec.back().finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                    break;
-                case TextureUsage::eDepthTarget:
-                    ad_vec.back().finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                    adVec.back().finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                    arVec.back().layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
                     break;
                 case TextureUsage::eSwapchainImage:
-                    ad_vec.back().finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+                    adVec.back().finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+                    arVec.back().layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
                     break;
-                default:
+                case TextureUsage::eDepthStencilTarget:
+                    std::cout << "depthStencilBuffer can't be renderDST\n";
+                    return Result::eFailure;
+                    break;
+                default: //くるわけないのであるが...
                     return Result::eFailure;
                     break;
                 }
             }
 
+            VkSubpassDescription subpassDesc{};
+            subpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+            subpassDesc.colorAttachmentCount = arVec.size();
+            subpassDesc.pColorAttachments = arVec.data();
 
+            //指定されていれば末尾にDSBを追加
+            if(info.depthStencilBuffer)
+            {
+                adVec.emplace_back();
+                arVec.emplace_back();
+
+                if(mImageMap.count(info.depthStencilBuffer.value()) <= 0)
+                {
+                    std::cout << "this depthStencilBufferHandle is invalid\n";
+                    return Result::eFailure;
+                }
+
+                adVec.back().format = mImageMap[info.depthStencilBuffer.value()].format;
+                adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
+                adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+                adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                adVec.back().finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                arVec.back().attachment = info.renderDSTs.size();
+                arVec.back().layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+                subpassDesc.pDepthStencilAttachment = &arVec.back();
+            }
+
+            ci.attachmentCount = uint32_t(adVec.size());
+            ci.pAttachments = adVec.data();
+            ci.subpassCount = 1;
+            ci.pSubpasses = &subpassDesc;
+
+            result = checkVkResult(vkCreateRenderPass(mDevice, &ci, nullptr, &rpo.mRenderPass.value()));
+            if (Result::eSuccess != result)
+            {
+                return result;
+            }
+
+            for(auto& h : info.renderDSTs)
+            {
+                const auto &img = mImageMap[h];
+                VkFramebufferCreateInfo fbci;
+                fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+                fbci.renderPass = rpo.mRenderPass.value();
+                fbci.width = img.extent.width;
+                fbci.height = img.extent.height;
+                fbci.layers = 1;
+                fbci.attachmentCount = 
+            }
         }
 
         //PSO構築
@@ -1356,6 +1476,7 @@ namespace Cutlass
                     ia_vec.back().format = VK_FORMAT_R32G32B32A32_SFLOAT;
                     break;
                 default:
+                    std::cout << "Resource type (" << i << ") is not described\n";
                     return Result::eFailure;
                     break;
                 }
@@ -1395,6 +1516,7 @@ namespace Cutlass
                 break;
 
             default:
+                std::cout << "color blend state is not described\n";
                 return Result::eFailure;
                 break;
             }
@@ -1402,21 +1524,47 @@ namespace Cutlass
             // ビューポート
             VkViewport viewport;
             VkRect2D scissor;
-            VkOffset2D offset;
 
-            viewport.x = 0.0f;
-            viewport.y = float(mSwapchainExtent.height);
-            viewport.width = float(mSwapchainExtent.width);
-            viewport.height = -1.0f * float(mSwapchainExtent.height);
-            viewport.minDepth = 0.0f;
-            viewport.maxDepth = 1.0f;
+            if(info.viewport)
+            {
+                viewport.x = info.viewport.value()[0][0];
+                viewport.y = info.viewport.value()[0][1];
+                viewport.minDepth = info.viewport.value()[0][2];
+
+                viewport.width = info.viewport.value()[1][0];
+                viewport.height = -1.0f * info.viewport.value()[1][1];//上は反転します
+                viewport.maxDepth = info.viewport.value()[1][2];
+            }
+            else
+            {
+                const VkExtent3D& extent = mImageMap[info.renderDSTs[0]].extent;
+                viewport.x = 0;
+                viewport.y = -1.f * extent.height;
+                viewport.width = static_cast<float>(extent.width);
+                viewport.height = -1.f * static_cast<float>(extent.height);
+                viewport.minDepth = 0;
+                viewport.maxDepth = extent.depth;
+            }
+            
+
             //シザー
+            if(info.scissor)
+            {
+                scissor.offset.x = static_cast<float>(info.scissor.value()[0][0]);
+                scissor.offset.y = static_cast<float>(info.scissor.value()[0][1]);
+                scissor.extent =
+                {static_cast<float>(info.scissor.value()[1][0]), 
+                static_cast<float>(info.scissor.value()[1][1])};
+            }
+            else
+            {
+                scissor.offset = {0, 0};
+                scissor.extent = 
+                {mImageMap[info.renderDSTs[0]].extent.width, 
+                mImageMap[info.renderDSTs[0]].extent.height};
+            }
+            
 
-
-            offset.x = 0;
-            offset.y = 0;
-            scissor.offset = offset;
-            scissor.extent = mSwapchainExtent;
         
             VkPipelineViewportStateCreateInfo vpsci;
             vpsci.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -1435,9 +1583,11 @@ namespace Cutlass
                 iaci.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
                 break;
             default:
+                std::cout << "primitive topology is not described\n";
                 return Result::eFailure;
                 break;
             }
+
 
             VkPipelineRasterizationStateCreateInfo rci;
             rci.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -1450,7 +1600,9 @@ namespace Cutlass
                 rci.lineWidth = 1.f;
                 break;
             default:
+                std::cout << "rasterizer state is not described\n";
                 return Result::eFailure;
+                break;
             }
 
 
@@ -1462,15 +1614,39 @@ namespace Cutlass
                 msci.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
                 break;
             default:
+                std::cout << "multisampling state is not described\n";
                 return Result::eFailure;
                 break;
             }
 
+
             VkPipelineDepthStencilStateCreateInfo dsci;
-
             dsci.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+            switch(info.depthStencilState)
+            {
+            case DepthStencilState::eNone:
+                dsci.depthTestEnable = dsci.stencilTestEnable = VK_FALSE;
+                break;
+            case DepthStencilState::eDepth:
+                dsci.depthTestEnable = VK_TRUE;
+                dsci.stencilTestEnable = VK_FALSE;
+                break;
+            case DepthStencilState::eStencil:
+                dsci.depthTestEnable = VK_FALSE;
+                dsci.stencilTestEnable = VK_TRUE;
+                break;
+            case DepthStencilState::eBoth:
+                dsci.depthTestEnable = dsci.stencilTestEnable = VK_TRUE;
+                break;
+            default:
+                std::cout << "depth stencil state is not described\n";
+                return Result::eFailure;
+                break;
+            }
 
+            std::array<VkPipelineShaderStageCreateInfo, 2> ssciArr; 
             
+
             VkPipelineLayoutCreateInfo ci;
             ci.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
             
