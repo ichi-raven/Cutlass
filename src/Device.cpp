@@ -999,6 +999,11 @@ namespace Cutlass
             }
         }
 
+		VkSamplerCreateInfo sci;
+		sci.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+		sci.pNext = nullptr;
+
+
         *pHandle = mNextTextureHandle++;
         mImageMap.emplace(*pHandle, io);
 
@@ -1301,7 +1306,7 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    
+    //
 
         // for depthbuffer
         // {

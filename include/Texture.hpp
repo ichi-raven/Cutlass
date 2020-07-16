@@ -28,11 +28,17 @@ namespace Cutlass
         eFloat,
     };
 
+	enum class SamplerType
+	{
+		eDefault,
+	};
+
     struct TextureInfo
     {
         TextureUsage usage;
         TextureDimention dimention;
         std::pair<ResourceType, TextureFormatType> format;
+		SamplerType samplerType;
         bool isHostVisible;
         uint32_t width;
         uint32_t height;

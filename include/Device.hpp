@@ -44,7 +44,7 @@ namespace Cutlass
         Device() : mNextSwapchainHandle(1),
                    mNextBufferHandle(1),
                    mNextTextureHandle(1),
-                   mNextSamplerHandle(1),
+                   mNextRenderDSTHandle(1),
                    mNextRPHandle(1)
                    {}
 
@@ -76,10 +76,10 @@ namespace Cutlass
         Result changeTextureUsage(TextureUsage prev, TextureUsage next, const HTexture &handle);
 
         //サンプラー作成
-        Result createSampler(HSampler *pHandle);
+        //Result createSampler(HSampler *pHandle);
 
         //画像に使用するサンプラーをアタッチ
-        Result attachSampler(HTexture handle, const HSampler &hSampler);
+        //Result attachSampler(HTexture handle, const HSampler &hSampler);
 
         //描画パイプライン構築
         Result createRenderPipeline(const RenderPipelineInfo& info, HRenderPipeline* hRenderPipeline);
@@ -124,7 +124,7 @@ namespace Cutlass
             std::optional<VkImage>          mImage;
             std::optional<VkDeviceMemory>   mMemory;
             std::optional<VkImageView>      mView;
-            std::optional<HSampler>         mHSampler;
+            std::optional<VkSampler>        mSampler;
             std::optional<VkFramebuffer>    mFrameBuffer;
             bool                            mIsHostVisible;
             VkFormat                        format;
@@ -134,12 +134,18 @@ namespace Cutlass
 
         struct RenderPipelineObject
         {
-            std::optional<VkRenderPass>            mRenderPass;
+            //std::optional<VkRenderPass>            mRenderPass;
             std::optional<VkPipelineLayout>        mPipelineLayout;
             std::optional<VkPipeline>              mPipeline;
             std::optional<VkDescriptorSetLayout>   mDescriptorSetLayout;
-            std::optional<VkFramebuffer>           mFramebuffer;
+            //std::optional<VkFramebuffer>           mFramebuffer;
         };
+
+		struct RenderDSTObject
+		{
+			std::optional<VkRenderPass> mRenderPass;
+			std::optional<VkFramebuffer> mFramebuffer;
+		};
 
         static inline Result checkVkResult(VkResult);
         Result createInstance();
@@ -172,13 +178,15 @@ namespace Cutlass
         HSwapchain              mNextSwapchainHandle;
         HBuffer                 mNextBufferHandle;
         HTexture                mNextTextureHandle;
-        HSampler                mNextSamplerHandle;
+        //HSampler                mNextSamplerHandle;
         HRenderPipeline         mNextRPHandle;
-        std::unordered_map<HSwapchain, SwapchainObject> mSwapchainMap;
-        std::unordered_map<HBuffer, BufferObject> mBufferMap;
-        std::unordered_map<HTexture, ImageObject> mImageMap;
-        std::unordered_map<HRenderPipeline, RenderPipelineObject> mRPMap;
-        std::unordered_map<HSampler, VkSampler> mSamplerMap;
+		HRenderDST				mNextRenderDSTHandle;
+        std::unordered_map<HSwapchain, SwapchainObject>				mSwapchainMap;
+        std::unordered_map<HBuffer, BufferObject>					mBufferMap;
+        std::unordered_map<HTexture, ImageObject>					mImageMap;
+        std::unordered_map<HRenderPipeline, RenderPipelineObject>	mRPMap;
+		std::unordered_map<HRenderDST, RenderDSTObject>				mRDSTMap;
+        //std::unordered_map<HSampler, VkSampler> mSamplerMap;
 
 
         VkInstance  mInstance;
