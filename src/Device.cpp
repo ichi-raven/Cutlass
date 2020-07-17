@@ -218,17 +218,20 @@ namespace Cutlass
                 vkFreeMemory(mDevice, e.second.mMemory.value(), nullptr);
             if (e.second.mView)
                 vkDestroyImageView(mDevice, e.second.mView.value(), nullptr);
-            if(e.second.mFrameBuffer)
-                vkDestroyFramebuffer(mDevice, e.second.mFrameBuffer.value(), nullptr);
+            //if(e.second.mFrameBuffer)
+            //    vkDestroyFramebuffer(mDevice, e.second.mFrameBuffer.value(), nullptr);
+
+			if(e.second.mSampler)
+				vkDestroySampler(mDevice, e.second.mSampler.value(), nullptr);
         }
         mImageMap.clear();
         std::cout << "destroyed user allocated textures\n";
 
-        for(auto& e : mSamplerMap)
-        {
-            vkDestroySampler(mDevice, e.second, nullptr);
-        }
-        mSamplerMap.clear();
+        //for(auto& e : mSamplerMap)
+        //{
+        //    vkDestroySampler(mDevice, e.second, nullptr);
+        //}
+        //mSamplerMap.clear();
         std::cout << "destroyed user allocated sampler\n";
 
         for (auto &v : mFences)
@@ -828,181 +831,188 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Device::createTexture(const TextureInfo &info, HTexture *pHandle)
-    {
-        Result result;
-        ImageObject io;
+	Result Device::createTexture(const TextureInfo& info, HTexture* pHandle)
+	{
+		Result result;
+		ImageObject io;
 
-        {
-            VkImageCreateInfo ci;
+		{
+			VkImageCreateInfo ci;
 
-            ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-            ci.pNext = nullptr;
-            switch (info.format.first)
-            {
-            case ResourceType::eFVec3:
-                switch (info.format.second)
-                {
-                case TextureFormatType::eUNorm:
-                    io.format = VK_FORMAT_R8G8B8_UNORM;
-                    break;
-                case TextureFormatType::eFloat:
-                    io.format = VK_FORMAT_R16G16B16_SFLOAT;
-                    break;
-                default:
-                    return Result::eFailure;
-                }
-                break;
-            case ResourceType::eFVec4:
-                switch (info.format.second)
-                {
-                case TextureFormatType::eUNorm:
-                    io.format = VK_FORMAT_R8G8B8A8_UNORM;
-                    break;
-                case TextureFormatType::eFloat:
-                    io.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-                    break;
-                default:
-                    return Result::eFailure;
-                    break;
-                }
-                break;
-            default:
-                return Result::eFailure;
-                break;
-            }
+			ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+			ci.pNext = nullptr;
+			switch (info.format.first)
+			{
+			case ResourceType::eFVec3:
+				switch (info.format.second)
+				{
+				case TextureFormatType::eUNorm:
+					io.format = VK_FORMAT_R8G8B8_UNORM;
+					break;
+				case TextureFormatType::eFloat:
+					io.format = VK_FORMAT_R16G16B16_SFLOAT;
+					break;
+				default:
+					return Result::eFailure;
+				}
+				break;
+			case ResourceType::eFVec4:
+				switch (info.format.second)
+				{
+				case TextureFormatType::eUNorm:
+					io.format = VK_FORMAT_R8G8B8A8_UNORM;
+					break;
+				case TextureFormatType::eFloat:
+					io.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+					break;
+				default:
+					return Result::eFailure;
+					break;
+				}
+				break;
+			default:
+				return Result::eFailure;
+				break;
+			}
 
-            ci.format = io.format;
+			ci.format = io.format;
 
-            switch(info.dimention)
-            {
-            case TextureDimention::e2D:
-                ci.imageType = VK_IMAGE_TYPE_2D;
-                ci.extent = {uint32_t(info.width), uint32_t(info.height), 1};
-                if(info.depth != 1)
-                    std::cout << "ignored invalid depth param\n";
-                break;
-            // case TextureDimention::e3D:
-            //     ci.imageType = VK_IMAGE_TYPE_3D;
-            //     ci.extent = {uint32_t(info.width), uint32_t(info.height), uint32_t(info.depth)};
-            //     break;
-            default:
-                return Result::eFailure;
-                break;
-            }
+			switch (info.dimention)
+			{
+			case TextureDimention::e2D:
+				ci.imageType = VK_IMAGE_TYPE_2D;
+				ci.extent = { uint32_t(info.width), uint32_t(info.height), 1 };
+				if (info.depth != 1)
+					std::cout << "ignored invalid depth param\n";
+				break;
+				// case TextureDimention::e3D:
+				//     ci.imageType = VK_IMAGE_TYPE_3D;
+				//     ci.extent = {uint32_t(info.width), uint32_t(info.height), uint32_t(info.depth)};
+				//     break;
+			default:
+				return Result::eFailure;
+				break;
+			}
 
-            switch(info.usage)
-            {
-            case TextureUsage::eShaderResource:
-                ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-                break;
-            case TextureUsage::eColorTarget:
-                ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-                break;
-            case TextureUsage::eDepthStencilTarget:
-                ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-                break;
-            // case TextureUsage::eUnordered: //不定なのでこまった
-            //     ci.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-            //     break;
-            default:
-                return Result::eFailure;
-                break;
-            }
+			switch (info.usage)
+			{
+			case TextureUsage::eShaderResource:
+				ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+				break;
+			case TextureUsage::eColorTarget:
+				ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+				break;
+			case TextureUsage::eDepthStencilTarget:
+				ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+				break;
+				// case TextureUsage::eUnordered: //不定なのでこまった
+				//     ci.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+				//     break;
+			default:
+				return Result::eFailure;
+				break;
+			}
 
-            io.usage = info.usage;
+			io.usage = info.usage;
 
-            ci.arrayLayers = 1;
-            ci.mipLevels = 1;
-            ci.samples = VK_SAMPLE_COUNT_1_BIT;
-            ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			ci.arrayLayers = 1;
+			ci.mipLevels = 1;
+			ci.samples = VK_SAMPLE_COUNT_1_BIT;
+			ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-            io.extent = ci.extent;
+			io.extent = ci.extent;
 
-            result = checkVkResult(vkCreateImage(mDevice, &ci, nullptr, &io.mImage.value()));
-            if (Result::eSuccess != result)
-            {
-                return result;
-            }
-        }
+			result = checkVkResult(vkCreateImage(mDevice, &ci, nullptr, &io.mImage.value()));
+			if (Result::eSuccess != result)
+			{
+				return result;
+			}
+		}
 
-        // メモリ量の算出
-        VkMemoryRequirements reqs;
-        vkGetImageMemoryRequirements(mDevice, io.mImage.value(), &reqs);
-        VkMemoryAllocateInfo ai{};
-        ai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        ai.allocationSize = reqs.size;
-        // メモリタイプの判定
-        VkMemoryPropertyFlagBits fb;
-        if(info.isHostVisible)
-        {
-            fb = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-            io.mIsHostVisible = false;
-        }
-        else
-        {
-            fb = static_cast<VkMemoryPropertyFlagBits>(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-            io.mIsHostVisible = true;
-        }
+		// メモリ量の算出
+		VkMemoryRequirements reqs;
+		vkGetImageMemoryRequirements(mDevice, io.mImage.value(), &reqs);
+		VkMemoryAllocateInfo ai{};
+		ai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		ai.allocationSize = reqs.size;
+		// メモリタイプの判定
+		VkMemoryPropertyFlagBits fb;
+		if (info.isHostVisible)
+		{
+			fb = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+			io.mIsHostVisible = false;
+		}
+		else
+		{
+			fb = static_cast<VkMemoryPropertyFlagBits>(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+			io.mIsHostVisible = true;
+		}
 
-        ai.memoryTypeIndex = getMemoryTypeIndex(reqs.memoryTypeBits, fb);
-        // メモリの確保
-        vkAllocateMemory(mDevice, &ai, nullptr, &io.mMemory.value());
-        // メモリのバインド
-        vkBindImageMemory(mDevice, io.mImage.value(), io.mMemory.value(), 0);
+		ai.memoryTypeIndex = getMemoryTypeIndex(reqs.memoryTypeBits, fb);
+		// メモリの確保
+		vkAllocateMemory(mDevice, &ai, nullptr, &io.mMemory.value());
+		// メモリのバインド
+		vkBindImageMemory(mDevice, io.mImage.value(), io.mMemory.value(), 0);
 
-        {
-        // テクスチャ参照用のビューを生成
-            VkImageViewCreateInfo ci{};
-            ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		{
+			// テクスチャ参照用のビューを生成
+			VkImageViewCreateInfo ci{};
+			ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 
-            switch (info.dimention)
-            {
-            case TextureDimention::e2D:
-                ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
-                break;
-            // case TextureDimention::e3D:
-            //     ci.viewType = VK_IMAGE_VIEW_TYPE_3D;
-            //     break;
-            default:
-                return Result::eFailure;
-                break;
-            }
+			switch (info.dimention)
+			{
+			case TextureDimention::e2D:
+				ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
+				break;
+				// case TextureDimention::e3D:
+				//     ci.viewType = VK_IMAGE_VIEW_TYPE_3D;
+				//     break;
+			default:
+				return Result::eFailure;
+				break;
+			}
 
-            //ビュー作成がやばい
-            ci.image = io.mImage.value();
-            ci.format = io.format;
-            ci.components = 
-            {
-                VK_COMPONENT_SWIZZLE_R,
-                VK_COMPONENT_SWIZZLE_G,
-                VK_COMPONENT_SWIZZLE_B,
-                VK_COMPONENT_SWIZZLE_A,
-            };
+			//ビュー作成がやばい
+			ci.image = io.mImage.value();
+			ci.format = io.format;
+			ci.components =
+			{
+				VK_COMPONENT_SWIZZLE_R,
+				VK_COMPONENT_SWIZZLE_G,
+				VK_COMPONENT_SWIZZLE_B,
+				VK_COMPONENT_SWIZZLE_A,
+			};
 
-            switch(info.usage)
-            {
-                case TextureUsage::eDepthStencilTarget:
-                    ci.subresourceRange = {
-                        VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
-                    break;
-                default:
-                    ci.subresourceRange = {
-                        VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-                break;
-            }
+			switch (info.usage)
+			{
+			case TextureUsage::eDepthStencilTarget:
+				ci.subresourceRange = {
+					VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 };
+				break;
+			default:
+				ci.subresourceRange = {
+					VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+				break;
+			}
 
-            if (VK_SUCCESS != vkCreateImageView(mDevice, &ci, nullptr, &io.mView.value()))
-            {
-                std::cout << "failed to create vkImageView!\n";
-                exit(-1);
-            }
-        }
+			if (VK_SUCCESS != vkCreateImageView(mDevice, &ci, nullptr, &io.mView.value()))
+			{
+				std::cout << "failed to create vkImageView!\n";
+				exit(-1);
+			}
+		}
 
-		VkSamplerCreateInfo sci;
+		VkSamplerCreateInfo sci;//適当なサンプラー
 		sci.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 		sci.pNext = nullptr;
-
+		sci.minFilter = VK_FILTER_LINEAR;
+		sci.magFilter = VK_FILTER_LINEAR;
+		sci.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		sci.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		sci.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		sci.maxAnisotropy = 1.f;
+		sci.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+		result = checkVkResult(vkCreateSampler(mDevice, &sci, nullptr, &io.mSampler.value()));
 
         *pHandle = mNextTextureHandle++;
         mImageMap.emplace(*pHandle, io);
@@ -1331,120 +1341,131 @@ namespace Cutlass
         // }
 
 
+	Result Device::createRebderDST(const RenderDSTInfo& info, HRenderDST* pHandle)
+	{
+		Result result;
+		RenderDSTObject rdsto;
+
+
+		//Renderpass, 対象に応じたFramebuffer構築
+		if (info.hSwapchain)
+		{
+		/*	if (info.renderDSTs->empty())
+			{
+				std::cout << "renderDST is empty\n";
+				return Result::eFailure;
+			}*/
+
+			VkRenderPassCreateInfo ci;
+			std::vector<VkAttachmentDescription> adVec;
+			std::vector<VkAttachmentReference> arVec;
+
+			adVec.reserve(info.renderDSTs->size());
+			arVec.reserve(info.renderDSTs->size());
+
+			for (size_t i = 0; i < info.renderDSTs->size(); ++i)
+			{
+				auto& rdst = info.renderDSTs[i];
+
+				if (mImageMap.count(rdst) <= 0)
+				{
+					return Result::eFailure;
+				}
+
+				auto& io = mImageMap[rdst];
+
+				adVec.emplace_back();
+				adVec.back().format = io.format;
+				adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
+				adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+				adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+				adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+				arVec.emplace_back().attachment = i;
+
+				switch (io.usage)
+				{
+				case TextureUsage::eColorTarget:
+					adVec.back().finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+					arVec.back().layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+					break;
+				case TextureUsage::eSwapchainImage:
+					adVec.back().finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+					arVec.back().layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+					break;
+				case TextureUsage::eDepthStencilTarget:
+					std::cout << "depthStencilBuffer can't be renderDST\n";
+					return Result::eFailure;
+					break;
+				default: //くるわけないのであるが...
+					return Result::eFailure;
+					break;
+				}
+			}
+
+			VkSubpassDescription subpassDesc{};
+			subpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+			subpassDesc.colorAttachmentCount = arVec.size();
+			subpassDesc.pColorAttachments = arVec.data();
+
+			//指定されていれば末尾にDSBを追加
+			if (info.depthStencilBuffer)
+			{
+				adVec.emplace_back();
+				arVec.emplace_back();
+
+				if (mImageMap.count(info.depthStencilBuffer.value()) <= 0)
+				{
+					std::cout << "this depthStencilBufferHandle is invalid\n";
+					return Result::eFailure;
+				}
+
+				adVec.back().format = mImageMap[info.depthStencilBuffer.value()].format;
+				adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
+				adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+				adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+				adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+				adVec.back().finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+				arVec.back().attachment = info.renderDSTs.size();
+				arVec.back().layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+				subpassDesc.pDepthStencilAttachment = &arVec.back();
+			}
+
+			ci.attachmentCount = uint32_t(adVec.size());
+			ci.pAttachments = adVec.data();
+			ci.subpassCount = 1;
+			ci.pSubpasses = &subpassDesc;
+
+			result = checkVkResult(vkCreateRenderPass(mDevice, &ci, nullptr, &rpo.mRenderPass.value()));
+			if (Result::eSuccess != result)
+			{
+				return result;
+			}
+
+			for (auto& h : info.renderDSTs)
+			{
+				const auto& img = mImageMap[h];
+				VkFramebufferCreateInfo fbci;
+				fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+				fbci.renderPass = rpo.mRenderPass.value();
+				fbci.width = img.extent.width;
+				fbci.height = img.extent.height;
+				fbci.layers = 1;
+				fbci.attachmentCount =
+			}
+		}
+
+
+		rdsto.mFramebuffer
+	}
+
 
     Result Device::createRenderPipeline(const RenderPipelineInfo &info, HRenderPipeline *hRenderPipeline)
     {
         Result result;
         RenderPipelineObject rpo;
 
-        //Renderpass, 対象に応じたFramebuffer構築
-        if(info.swapchains)
-        {
-            if(info.renderDSTs->empty())
-            {
-                std::cout << "renderDST is empty\n";
-                return Result::eFailure;
-            }
-
-            VkRenderPassCreateInfo ci;
-            std::vector<VkAttachmentDescription> adVec;
-            std::vector<VkAttachmentReference> arVec;
-
-            adVec.reserve(info.renderDSTs->size());
-            arVec.reserve(info.renderDSTs->size());
-
-            for (size_t i = 0; i < info.renderDSTs->size(); ++i)
-            {
-                auto &rdst = info.renderDSTs[i];
-
-                if (mImageMap.count(rdst) <= 0)
-                {
-                    return Result::eFailure;
-                }
-
-                auto &io = mImageMap[rdst];
-
-                adVec.emplace_back();
-                adVec.back().format = io.format;
-                adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
-                adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-                adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-                arVec.emplace_back().attachment = i;
-
-                switch (io.usage)
-                {
-                case TextureUsage::eColorTarget:
-                    adVec.back().finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                    arVec.back().layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                    break;
-                case TextureUsage::eSwapchainImage:
-                    adVec.back().finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-                    arVec.back().layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                    break;
-                case TextureUsage::eDepthStencilTarget:
-                    std::cout << "depthStencilBuffer can't be renderDST\n";
-                    return Result::eFailure;
-                    break;
-                default: //くるわけないのであるが...
-                    return Result::eFailure;
-                    break;
-                }
-            }
-
-            VkSubpassDescription subpassDesc{};
-            subpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-            subpassDesc.colorAttachmentCount = arVec.size();
-            subpassDesc.pColorAttachments = arVec.data();
-
-            //指定されていれば末尾にDSBを追加
-            if(info.depthStencilBuffer)
-            {
-                adVec.emplace_back();
-                arVec.emplace_back();
-
-                if(mImageMap.count(info.depthStencilBuffer.value()) <= 0)
-                {
-                    std::cout << "this depthStencilBufferHandle is invalid\n";
-                    return Result::eFailure;
-                }
-
-                adVec.back().format = mImageMap[info.depthStencilBuffer.value()].format;
-                adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
-                adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-                adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-                adVec.back().finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-                arVec.back().attachment = info.renderDSTs.size();
-                arVec.back().layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-                subpassDesc.pDepthStencilAttachment = &arVec.back();
-            }
-
-            ci.attachmentCount = uint32_t(adVec.size());
-            ci.pAttachments = adVec.data();
-            ci.subpassCount = 1;
-            ci.pSubpasses = &subpassDesc;
-
-            result = checkVkResult(vkCreateRenderPass(mDevice, &ci, nullptr, &rpo.mRenderPass.value()));
-            if (Result::eSuccess != result)
-            {
-                return result;
-            }
-
-            for(auto& h : info.renderDSTs)
-            {
-                const auto &img = mImageMap[h];
-                VkFramebufferCreateInfo fbci;
-                fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-                fbci.renderPass = rpo.mRenderPass.value();
-                fbci.width = img.extent.width;
-                fbci.height = img.extent.height;
-                fbci.layers = 1;
-                fbci.attachmentCount = 
-            }
-        }
 
         //PSO構築
         {

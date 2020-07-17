@@ -15,6 +15,7 @@
 #include "Utility.hpp"
 #include "Buffer.hpp"
 #include "Texture.hpp"
+#include "RenderDST.hpp"
 #include "RenderPipeline.hpp"
 #include "Command.hpp"
 
@@ -81,8 +82,11 @@ namespace Cutlass
         //画像に使用するサンプラーをアタッチ
         //Result attachSampler(HTexture handle, const HSampler &hSampler);
 
+		//描画対象オブジェクト構築
+		Result createRebderDST(const RenderDSTInfo& info, HRenderDST* pHandle);
+
         //描画パイプライン構築
-        Result createRenderPipeline(const RenderPipelineInfo& info, HRenderPipeline* hRenderPipeline);
+        Result createRenderPipeline(const RenderPipelineInfo& info, HRenderPipeline* pHandle);
 
         //コマンド記述
         Result writeCommand(const Command& command);
@@ -125,12 +129,18 @@ namespace Cutlass
             std::optional<VkDeviceMemory>   mMemory;
             std::optional<VkImageView>      mView;
             std::optional<VkSampler>        mSampler;
-            std::optional<VkFramebuffer>    mFrameBuffer;
             bool                            mIsHostVisible;
             VkFormat                        format;
             TextureUsage                    usage;
             VkExtent3D                      extent;
         };
+
+
+		struct RenderDSTObject
+		{
+			std::optional<VkRenderPass> mRenderPass;
+			std::vector<std::optional<VkFramebuffer>> mFramebuffer;
+		};
 
         struct RenderPipelineObject
         {
@@ -141,11 +151,6 @@ namespace Cutlass
             //std::optional<VkFramebuffer>           mFramebuffer;
         };
 
-		struct RenderDSTObject
-		{
-			std::optional<VkRenderPass> mRenderPass;
-			std::optional<VkFramebuffer> mFramebuffer;
-		};
 
         static inline Result checkVkResult(VkResult);
         Result createInstance();
@@ -179,8 +184,8 @@ namespace Cutlass
         HBuffer                 mNextBufferHandle;
         HTexture                mNextTextureHandle;
         //HSampler                mNextSamplerHandle;
-        HRenderPipeline         mNextRPHandle;
 		HRenderDST				mNextRenderDSTHandle;
+        HRenderPipeline         mNextRPHandle;
         std::unordered_map<HSwapchain, SwapchainObject>				mSwapchainMap;
         std::unordered_map<HBuffer, BufferObject>					mBufferMap;
         std::unordered_map<HTexture, ImageObject>					mImageMap;
