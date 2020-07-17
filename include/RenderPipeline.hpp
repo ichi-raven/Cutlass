@@ -87,4 +87,5 @@ namespace Cutlass
 		HRenderDST renderDST;//描画対象
         bool depthTestEnable;
     };
+    
 };
