@@ -1,4 +1,7 @@
-C:/Users/kanakenn/Desktop/Cutlass/build/CMakeFiles/cutlass.dir
-C:/Users/kanakenn/Desktop/Cutlass/build/CMakeFiles/INSTALL.dir
-C:/Users/kanakenn/Desktop/Cutlass/build/CMakeFiles/ALL_BUILD.dir
-C:/Users/kanakenn/Desktop/Cutlass/build/CMakeFiles/ZERO_CHECK.dir
+/home/ichi/C++/CutlassEngine/build/CMakeFiles/install/strip.dir
+/home/ichi/C++/CutlassEngine/build/CMakeFiles/install/local.dir
+/home/ichi/C++/CutlassEngine/build/CMakeFiles/edit_cache.dir
+/home/ichi/C++/CutlassEngine/build/CMakeFiles/install.dir
+/home/ichi/C++/CutlassEngine/build/CMakeFiles/list_install_components.dir
+/home/ichi/C++/CutlassEngine/build/CMakeFiles/rebuild_cache.dir
+/home/ichi/C++/CutlassEngine/build/CMakeFiles/cutlass.dir

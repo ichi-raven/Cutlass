@@ -63,18 +63,21 @@ namespace Cutlass
         //バッファ作成
         Result createBuffer(const BufferInfo& info, HBuffer *pHandle);
 
-        //バッファ書き込み
+        //バッファ書き込み(未実装)
         Result writeBuffer(HBuffer handle, void *data, size_t bytesize);
 
-        //テクスチャ作成(ファイル読み込み可)
+        //ファイルからシェーダリソ−ステクスチャ作成
         Result createTexture(const TextureInfo& info, HTexture *pHandle);
+        //
         Result createTextureFromFile(const char* fileName, HTexture *pHandle);
 
-        //データ書き込み(動かない)
-        Result writeTexture(const size_t size, const void* const pData, const HTexture& handle);
+        Result changeTextureUsage(const HTexture* pHandle);
+
+        //データ書き込み(未実装)
+        Result writeTexture(const size_t size, const void* const pData, const HTexture* pHandle);
 
         //用途変更
-        Result changeTextureUsage(TextureUsage prev, TextureUsage next, const HTexture &handle);
+        Result changeTextureUsage(TextureUsage prev, TextureUsage next, const HTexture* pHandle);
 
         //サンプラー作成
         //Result createSampler(HSampler *pHandle);
@@ -83,7 +86,9 @@ namespace Cutlass
         //Result attachSampler(HTexture handle, const HSampler &hSampler);
 
 		//描画対象オブジェクト構築
-		Result createRebderDST(const RenderDSTInfo& info, HRenderDST* pHandle);
+		Result createRenderDSTFromSwapchain(const HSwapchain& handle, bool depthTestEnable, HRenderDST* pHandle);
+
+        Result createRenderDSTFromTextures(const std::vector<HTexture> textures, HRenderDST *pHandle);
 
         //描画パイプライン構築
         Result createRenderPipeline(const RenderPipelineInfo& info, HRenderPipeline* pHandle);
@@ -139,18 +144,19 @@ namespace Cutlass
 		struct RenderDSTObject
 		{
 			std::optional<VkRenderPass> mRenderPass;
-			std::vector<std::optional<VkFramebuffer>> mFramebuffer;
-		};
+			std::vector<std::optional<VkFramebuffer>> mFramebuffers;
+            bool mIsTargetSwapchain;
+            DepthStencilState mDSs;
+            std::optional<VkExtent3D> mExtent;
+        };
 
         struct RenderPipelineObject
         {
-            //std::optional<VkRenderPass>            mRenderPass;
+            //これ不要説濃厚
             std::optional<VkPipelineLayout>        mPipelineLayout;
             std::optional<VkPipeline>              mPipeline;
             std::optional<VkDescriptorSetLayout>   mDescriptorSetLayout;
-            //std::optional<VkFramebuffer>           mFramebuffer;
         };
-
 
         static inline Result checkVkResult(VkResult);
         Result createInstance();
@@ -175,6 +181,8 @@ namespace Cutlass
         Result enableDebugReport();
         Result disableDebugReport();
         Result setImageMemoryBarrier(VkCommandBuffer command, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
+
+        Result createShaderModule(Shader shader, VkShaderStageFlagBits stage, VkPipelineShaderStageCreateInfo* pSSCI);
 
         //ユーザ指定
         InitializeInfo mInitializeInfo;

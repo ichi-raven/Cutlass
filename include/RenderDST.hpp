@@ -8,10 +8,15 @@
 
 namespace Cutlass
 {
-	struct RenderDSTInfo//ƒXƒƒbƒvƒ`ƒF[ƒ“‚Ö‚Ì•`‰æ‚©ƒeƒNƒXƒ`ƒƒ‚Ö‚Ì•`‰æ‚©‚Ç‚¿‚ç‚©‚ğw’è‚µ‚Ä‚­‚¾‚³‚¢
+	enum class RenderMode
+	{
+		e
+	};
+
+	struct RenderDSTInfo //ã‚¹ãƒ¯ãƒƒãƒ—ãƒã‚§ãƒ¼ãƒ³ã¸ã®æç”»ã‹ãƒ†ã‚¯ã‚¹ãƒãƒ£ã¸ã®æç”»ã‹ã©ã¡ã‚‰ã‹ã‚’æŒ‡å®šã—ã¦ãã ã•ã„
 	{
 		std::optional<HSwapchain> hSwapchain;
-		std::optional<std::vector<HTexture>> renderTargets;//“¯ˆêƒtƒH[ƒ}ƒbƒg“¯ˆêƒTƒCƒY‚Æ‚©‚¶‚á‚È‚¢‚ÆŒë“®ì‚µ‚Ü‚·
-		
+		std::optional<std::vector<HTexture>> hRenderTargets;
+		bool depthTestEnable;//ã‚¹ãƒ¯ãƒƒãƒ—ãƒã‚§ã‚¤ãƒ³ã‚’åˆ©ç”¨ã™ã‚‹å ´åˆä»¥å¤–æ„å‘³ãŒãªã„ã§ã™
 	};
 }
