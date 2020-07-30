@@ -73,12 +73,6 @@ namespace Cutlass
         //用途変更
         Result changeTextureUsage(TextureUsage prev, TextureUsage next, const HTexture* pHandle);
 
-        //サンプラー作成
-        //Result createSampler(HSampler *pHandle);
-
-        //画像に使用するサンプラーをアタッチ
-        //Result attachSampler(HTexture handle, const HSampler &hSampler);
-
 		//描画対象オブジェクト構築
 		Result createRenderDSTFromSwapchain(const HSwapchain& handle, bool depthTestEnable, HRenderDST* pHandle);
 
@@ -139,9 +133,10 @@ namespace Cutlass
 		{
 			std::optional<VkRenderPass> mRenderPass;
 			std::vector<std::optional<VkFramebuffer>> mFramebuffers;
-            bool mIsTargetSwapchain;
+            std::optional<HSwapchain>   mHSwapchain;
             DepthStencilState mDSs;
             std::optional<VkExtent3D> mExtent;
+            uint32_t                mTargetNum;
         };
 
         struct RenderPipelineObject
@@ -150,6 +145,8 @@ namespace Cutlass
             std::optional<VkPipelineLayout>        mPipelineLayout;
             std::optional<VkPipeline>              mPipeline;
             std::optional<VkDescriptorSetLayout>   mDescriptorSetLayout;
+            std::pair<uint32_t, uint32_t>          mDescriptorCount;//firstがユニフォームバッファ
+            HRenderDST                             mHRenderDST;
         };
 
         static inline Result checkVkResult(VkResult);
@@ -203,8 +200,6 @@ namespace Cutlass
         uint32_t mGraphicsQueueIndex;
         VkQueue mDeviceQueue;
         VkCommandPool mCommandPool;
-
-        //ImageObject mDepthBuffer;
         
         std::vector<VkFence>          mFences;
         VkSemaphore   mRenderCompletedSem, mPresentCompletedSem;

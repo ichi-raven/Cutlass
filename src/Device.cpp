@@ -1484,36 +1484,11 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-        //
-
-        // for depthbuffer
-        // {
-        //     VkImageViewCreateInfo ci{};
-        //     ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        //     ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        //     ci.format = VK_FORMAT_D32_SFLOAT;
-        //     ci.components =
-        //     {
-        //         VK_COMPONENT_SWIZZLE_R,
-        //         VK_COMPONENT_SWIZZLE_G,
-        //         VK_COMPONENT_SWIZZLE_B,
-        //         VK_COMPONENT_SWIZZLE_A,
-        //     };
-        //     ci.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
-        //     ci.image = mDepthBuffer.mImage;
-        //     result = checkVkResult(vkCreateImageView(mDevice, &ci, nullptr, &mDepthBuffer.mView));
-        //     if (Result::eSuccess != result)
-        //     {
-        //         return result;
-        //     }
-        // }
 
     Result Device::createRenderDSTFromSwapchain(const HSwapchain &handle, bool depthTestEnable, HRenderDST *pHandle)
     {
         Result result;
         RenderDSTObject rdsto;
-
-        rdsto.mIsTargetSwapchain = true;
 
         //Renderpass, 対象に応じたFramebuffer構築
 
@@ -1523,7 +1498,8 @@ namespace Cutlass
             return Result::eFailure;
         }
 
-        auto &swapchain = mSwapchainMap[handle];
+        rdsto.mHSwapchain = handle;
+        auto& swapchain = mSwapchainMap[handle];
 
         rdsto.mExtent->width = swapchain.mSwapchainExtent.width;
         rdsto.mExtent->height = swapchain.mSwapchainExtent.height;
@@ -1660,7 +1636,7 @@ namespace Cutlass
 		Result result;
 		RenderDSTObject rdsto;
 
-        rdsto.mIsTargetSwapchain = false;
+        rdsto.mHSwapchain = std::nullopt;
 
         VkRenderPassCreateInfo ci;
         std::vector<VkAttachmentDescription> adVec;
@@ -1779,7 +1755,7 @@ namespace Cutlass
         fbci.height = rdsto.mExtent.value().height;
         fbci.layers = 1;
 
-        fbci.attachmentCount = adVec.size();
+        fbci.attachmentCount = rdsto.mTargetNum = adVec.size();
         std::vector<VkImageView> ivVec;
         for (auto &tex : textures)
         {
@@ -1813,6 +1789,7 @@ namespace Cutlass
         }
 
         RenderDSTObject rdsto = mRDSTMap[info.renderDST];
+        rpo.mHRenderDST = info.renderDST;
 
         //PSO構築
         {
@@ -2049,6 +2026,9 @@ namespace Cutlass
                 VkDescriptorSetLayoutCreateInfo descLayoutci;
                 std::vector<VkDescriptorSetLayoutBinding> bindings;
 
+                rpo.mDescriptorCount.first = info.SRLayouts.uniformBufferCount;
+                rpo.mDescriptorCount.second = info.SRLayouts.combinedTextureCount;
+
                 for (int i = 0; i < info.SRLayouts.uniformBufferCount; ++i)
                 {
                     bindings.emplace_back();
@@ -2135,5 +2115,185 @@ namespace Cutlass
 
         return Result::eSuccess;
     }
+
+    Result Device::writeCommand(const Command& command)//ボトルネック
+    {
+        Result result;
+
+        if (mRPMap.count(command.hRenderPipeline) <= 0)
+        {
+            std::cout << "invalid renderPipeline handle!\n";
+            return Result::eFailure;
+        }
+        auto& rpo = mRPMap[command.hRenderPipeline];
+
+        VkDescriptorPool descriptorPool;
+
+        {
+            std::array<VkDescriptorPoolSize, 2> sizes;
+            sizes[0].descriptorCount = rpo.mDescriptorCount.first;
+            sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            sizes[1].descriptorCount = rpo.mDescriptorCount.second;
+            sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+
+            VkDescriptorPoolCreateInfo dpci{};
+            dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+            dpci.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+            dpci.maxSets = rpo.mDescriptorCount.first + rpo.mDescriptorCount.second;
+            dpci.poolSizeCount = sizes.size();
+            dpci.pPoolSizes = sizes.data();
+            result = checkVkResult(vkCreateDescriptorPool(mDevice, &dpci, nullptr, &descriptorPool));
+            if (result != Result::eSuccess)
+            {
+                std::cout << "failed to create Descriptor Pool\n";
+                return result;
+            }
+
+        }
+        
+        VkDescriptorSet descriptorSet;
+        { 
+            VkDescriptorSetAllocateInfo dsai{};
+            dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            dsai.descriptorPool = descriptorPool;
+            dsai.descriptorSetCount = 1;
+            dsai.pSetLayouts = &rpo.mDescriptorSetLayout.value();
+            result = checkVkResult(vkAllocateDescriptorSets(mDevice, &dsai, &descriptorSet));
+            if (result != Result::eSuccess)
+            {
+                std::cout << "failed to allocate descriptor set\n";
+                return result;
+            }
+
+
+            std::vector<VkWriteDescriptorSet> writeSets;
+            writeSets.reserve(rpo.mDescriptorCount.first + rpo.mDescriptorCount.second);
+
+            uint32_t count = 0;
+            for (auto& hub : command.shaderResource.uniformBuffer)
+            {
+                VkDescriptorBufferInfo dbi;
+
+                if (mBufferMap.count(hub) <= 0)
+                {
+                    std::cout << "invalid uniform buffer handle!\n";
+                    return Result::eFailure;
+                }
+
+                auto& ub = mBufferMap[hub];
+
+                dbi.buffer = ub.mBuffer.value();
+                dbi.offset = 0;
+                dbi.range = VK_WHOLE_SIZE;
+
+                writeSets.emplace_back(VkWriteDescriptorSet{});
+                writeSets.back().sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                writeSets.back().dstBinding = count++;
+                writeSets.back().descriptorCount = 1;
+                writeSets.back().descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                writeSets.back().pBufferInfo = &dbi;
+                writeSets.back().dstSet = descriptorSet;
+            }
+
+            count = 0;
+            for (auto& hct : command.shaderResource.combinedTexture)
+            {
+                VkDescriptorImageInfo dii;
+
+                if (mImageMap.count(hct) <= 0)
+                {
+                    std::cout << "invalid combined texture handle!\n";
+                    return Result::eFailure;
+                }
+
+                auto& ct = mImageMap[hct];
+                dii.imageView = ct.mView.value();
+                dii.sampler = ct.mSampler.value();
+                dii.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+                writeSets.emplace_back(VkWriteDescriptorSet{});
+                writeSets.back().sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                writeSets.back().dstBinding = count++;
+                writeSets.back().descriptorCount = 1;
+                writeSets.back().descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                writeSets.back().pImageInfo = &dii;
+                writeSets.back().dstSet = descriptorSet;
+            }
+
+            vkUpdateDescriptorSets(mDevice, static_cast<uint32_t>(writeSets.size()), writeSets.data(), 0, nullptr);
+        }
+
+        {
+            auto& rdsto = mRDSTMap[rpo.mHRenderDST];
+            VkRenderPassBeginInfo bi{};
+
+            if (rdsto.mHSwapchain)
+            {
+                auto& swapchain = mSwapchainMap[rdsto.mHSwapchain.value()];
+                result = checkVkResult(vkAcquireNextImageKHR(mDevice, swapchain.mSwapchain.value(), UINT64_MAX, mPresentCompletedSem, VK_NULL_HANDLE, &mSwapchainImageIndex));
+                if (result != Result::eSuccess)
+                {
+                    std::cout << "failed to acquire next swapchain image!\n";
+                    return result;
+                }
+
+                //if (command.clearValue.size() != rdsto.mTargetnum)
+                //{
+                //    std::cout << "invalid clear value!\n";
+                //}
+
+                // クリア値
+                std::vector<VkClearValue> clearValue;
+                clearValue.emplace_back(VkClearValue{ 0.5f, 0.5f, 0.5f, 0.f });
+                if (rdsto.mTargetNum > 1)
+                {
+                    clearValue.emplace_back(VkClearValue{ 1.0f, 0 });
+                }
+
+                bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+                bi.renderPass = rdsto.mRenderPass.value();
+                bi.framebuffer = rdsto.mFramebuffers[mSwapchainImageIndex].value();
+                bi.renderArea.offset = VkOffset2D{ 0, 0 };
+                bi.renderArea.extent = swapchain.mSwapchainExtent;
+                bi.clearValueCount = clearValue.size();
+                bi.pClearValues = clearValue.data();
+            }
+            else
+            {
+                bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+                bi.renderPass = rdsto.mRenderPass.value();
+                bi.framebuffer = rdsto.mFramebuffers.back().value();
+                bi.renderArea.offset = VkOffset2D{ 0, 0 };
+                bi.renderArea.extent = 
+            }
+
+            auto& vkcommand = mCommands[mSwapchainImageIndex];
+            auto commandFence = mFences[mSwapchainImageIndex];
+            vkWaitForFences(mDevice, 1, &commandFence, VK_TRUE, UINT64_MAX);
+
+
+
+
+
+        }
+
+    }
+
+
+
+
+    //if (mBufferMap.count(command.hVertexBuffer.value()) <= 0)
+    //{
+    //    std::cout << "invalid Buffer handle!\n";
+    //    return Result::eFailure;
+    //}
+    //auto& vbo = mBufferMap[command.hVertexBuffer.value()];
+
+    //if (mBufferMap.count(command.hIndexBuffer.value()) <= 0)
+    //{
+    //    std::cout << "invalid Buffer handle!\n";
+    //    return Result::eFailure;
+    //}
+    //auto ibo = mBufferMap[command.hIndexBuffer.value()];
 
 };     
