@@ -6,7 +6,6 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-
 #include <vector>
 #include <string>
 #include <unordered_map>
@@ -54,11 +53,6 @@ namespace Cutlass
         //初期化
         Result initialize(const InitializeInfo& info, std::vector<HSwapchain>& handlesRef);
 
-        // //スワップチェインのテクスチャハンドル取得(指定フレーム)
-        // Result getSwapchainImageHandle(HSwapchain handle, std::vector<HTexture>& handlesRef);
-
-        // //スワップチェインのデプスバッファを取得
-        // Result getSwapchainDepthBuffer(HSwapchain handle, HTexture *pHandle);
 
         //バッファ作成
         Result createBuffer(const BufferInfo& info, HBuffer *pHandle);
