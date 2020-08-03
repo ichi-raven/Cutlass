@@ -2264,7 +2264,7 @@ namespace Cutlass
                 bi.renderPass = rdsto.mRenderPass.value();
                 bi.framebuffer = rdsto.mFramebuffers.back().value();
                 bi.renderArea.offset = VkOffset2D{ 0, 0 };
-                bi.renderArea.extent = 
+                bi.renderArea.extent = VkExtent2D{ rdsto.mExtent.value().width, rdsto.mExtent.value().height};
             }
 
             auto& vkcommand = mCommands[mSwapchainImageIndex];
