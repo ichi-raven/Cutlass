@@ -1,0 +1,2 @@
+/usr/bin/ar qc libcutlass.a CMakeFiles/cutlass.dir/src/Device.cpp.o
+/usr/bin/ranlib libcutlass.a

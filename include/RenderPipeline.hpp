@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <optional>
 #include "Utility.hpp"
 
 namespace Cutlass
@@ -82,6 +83,7 @@ namespace Cutlass
         Shader vertexShader;
         Shader fragmentShader;
         ShaderResourceLayout SRLayouts;
+        uint32_t maxSR; //シェーダリソースの割り当てられうる最大数
         std::optional<Viewport> viewport; //左上手前、右下奥3次元(Depthは正規化座標)
         std::optional<Scissor> scissor;  //左上、右下2次元
 		HRenderDST renderDST;//描画対象

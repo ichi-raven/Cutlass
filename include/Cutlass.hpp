@@ -29,7 +29,3 @@
 #include <Buffer.hpp>
 #include <Texture.hpp>
 #include <Utility.hpp>
-
-//ヒント:std::optionalはオブジェクトの初期化を遅延するためのオブジェクトです
-//ここでは、std::optionalで宣言されているオブジェクトは記述しなくても構いません
-//std::optional型はアロー演算子やvalueメンバ関数で内部のメンバにアクセスできます

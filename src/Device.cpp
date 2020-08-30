@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <variant>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -631,7 +632,7 @@ namespace Cutlass
 
         std::vector<VkImageView> swapchainViews(imageCount);
 
-        for (uint32_t i = 0; i < imageCount; ++i)
+        for (size_t i = 0; i < imageCount; ++i)
         {
             VkImageViewCreateInfo ci{};
             ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -646,8 +647,10 @@ namespace Cutlass
                 };
             ci.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
             ci.image = swapchainImages[i];
+            result = checkVkResult(vkCreateImageView(mDevice, &ci, nullptr, &swapchainViews[i]));
             if (Result::eSuccess != result)
             {
+                std::cout << "failed to create swapchain image views!\n";
                 return result;
             }
         }
@@ -660,9 +663,10 @@ namespace Cutlass
             io.usage = TextureUsage::eSwapchainImage;
             io.mIsHostVisible = false;
             io.extent = { pSO->mSwapchainExtent.width, pSO->mSwapchainExtent.height, static_cast<uint32_t>(1)};
+            io.format = pSO->mSurfaceFormat.format;
 
-            pSO->mSwapchainImages.emplace_back(mNextTextureHandle++);
-            mImageMap.emplace(pSO->mSwapchainImages.back(), io);
+            pSO->mHSwapchainImages.emplace_back(mNextTextureHandle++);
+            mImageMap.emplace(pSO->mHSwapchainImages.back(), io);
         }
 
         return Result::eSuccess;
@@ -696,7 +700,7 @@ namespace Cutlass
     //         return Result::eFailure;
     //     }
 
-    //     auto &images = mSwapchainMap[handle].mSwapchainImages;
+    //     auto &images = mSwapchainMap[handle].mHSwapchainImages;;
     //     handlesRef.resize(images.size());
     //     for(size_t i = 0; i < handlesRef.size(); ++i)
     //     {
@@ -776,7 +780,7 @@ namespace Cutlass
         BufferObject bo;
 
         {
-            VkBufferCreateInfo ci;
+            VkBufferCreateInfo ci{};
             ci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 
             switch (info.usage)
@@ -863,13 +867,32 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-	Result Device::createTexture(const TextureInfo& info, HTexture* pHandle)
-	{
+    Result Device::writeBuffer(const size_t size, const void *const pData, const HBuffer &handle)
+    {
+        Result result = Result::eFailure;
+        if(mBufferMap.count(handle) <= 0)
+            return result;
+
+        BufferObject &bo = mBufferMap[handle];
+
+        void *p;//マップ先アドレス
+        
+        result = checkVkResult(vkMapMemory(mDevice, bo.mMemory.value(), 0, VK_WHOLE_SIZE, 0, &p));
+        if(result != Result::eSuccess)
+            return result;
+        memcpy(p, pData, size);
+        vkUnmapMemory(mDevice, bo.mMemory.value());
+
+        return Result::eSuccess;
+    }
+
+    Result Device::createTexture(const TextureInfo &info, HTexture *pHandle)
+    {
 		Result result;
 		ImageObject io;
 
 		{
-			VkImageCreateInfo ci;
+			VkImageCreateInfo ci{};
 
 			ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 			ci.pNext = nullptr;
@@ -1051,7 +1074,7 @@ namespace Cutlass
         }
 
         {
-            VkSamplerCreateInfo sci;//適当なサンプラー
+            VkSamplerCreateInfo sci{};//適当なサンプラー
             sci.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
             sci.pNext = nullptr;
             sci.minFilter = VK_FILTER_LINEAR;
@@ -1084,7 +1107,7 @@ namespace Cutlass
         io.usage = TextureUsage::eShaderResource;
 
         {
-            VkImageCreateInfo ci;
+            VkImageCreateInfo ci{};
 
             if (!fileName)
             {
@@ -1125,11 +1148,49 @@ namespace Cutlass
         }
 
         uint32_t imageSize = width * height * channel;
-        // ステージングバッファを用意.
+
+        {
+            VkSamplerCreateInfo sci{}; //適当なサンプラー
+            sci.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+            sci.pNext = nullptr;
+            sci.minFilter = VK_FILTER_LINEAR;
+            sci.magFilter = VK_FILTER_LINEAR;
+            sci.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            sci.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            sci.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            sci.maxAnisotropy = 1.f;
+            sci.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+            VkSampler sampler;
+            result = checkVkResult(vkCreateSampler(mDevice, &sci, nullptr, &sampler));
+            io.mSampler = sampler;
+        }
+
+        *pHandle = mNextTextureHandle++;
+        mImageMap.emplace(*pHandle, io);
+
+        writeTexture(pImage, *pHandle);
+
+        if (pImage != nullptr)
+                stbi_image_free(pImage);
+
+        return Result::eSuccess;
+    }
+
+    Result Device::writeTexture(const void *const pData, const HTexture &handle)
+    {
+        Result result = Result::eFailure;
+
+        if(mImageMap.count(handle) <= 0)
+            return Result::eFailure;
+
+        ImageObject& io = mImageMap[handle];
+
+        // ステージングバッファを用意
         BufferObject stagingBo;
 
         {
-            VkBufferCreateInfo ci;
+            size_t imageSize = io.extent.width * io.extent.height * io.extent.depth;
+            VkBufferCreateInfo ci{};
             ci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
             ci.size = imageSize;
             ci.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
@@ -1147,29 +1208,33 @@ namespace Cutlass
                 ai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
                 ai.allocationSize = reqs.size;
                 ai.memoryTypeIndex = getMemoryTypeIndex(reqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-                // メモリの確保
+                //メモリ確保
                 {
                     VkDeviceMemory memory;
                     vkAllocateMemory(mDevice, &ai, nullptr, &memory);
                     stagingBo.mMemory = memory;
                 }
 
-                // メモリのバインド
+                // メモリバインド
                 vkBindBufferMemory(mDevice, stagingBo.mBuffer.value(), stagingBo.mMemory.value(), 0);
             }
 
             void *p;
             result = checkVkResult(vkMapMemory(mDevice, stagingBo.mMemory.value(), 0, VK_WHOLE_SIZE, 0, &p));
             if (Result::eSuccess != result)
-            {
                 return result;
-            }
-            memcpy(p, pImage, imageSize);
+            
+            memcpy(p, &io.mMemory.value(), imageSize);
             vkUnmapMemory(mDevice, stagingBo.mMemory.value());
         }
 
         VkBufferImageCopy copyRegion{};
-        copyRegion.imageExtent = {uint32_t(width), uint32_t(height), 1};
+        copyRegion.imageExtent = 
+        {   
+            static_cast<uint32_t>(io.extent.width), 
+            static_cast<uint32_t>(io.extent.height), 
+            static_cast<uint32_t>(io.extent.depth)
+        };
         copyRegion.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
         VkCommandBuffer command;
         {
@@ -1196,40 +1261,6 @@ namespace Cutlass
         submitInfo.pCommandBuffers = &command;
         vkQueueSubmit(mDeviceQueue, 1, &submitInfo, VK_NULL_HANDLE);
 
-        {
-            // テクスチャ参照用のビューを生成
-            VkImageViewCreateInfo ci{};
-            ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-
-            ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
-
-            ci.image = io.mImage.value();
-            ci.format = io.format;
-            ci.components =
-                {
-                    VK_COMPONENT_SWIZZLE_R,
-                    VK_COMPONENT_SWIZZLE_G,
-                    VK_COMPONENT_SWIZZLE_B,
-                    VK_COMPONENT_SWIZZLE_A,
-                };
-
-            ci.subresourceRange = {
-                VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-
-            {
-                VkImageView view;
-                result = checkVkResult(vkCreateImageView(mDevice, &ci, nullptr, &view));
-                io.mView = view;
-                if (result != Result::eSuccess)
-                {
-                    std::cout << "failed to create vkImageView!\n";
-                    return result;
-                }
-            }
-
-
-        }
-
         //コピー終了
         vkDeviceWaitIdle(mDevice);
         vkFreeCommandBuffers(mDevice, mCommandPool, 1, &command);
@@ -1237,28 +1268,6 @@ namespace Cutlass
         // ステージングバッファ解放
         vkFreeMemory(mDevice, stagingBo.mMemory.value(), nullptr);
         vkDestroyBuffer(mDevice, stagingBo.mBuffer.value(), nullptr);
-
-        if(pImage != nullptr)
-            stbi_image_free(pImage);
-
-        {
-            VkSamplerCreateInfo sci; //適当なサンプラー
-            sci.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-            sci.pNext = nullptr;
-            sci.minFilter = VK_FILTER_LINEAR;
-            sci.magFilter = VK_FILTER_LINEAR;
-            sci.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            sci.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            sci.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            sci.maxAnisotropy = 1.f;
-            sci.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-            VkSampler sampler;
-            result = checkVkResult(vkCreateSampler(mDevice, &sci, nullptr, &sampler));
-            io.mSampler = sampler;
-        }
-
-        *pHandle = mNextTextureHandle++;
-        mImageMap.emplace(*pHandle, io);
 
         return Result::eSuccess;
     }
@@ -1355,15 +1364,15 @@ namespace Cutlass
     }
 
     
-
     Result Device::createDepthBuffer(SwapchainObject *pSO)
     {
         Result result;
         ImageObject io;
 
         {
-            VkImageCreateInfo ci;
+            VkImageCreateInfo ci{};
             ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+            ci.pNext = nullptr;
             ci.imageType = VK_IMAGE_TYPE_2D;
             ci.format = VK_FORMAT_D32_SFLOAT;
             ci.extent.width = pSO->mSwapchainExtent.width;
@@ -1416,8 +1425,10 @@ namespace Cutlass
         }
 
         {
-            VkImageViewCreateInfo ci;
+            VkImageViewCreateInfo ci{};
+            ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
             ci.image = io.mImage.value();
+            ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
             ci.format = io.format;
             ci.components =
             {
@@ -1467,6 +1478,7 @@ namespace Cutlass
         VkShaderModule shaderModule;
         VkShaderModuleCreateInfo ci{};
         ci.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        ci.pNext = nullptr;
         ci.pCode = reinterpret_cast<uint32_t *>(filedata.data());
         ci.codeSize = filedata.size();
         result = checkVkResult(vkCreateShaderModule(mDevice, &ci, nullptr, &shaderModule));
@@ -1477,6 +1489,8 @@ namespace Cutlass
         }
 
         pSSCI->sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        pSSCI->flags = 0;
+        pSSCI->pNext = nullptr;
         pSSCI->stage = stage;
         pSSCI->module = shaderModule;
         pSSCI->pName = shader.entryPoint.c_str();
@@ -1501,19 +1515,24 @@ namespace Cutlass
         rdsto.mHSwapchain = handle;
         auto& swapchain = mSwapchainMap[handle];
 
-        rdsto.mExtent->width = swapchain.mSwapchainExtent.width;
-        rdsto.mExtent->height = swapchain.mSwapchainExtent.height;
-        rdsto.mExtent->depth = 1.0f;
+        {
+            VkExtent3D extent;
+            extent.width = swapchain.mSwapchainExtent.width;
+            extent.height = swapchain.mSwapchainExtent.height;
+            extent.depth = 1.0f;
+            rdsto.mExtent = extent;
+        }
 
         {
-            VkRenderPassCreateInfo ci;
+            VkRenderPassCreateInfo ci{};
+            ci.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
             std::vector<VkAttachmentDescription> adVec;
             VkAttachmentReference ar;
             VkAttachmentReference depthAr;
 
             //adVec.reserve(2);
 
-            auto rdst = swapchain.mSwapchainImages[0]; //情報得るだけなのでどれでもいい
+            auto rdst = swapchain.mHSwapchainImages[0]; //情報得るだけなのでどれでもいい
 
             if (mImageMap.count(rdst) <= 0)
             {
@@ -1563,7 +1582,6 @@ namespace Cutlass
             ci.pAttachments = adVec.data();
             ci.subpassCount = 1;
             ci.pSubpasses = &subpassDesc;
-            std::cout << "Came\n";
             {
                 VkRenderPass renderPass;
                 result = checkVkResult(vkCreateRenderPass(mDevice, &ci, nullptr, &renderPass));
@@ -1576,7 +1594,7 @@ namespace Cutlass
         }
 
 
-        VkFramebufferCreateInfo fbci;
+        VkFramebufferCreateInfo fbci{};
         fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         fbci.renderPass = rdsto.mRenderPass.value();
         fbci.width = swapchain.mSwapchainExtent.width;
@@ -1585,12 +1603,13 @@ namespace Cutlass
  
         if (depthTestEnable)
         {
-            fbci.attachmentCount = 2;
             const auto &depth = mImageMap[swapchain.mHDepthBuffer];
-            for (auto &h : swapchain.mSwapchainImages)
+            for (auto &h : swapchain.mHSwapchainImages)
             {
+                
                 const auto &img = mImageMap[h];
                 std::array<VkImageView, 2> ivArr = {img.mView.value(), depth.mView.value()};
+                fbci.attachmentCount = 2;
                 fbci.pAttachments = ivArr.data();
 
                 rdsto.mFramebuffers.emplace_back();
@@ -1602,14 +1621,13 @@ namespace Cutlass
                         return result;
                     }
                     rdsto.mFramebuffers.back() = framebuffer;
-                    std::cout << "Came\n";
                 }
             }
         }
         else
         {
             fbci.attachmentCount = 1;
-            for (auto &h : swapchain.mSwapchainImages)
+            for (auto &h : swapchain.mHSwapchainImages)
             {
                 const auto &img = mImageMap[h];
                 VkImageView iv = img.mView.value();
@@ -1638,7 +1656,7 @@ namespace Cutlass
 
         rdsto.mHSwapchain = std::nullopt;
 
-        VkRenderPassCreateInfo ci;
+        VkRenderPassCreateInfo ci{};
         std::vector<VkAttachmentDescription> adVec;
         std::vector<VkAttachmentReference> arVec;
         std::optional<HTexture> hDepthBuffer;
@@ -1748,7 +1766,7 @@ namespace Cutlass
             }
         }
 
-        VkFramebufferCreateInfo fbci;
+        VkFramebufferCreateInfo fbci{};
         fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         fbci.renderPass = rdsto.mRenderPass.value();
         fbci.width = rdsto.mExtent.value().width;
@@ -1839,9 +1857,10 @@ namespace Cutlass
             }
 
             //頂点まとめ
-            VkPipelineVertexInputStateCreateInfo visci;
+            VkPipelineVertexInputStateCreateInfo visci{};
             {
                 visci.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+                visci.pNext = nullptr;
                 visci.vertexBindingDescriptionCount = 1;
                 visci.pVertexBindingDescriptions = &ib;
                 visci.vertexAttributeDescriptionCount = static_cast<uint32_t>(ia_vec.size());
@@ -1883,12 +1902,11 @@ namespace Cutlass
             }
 
             // ビューポート, シザー
-            VkPipelineViewportStateCreateInfo vpsci;
-
+            VkPipelineViewportStateCreateInfo vpsci{};
+            VkViewport viewport{};
+            VkRect2D scissor{};
+            
             {
-                VkViewport viewport;
-                VkRect2D scissor;
-
                 if(info.viewport)
                 {
                     viewport.x = info.viewport.value()[0][0];
@@ -1909,7 +1927,7 @@ namespace Cutlass
                     viewport.minDepth = 0;
                     viewport.maxDepth = extent.depth;
                 }
-                
+
                 if(info.scissor)
                 {
                     scissor.offset.x = static_cast<float>(info.scissor.value()[0][0]);
@@ -1932,10 +1950,9 @@ namespace Cutlass
                 vpsci.scissorCount = 1;
                 vpsci.pScissors = &scissor;
             }
-            
 
             //プリミティブトポロジー
-            VkPipelineInputAssemblyStateCreateInfo iaci;
+            VkPipelineInputAssemblyStateCreateInfo iaci{};
             {
                 iaci.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
                 switch(info.topology)
@@ -1954,7 +1971,7 @@ namespace Cutlass
             }
 
             //ラスタライザ
-            VkPipelineRasterizationStateCreateInfo rci;
+            VkPipelineRasterizationStateCreateInfo rci{};
             {
                 rci.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
                 switch(info.rasterizerState)
@@ -1971,9 +1988,9 @@ namespace Cutlass
                     break;
                 }
             }
-
+            
             //マルチサンプルステート
-            VkPipelineMultisampleStateCreateInfo msci;
+            VkPipelineMultisampleStateCreateInfo msci{};
             {
                 msci.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
                 switch(info.multiSampleState)
@@ -1989,7 +2006,7 @@ namespace Cutlass
             }
 
             //デプスステンシルステート
-            VkPipelineDepthStencilStateCreateInfo dsci;
+            VkPipelineDepthStencilStateCreateInfo dsci{};
             {
                 dsci.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
                 switch(info.depthStencilState)
@@ -2014,16 +2031,15 @@ namespace Cutlass
                     break;
                 }
             }
-
+            
             std::array<VkPipelineShaderStageCreateInfo, 2> ssciArr;
 
             result = createShaderModule(info.vertexShader, VK_SHADER_STAGE_VERTEX_BIT, &ssciArr[0]);
             result = createShaderModule(info.fragmentShader, VK_SHADER_STAGE_FRAGMENT_BIT, &ssciArr[1]);
 
-            
             {
 
-                VkDescriptorSetLayoutCreateInfo descLayoutci;
+                VkDescriptorSetLayoutCreateInfo descLayoutci{};
                 std::vector<VkDescriptorSetLayoutBinding> bindings;
 
                 rpo.mDescriptorCount.first = info.SRLayouts.uniformBufferCount;
@@ -2054,20 +2070,57 @@ namespace Cutlass
                 descLayoutci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
                 descLayoutci.bindingCount = bindings.size();
                 descLayoutci.pBindings = bindings.data();
-                result = checkVkResult(vkCreateDescriptorSetLayout(mDevice, &descLayoutci, nullptr, &rpo.mDescriptorSetLayout.value()));
-                if(result != Result::eSuccess)
+
                 {
-                    std::cout << "failed to create descriptor set layout\n";
-                    return result;
+                    VkDescriptorSetLayout descriptorSetLayout;
+                    result = checkVkResult(vkCreateDescriptorSetLayout(mDevice, &descLayoutci, nullptr, &descriptorSetLayout));
+                    if(result != Result::eSuccess)
+                    {
+                        std::cout << "failed to create descriptor set layout\n";
+                        return result;
+                    }
+
+                    rpo.mDescriptorSetLayout = descriptorSetLayout;
+                }
+            }
+
+            {//ディスクリプタプール構築
+                std::array<VkDescriptorPoolSize, 2> sizes;
+                sizes[0].descriptorCount = rpo.mDescriptorCount.first;
+                sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                sizes[1].descriptorCount = rpo.mDescriptorCount.second;
+                sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+
+                VkDescriptorPoolCreateInfo dpci{};
+                dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+                dpci.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+                if(info.maxSR < rpo.mDescriptorCount.first + rpo.mDescriptorCount.second)
+                {
+                    std::cout << "invalid max SR count\n";
+                    return Result::eFailure;
+                }
+                dpci.maxSets = info.maxSR;
+                dpci.poolSizeCount = sizes.size();
+                dpci.pPoolSizes = sizes.data();
+                {
+                    VkDescriptorPool descriptorPool;
+                    result = checkVkResult(vkCreateDescriptorPool(mDevice, &dpci, nullptr, &descriptorPool));
+                    if (result != Result::eSuccess)
+                    {
+                        std::cout << "failed to create Descriptor Pool\n";
+                        return result;
+                    }
+                    rpo.mDescriptorPool = descriptorPool;
                 }
             }
 
             {//パイプラインレイアウト構築
-                VkPipelineLayoutCreateInfo ci;
+                VkPipelineLayoutCreateInfo ci{};
                 ci.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
                 ci.setLayoutCount = 1;
                 VkDescriptorSetLayout dslayout = rpo.mDescriptorSetLayout.value();
                 ci.pSetLayouts = &dslayout;
+
                 {
                     VkPipelineLayout pipelineLayout;
                     result = checkVkResult(vkCreatePipelineLayout(mDevice, &ci, nullptr, &pipelineLayout));
@@ -2082,8 +2135,8 @@ namespace Cutlass
             }
 
             {
-                VkGraphicsPipelineCreateInfo ci;
-                ci.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+                VkGraphicsPipelineCreateInfo ci{};
+                ci.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;                        
                 ci.stageCount = static_cast<uint32_t>(ssciArr.size());
                 ci.pStages = ssciArr.data();
                 ci.pInputAssemblyState = &iaci;
@@ -2095,7 +2148,6 @@ namespace Cutlass
                 ci.pColorBlendState = &cbci;
                 ci.renderPass = rdsto.mRenderPass.value();
                 ci.layout = rpo.mPipelineLayout.value();
-
                 {
                     VkPipeline pipeline;
                     result = checkVkResult(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &ci, nullptr, &pipeline));
@@ -2118,44 +2170,164 @@ namespace Cutlass
 
     Result Device::writeCommand(const Command& command)//ボトルネック
     {
-        Result result;
+        Result result = Result::eSuccess;
 
-        if (mRPMap.count(command.hRenderPipeline) <= 0)
+        {//optionalに構築したオブジェクトを代入している
+            RunningCommandState tmp;
+            mRCState = tmp;
+        }
+
+
+        switch (command.type)//型とenumの対応はめんどくさい
         {
-            std::cout << "invalid renderPipeline handle!\n";
+        case CommandType::eCmdBeginRenderPipeline:
+            // if (!std::holds_alternative<CmdBeginRenderPipeline>(command.info))
+            //     return Result::eFailure;
+            result = cmdBeginRenderPipeline(std::get<CmdBeginRenderPipeline>(command.info));
+            break;
+        case CommandType::eCmdEndRenderPipeline:
+            // if (!std::holds_alternative<CmdEndRenderPipeline>(command.info))
+            //     return Result::eFailure;
+            result = cmdEndRenderPipeline(std::get<CmdEndRenderPipeline>(command.info));
+            break;
+        case CommandType::eCmdSetVB:
+            // if (!std::holds_alternative<CmdSetVB>(command.info))
+            //     return Result::eFailure;
+            result = cmdSetVB(std::get<CmdSetVB>(command.info));
+            break;
+        case CommandType::eCmdSetIB:
+            // if (!std::holds_alternative<CmdSetIB>(command.info))
+            //     return Result::eFailure;
+            result = cmdSetIB(std::get<CmdSetIB>(command.info));
+            break;
+        case CommandType::eCmdSetShaderResource:
+            // if (!std::holds_alternative<CmdSetShaderResource>(command.info))
+            //     return Result::eFailure;
+            result = cmdSetShaderResource(std::get<CmdSetShaderResource>(command.info));
+            break;
+        case CommandType::eCmdRender:
+            // if (!std::holds_alternative<CmdRender>(command.info))
+            //     return Result::eFailure;
+            result = cmdRender(std::get<CmdRender>(command.info));
+            break;
+        default:
+            std::cout << "invalid command!\n";
+            result = Result::eFailure;
+            break;
+        }
+
+        return result;
+    }
+
+
+    Result Device::cmdBeginRenderPipeline(const CmdBeginRenderPipeline &info){
+    {
+        Result result = Result::eSuccess;
+        if(mRPMap.count(info.RPHandle) <= 0)
+        {
+            std::cout << "invalid RP handle!";
             return Result::eFailure;
         }
-        auto& rpo = mRPMap[command.hRenderPipeline];
+        mRCState->mHRPO = info.RPHandle;
+        auto& rpo = mRPMap[info.RPHandle];
+        auto& rdsto = mRDSTMap[rpo.mHRenderDST];
+        VkRenderPassBeginInfo bi{};
 
-        VkDescriptorPool descriptorPool;
-
+        if (rdsto.mHSwapchain)
         {
-            std::array<VkDescriptorPoolSize, 2> sizes;
-            sizes[0].descriptorCount = rpo.mDescriptorCount.first;
-            sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            sizes[1].descriptorCount = rpo.mDescriptorCount.second;
-            sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            auto& swapchain = mSwapchainMap[rdsto.mHSwapchain.value()];
+                result = checkVkResult(vkAcquireNextImageKHR(mDevice, swapchain.mSwapchain.value(), UINT64_MAX, mPresentCompletedSem, VK_NULL_HANDLE, &mFrameIndex));
+                if (result != Result::eSuccess)
+                {
+                    std::cout << "failed to acquire next swapchain image!\n";
+                    return result;
+                }
 
-            VkDescriptorPoolCreateInfo dpci{};
-            dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-            dpci.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-            dpci.maxSets = rpo.mDescriptorCount.first + rpo.mDescriptorCount.second;
-            dpci.poolSizeCount = sizes.size();
-            dpci.pPoolSizes = sizes.data();
-            result = checkVkResult(vkCreateDescriptorPool(mDevice, &dpci, nullptr, &descriptorPool));
-            if (result != Result::eSuccess)
+                //if (command.clearValue.size() != rdsto.mTargetnum)
+                //{
+                //    std::cout << "invalid clear value!\n";
+                //}
+
+                // クリア値
+                std::vector<VkClearValue> clearValue;
+                clearValue.emplace_back(VkClearValue{ 0.5f, 0.5f, 0.5f, 0.f });
+                if (rdsto.mTargetNum > 1)
+                {
+                    clearValue.emplace_back(VkClearValue{ 1.0f, 0 });
+                }
+
+                bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+                bi.renderPass = rdsto.mRenderPass.value();
+                bi.framebuffer = rdsto.mFramebuffers[mFrameIndex].value();
+                bi.renderArea.offset = VkOffset2D{ 0, 0 };
+                bi.renderArea.extent = swapchain.mSwapchainExtent;
+                bi.clearValueCount = clearValue.size();
+                bi.pClearValues = clearValue.data();
+            }
+            else
             {
-                std::cout << "failed to create Descriptor Pool\n";
-                return result;
+                bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+                bi.renderPass = rdsto.mRenderPass.value();
+                bi.framebuffer = rdsto.mFramebuffers.back().value();
+                bi.renderArea.offset = VkOffset2D{ 0, 0 };
+                bi.renderArea.extent = VkExtent2D{ rdsto.mExtent.value().width, rdsto.mExtent.value().height};
             }
 
+            auto& vkcommand = mCommands[mFrameIndex];
+            auto commandFence = mFences[mFrameIndex];
+            vkWaitForFences(mDevice, 1, &commandFence, VK_TRUE, UINT64_MAX);
+
+            VkCommandBufferBeginInfo commandBI{};
+            commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+            vkBeginCommandBuffer(mCommands[mFrameIndex], &commandBI);
         }
+         return Result::eSuccess;
+    }
+    Result Device::cmdEndRenderPipeline(const CmdEndRenderPipeline &info)
+    {
+        Result result;
+        // コマンド・レンダーパス終了
+        vkCmdEndRenderPass(mCommands[mFrameIndex]);
+        result = checkVkResult(vkEndCommandBuffer(mCommands[mFrameIndex]));
+        if(result != Result::eSuccess)
+            return result;
         
+        return Result::eSuccess;
+    }
+    Result Device::cmdSetVB(const CmdSetVB &info)
+    {
+        if(mBufferMap.count(info.VBHandle) <= 0)
+            return Result::eFailure;
+        auto &vbo = mBufferMap[info.VBHandle];
+        vkCmdBindVertexBuffers(mCommands[mFrameIndex], 0, 1, &vbo.mBuffer.value(), nullptr);
+        return Result::eSuccess;
+    }
+    Result Device::cmdSetIB(const CmdSetIB &info)
+    {
+        if (mBufferMap.count(info.IBHandle) <= 0)
+            return Result::eFailure;
+        auto &ibo = mBufferMap[info.IBHandle];
+        vkCmdBindIndexBuffer(mCommands[mFrameIndex], ibo.mBuffer.value(), 0, VK_INDEX_TYPE_UINT32);
+        return Result::eSuccess;
+    }
+    Result Device::cmdSetShaderResource(const CmdSetShaderResource &info)
+    {
+        Result result;
+
+        if(!mRCState->mHRPO)
+        {
+            std::cout << "render pipeline object is not registed yet!\n";
+            return Result::eFailure;
+        }
+
+        auto &rpo = mRPMap[mRCState->mHRPO.value()];
+
         VkDescriptorSet descriptorSet;
-        { 
+        {
             VkDescriptorSetAllocateInfo dsai{};
             dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-            dsai.descriptorPool = descriptorPool;
+            dsai.descriptorPool = rpo.mDescriptorPool.value();
             dsai.descriptorSetCount = 1;
             dsai.pSetLayouts = &rpo.mDescriptorSetLayout.value();
             result = checkVkResult(vkAllocateDescriptorSets(mDevice, &dsai, &descriptorSet));
@@ -2165,12 +2337,11 @@ namespace Cutlass
                 return result;
             }
 
-
             std::vector<VkWriteDescriptorSet> writeSets;
             writeSets.reserve(rpo.mDescriptorCount.first + rpo.mDescriptorCount.second);
 
             uint32_t count = 0;
-            for (auto& hub : command.shaderResource.uniformBuffer)
+            for (auto& hub :info.shaderResource.uniformBuffer)
             {
                 VkDescriptorBufferInfo dbi;
 
@@ -2196,7 +2367,7 @@ namespace Cutlass
             }
 
             count = 0;
-            for (auto& hct : command.shaderResource.combinedTexture)
+            for (auto& hct : info.shaderResource.combinedTexture)
             {
                 VkDescriptorImageInfo dii;
 
@@ -2223,64 +2394,232 @@ namespace Cutlass
             vkUpdateDescriptorSets(mDevice, static_cast<uint32_t>(writeSets.size()), writeSets.data(), 0, nullptr);
         }
 
-        {
-            auto& rdsto = mRDSTMap[rpo.mHRenderDST];
-            VkRenderPassBeginInfo bi{};
+        mRCState->mDescriptorSet = descriptorSet;
 
-            if (rdsto.mHSwapchain)
-            {
-                auto& swapchain = mSwapchainMap[rdsto.mHSwapchain.value()];
-                result = checkVkResult(vkAcquireNextImageKHR(mDevice, swapchain.mSwapchain.value(), UINT64_MAX, mPresentCompletedSem, VK_NULL_HANDLE, &mSwapchainImageIndex));
-                if (result != Result::eSuccess)
-                {
-                    std::cout << "failed to acquire next swapchain image!\n";
-                    return result;
-                }
+        vkCmdBindDescriptorSets
+        (
+            mCommands[mFrameIndex], 
+            VK_PIPELINE_BIND_POINT_GRAPHICS, 
+            rpo.mPipelineLayout.value(), 
+            0, 
+            1, 
+            &descriptorSet, 
+            0, 
+            nullptr
+        );
 
-                //if (command.clearValue.size() != rdsto.mTargetnum)
-                //{
-                //    std::cout << "invalid clear value!\n";
-                //}
-
-                // クリア値
-                std::vector<VkClearValue> clearValue;
-                clearValue.emplace_back(VkClearValue{ 0.5f, 0.5f, 0.5f, 0.f });
-                if (rdsto.mTargetNum > 1)
-                {
-                    clearValue.emplace_back(VkClearValue{ 1.0f, 0 });
-                }
-
-                bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-                bi.renderPass = rdsto.mRenderPass.value();
-                bi.framebuffer = rdsto.mFramebuffers[mSwapchainImageIndex].value();
-                bi.renderArea.offset = VkOffset2D{ 0, 0 };
-                bi.renderArea.extent = swapchain.mSwapchainExtent;
-                bi.clearValueCount = clearValue.size();
-                bi.pClearValues = clearValue.data();
-            }
-            else
-            {
-                bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-                bi.renderPass = rdsto.mRenderPass.value();
-                bi.framebuffer = rdsto.mFramebuffers.back().value();
-                bi.renderArea.offset = VkOffset2D{ 0, 0 };
-                bi.renderArea.extent = VkExtent2D{ rdsto.mExtent.value().width, rdsto.mExtent.value().height};
-            }
-
-            auto& vkcommand = mCommands[mSwapchainImageIndex];
-            auto commandFence = mFences[mSwapchainImageIndex];
-            vkWaitForFences(mDevice, 1, &commandFence, VK_TRUE, UINT64_MAX);
-
-
-
-
-
-        }
-
+        return Result::eSuccess;
+    }
+    Result Device::cmdRender(const CmdRender &info)
+    {
+        vkCmdDrawIndexed
+        (
+            mCommands[mFrameIndex], 
+            info.indexCount, 
+            info.instanceCount, 
+            info.firstIndex, 
+            info.vertexOffset, 
+            info.firstInstance
+        );
+        return Result::eSuccess;
     }
 
+    Result Device::execute()
+    {
+        Result result;
+        // コマンドを実行（送信)
+        VkSubmitInfo submitInfo{};
+        VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &mCommands[mFrameIndex];
+        submitInfo.pWaitDstStageMask = &waitStageMask;
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = &mPresentCompletedSem;
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = &mRenderCompletedSem;
 
+        result = checkVkResult(vkResetFences(mDevice, 1, &mFences[mFrameIndex]));
+        if(result != Result::eSuccess)
+        {
+            std::cout << "failed to reset fences!\n";
+            return result;
+        }
 
+        result = checkVkResult(vkQueueSubmit(mDeviceQueue, 1, &submitInfo, mFences[mFrameIndex]));
+        if(result != Result::eSuccess)
+        {
+            std::cout << "failed to submit cmd to queue!\n";
+            return result;
+        }
+
+        //注意 : VkDescriptorSetについての解放がよくわかっていない
+        mRCState = std::nullopt;
+
+        return Result::eSuccess;
+    }
+
+    Result Device::present(const HSwapchain& handle)
+    {
+        Result result;
+
+        if(mSwapchainMap.count(handle) <= 0)
+        {
+            std::cout << "invalid swapchian handle!\n";
+            return Result::eFailure;
+        }
+
+        auto& so = mSwapchainMap[handle];
+
+        VkPresentInfoKHR presentInfo{};
+        presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        presentInfo.swapchainCount = 1;
+        presentInfo.pSwapchains = &so.mSwapchain.value();
+        presentInfo.pImageIndices = &mFrameIndex;
+        presentInfo.waitSemaphoreCount = 1;
+        presentInfo.pWaitSemaphores = &mRenderCompletedSem;
+        
+        result = checkVkResult(vkQueuePresentKHR(mDeviceQueue, &presentInfo));
+        if (result != Result::eSuccess)
+        {
+            std::cout << "failed to present queue!\n";
+            return result;
+        }
+
+        mFrameIndex = (mFrameIndex + 1) % so.mHSwapchainImages.size();
+
+        return Result::eSuccess;
+    }
+
+    //  Result result;
+
+    //     if (mRPMap.count(handle) <= 0)
+    //     {
+    //         std::cout << "invalid renderPipeline handle!\n";
+    //         return Result::eFailure;
+    //     }
+    //     auto &rpo = mRPMap[handle];
+        
+    //     VkDescriptorSet descriptorSet;
+    //     {
+    //         VkDescriptorSetAllocateInfo dsai{};
+    //         dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    //         dsai.descriptorPool = 
+    //         dsai.descriptorSetCount = 1;
+    //         dsai.pSetLayouts = &rpo.mDescriptorSetLayout.value();
+    //         result = checkVkResult(vkAllocateDescriptorSets(mDevice, &dsai, &descriptorSet));
+    //         if (result != Result::eSuccess)
+    //         {
+    //             std::cout << "failed to allocate descriptor set\n";
+    //             return result;
+    //         }
+
+    //         std::vector<VkWriteDescriptorSet> writeSets;
+    //         writeSets.reserve(rpo.mDescriptorCount.first + rpo.mDescriptorCount.second);
+
+    //         uint32_t count = 0;
+    //         for (auto& hub : command.shaderResource.uniformBuffer)
+    //         {
+    //             VkDescriptorBufferInfo dbi;
+
+    //             if (mBufferMap.count(hub) <= 0)
+    //             {
+    //                 std::cout << "invalid uniform buffer handle!\n";
+    //                 return Result::eFailure;
+    //             }
+
+    //             auto& ub = mBufferMap[hub];
+
+    //             dbi.buffer = ub.mBuffer.value();
+    //             dbi.offset = 0;
+    //             dbi.range = VK_WHOLE_SIZE;
+
+    //             writeSets.emplace_back(VkWriteDescriptorSet{});
+    //             writeSets.back().sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    //             writeSets.back().dstBinding = count++;
+    //             writeSets.back().descriptorCount = 1;
+    //             writeSets.back().descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    //             writeSets.back().pBufferInfo = &dbi;
+    //             writeSets.back().dstSet = descriptorSet;
+    //         }
+
+    //         count = 0;
+    //         for (auto& hct : command.shaderResource.combinedTexture)
+    //         {
+    //             VkDescriptorImageInfo dii;
+
+    //             if (mImageMap.count(hct) <= 0)
+    //             {
+    //                 std::cout << "invalid combined texture handle!\n";
+    //                 return Result::eFailure;
+    //             }
+
+    //             auto& ct = mImageMap[hct];
+    //             dii.imageView = ct.mView.value();
+    //             dii.sampler = ct.mSampler.value();
+    //             dii.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    //             writeSets.emplace_back(VkWriteDescriptorSet{});
+    //             writeSets.back().sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    //             writeSets.back().dstBinding = count++;
+    //             writeSets.back().descriptorCount = 1;
+    //             writeSets.back().descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    //             writeSets.back().pImageInfo = &dii;
+    //             writeSets.back().dstSet = descriptorSet;
+    //         }
+
+    //         vkUpdateDescriptorSets(mDevice, static_cast<uint32_t>(writeSets.size()), writeSets.data(), 0, nullptr);
+    //     }
+
+    //     {
+    //         auto& rdsto = mRDSTMap[rpo.mHRenderDST];
+    //         VkRenderPassBeginInfo bi{};
+
+    //         if (rdsto.mHSwapchain)
+    //         {
+    //             auto& swapchain = mSwapchainMap[rdsto.mHSwapchain.value()];
+    //             result = checkVkResult(vkAcquireNextImageKHR(mDevice, swapchain.mSwapchain.value(), UINT64_MAX, mPresentCompletedSem, VK_NULL_HANDLE, &mFrameIndex));
+    //             if (result != Result::eSuccess)
+    //             {
+    //                 std::cout << "failed to acquire next swapchain image!\n";
+    //                 return result;
+    //             }
+
+    //             //if (command.clearValue.size() != rdsto.mTargetnum)
+    //             //{
+    //             //    std::cout << "invalid clear value!\n";
+    //             //}
+
+    //             // クリア値
+    //             std::vector<VkClearValue> clearValue;
+    //             clearValue.emplace_back(VkClearValue{ 0.5f, 0.5f, 0.5f, 0.f });
+    //             if (rdsto.mTargetNum > 1)
+    //             {
+    //                 clearValue.emplace_back(VkClearValue{ 1.0f, 0 });
+    //             }
+
+    //             bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    //             bi.renderPass = rdsto.mRenderPass.value();
+    //             bi.framebuffer = rdsto.mFramebuffers[mFrameIndex].value();
+    //             bi.renderArea.offset = VkOffset2D{ 0, 0 };
+    //             bi.renderArea.extent = swapchain.mSwapchainExtent;
+    //             bi.clearValueCount = clearValue.size();
+    //             bi.pClearValues = clearValue.data();
+    //         }
+    //         else
+    //         {
+    //             bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    //             bi.renderPass = rdsto.mRenderPass.value();
+    //             bi.framebuffer = rdsto.mFramebuffers.back().value();
+    //             bi.renderArea.offset = VkOffset2D{ 0, 0 };
+    //             bi.renderArea.extent = VkExtent2D{ rdsto.mExtent.value().width, rdsto.mExtent.value().height};
+    //         }
+
+    //         auto& vkcommand = mCommands[mFrameIndex];
+    //         auto commandFence = mFences[mFrameIndex];
+    //         vkWaitForFences(mDevice, 1, &commandFence, VK_TRUE, UINT64_MAX);
+
+    //     }
 
     //if (mBufferMap.count(command.hVertexBuffer.value()) <= 0)
     //{

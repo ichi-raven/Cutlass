@@ -53,29 +53,31 @@ namespace Cutlass
         //初期化
         Result initialize(const InitializeInfo& info, std::vector<HSwapchain>& handlesRef);
 
-
         //バッファ作成
         Result createBuffer(const BufferInfo& info, HBuffer *pHandle);
 
-        //バッファ書き込み(未実装)
-        Result writeBuffer(HBuffer handle, void *data, size_t bytesize);
+        //バッファ書き込み
+        Result writeBuffer(const size_t size, const void *const pData, const HBuffer& handle);
 
-        //ファイルからシェーダリソ−ステクスチャ作成
+        //テクスチャ作成
         Result createTexture(const TextureInfo& info, HTexture *pHandle);
-        //
+        
+        //ファイルからテクスチャ作成
         Result createTextureFromFile(const char* fileName, HTexture *pHandle);
 
-        Result changeTextureUsage(const HTexture* pHandle);
+        //テクスチャにデータ書き込み(使用注意, 書き込むデータのサイズはテクスチャのサイズに従うもの以外危険)
+        Result writeTexture(const void *const pData, const HTexture& handle);
 
-        //データ書き込み(未実装)
-        Result writeTexture(const size_t size, const void* const pData, const HTexture* pHandle);
+        //テクスチャのusage変更
+        Result changeTextureUsage(const HTexture* pHandle);
 
         //用途変更
         Result changeTextureUsage(TextureUsage prev, TextureUsage next, const HTexture* pHandle);
 
-		//描画対象オブジェクト構築
+		//描画対象オブジェクトをスワップチェインから構築
 		Result createRenderDSTFromSwapchain(const HSwapchain& handle, bool depthTestEnable, HRenderDST* pHandle);
 
+        //描画対象オブジェクトをテクスチャから構築
         Result createRenderDSTFromTextures(const std::vector<HTexture> textures, HRenderDST *pHandle);
 
         //描画パイプライン構築
@@ -84,12 +86,12 @@ namespace Cutlass
         //コマンド記述
         Result writeCommand(const Command& command);
 
-        //コマンド送信
-        Result submitCommand();
+        //コマンド実行
+        Result execute();
 
         //バックバッファ表示
-        Result present();
-
+        Result present(const HSwapchain& handle);
+        
         //破棄
         Result destroy();
 
@@ -105,7 +107,7 @@ namespace Cutlass
             VkSurfaceFormatKHR          mSurfaceFormat;
             VkPresentModeKHR            mPresentMode;
             VkExtent2D                  mSwapchainExtent;
-            std::vector<HTexture>       mSwapchainImages;
+            std::vector<HTexture>       mHSwapchainImages;
             HTexture                    mHDepthBuffer;
         };
 
@@ -145,8 +147,15 @@ namespace Cutlass
             std::optional<VkPipelineLayout>        mPipelineLayout;
             std::optional<VkPipeline>              mPipeline;
             std::optional<VkDescriptorSetLayout>   mDescriptorSetLayout;
-            std::pair<uint32_t, uint32_t>          mDescriptorCount;//firstがユニフォームバッファ
+            std::optional<VkDescriptorPool>        mDescriptorPool;
+            std::pair<uint32_t, uint32_t>          mDescriptorCount;//firstがユニフォームバッファ, シェーダリソースの接続管轄用
             HRenderDST                             mHRenderDST;
+        };
+
+        struct RunningCommandState
+        {
+            std::optional<HRenderPipeline> mHRPO;
+            std::optional<VkDescriptorSet> mDescriptorSet;
         };
 
         static inline Result checkVkResult(VkResult);
@@ -162,8 +171,6 @@ namespace Cutlass
         Result createSwapchainImages(SwapchainObject* pSO);
         Result createDepthBuffer(SwapchainObject* pSO);
 
-        Result createDefaultFramebuffer();
-
         Result createSemaphores();
 
         Result searchGraphicsQueueIndex();
@@ -175,6 +182,14 @@ namespace Cutlass
 
         Result createShaderModule(Shader shader, VkShaderStageFlagBits stage, VkPipelineShaderStageCreateInfo* pSSCI);
 
+        //各コマンド関数
+        Result cmdBeginRenderPipeline(const CmdBeginRenderPipeline& info);
+        Result cmdEndRenderPipeline(const CmdEndRenderPipeline& info);
+        Result cmdSetVB(const CmdSetVB& info);
+        Result cmdSetIB(const CmdSetIB& info);
+        Result cmdSetShaderResource(const CmdSetShaderResource& info);
+        Result cmdRender(const CmdRender &info);
+
         //ユーザ指定
         InitializeInfo mInitializeInfo;
 
@@ -182,7 +197,6 @@ namespace Cutlass
         HSwapchain              mNextSwapchainHandle;
         HBuffer                 mNextBufferHandle;
         HTexture                mNextTextureHandle;
-        //HSampler                mNextSamplerHandle;
 		HRenderDST				mNextRenderDSTHandle;
         HRenderPipeline         mNextRPHandle;
         std::unordered_map<HSwapchain, SwapchainObject>				mSwapchainMap;
@@ -190,9 +204,10 @@ namespace Cutlass
         std::unordered_map<HTexture, ImageObject>					mImageMap;
         std::unordered_map<HRenderPipeline, RenderPipelineObject>	mRPMap;
 		std::unordered_map<HRenderDST, RenderDSTObject>				mRDSTMap;
-        //std::unordered_map<HSampler, VkSampler> mSamplerMap;
 
+        std::optional<RunningCommandState> mRCState;
 
+        //Vulkan
         VkInstance  mInstance;
         VkDevice    mDevice;
         VkPhysicalDevice  mPhysDev;
@@ -202,17 +217,18 @@ namespace Cutlass
         VkCommandPool mCommandPool;
         
         std::vector<VkFence>          mFences;
-        VkSemaphore   mRenderCompletedSem, mPresentCompletedSem;
-        std::vector<VkCommandBuffer> mCommands;
+        VkSemaphore                   mRenderCompletedSem;
+        VkSemaphore                   mPresentCompletedSem;
+        std::vector<VkCommandBuffer>  mCommands;
 
         // デバッグレポート関連
         PFN_vkCreateDebugReportCallbackEXT	mvkCreateDebugReportCallbackEXT;
         PFN_vkDebugReportMessageEXT	mvkDebugReportMessageEXT;
         PFN_vkDestroyDebugReportCallbackEXT mvkDestroyDebugReportCallbackEXT;
         VkDebugReportCallbackEXT  mDebugReport;
-
         
-        uint32_t  mSwapchainImageIndex;//現在のフレームが指すスワップチェインイメージ
+        //現在のフレームが指すスワップチェインイメージ
+        uint32_t  mFrameIndex;
     };
 
 };

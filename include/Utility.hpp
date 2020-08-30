@@ -13,11 +13,11 @@ namespace Cutlass
 
     enum class Result
     {
+        eFailure = 0,
         eSuccess,
-        eFailure,
     };
 
-    enum class ResourceType //glmを使え
+    enum class ResourceType //とりあえずglmを想定していたりする
     {
         eUint32,
         eInt32,
