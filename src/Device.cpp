@@ -1468,7 +1468,7 @@ namespace Cutlass
         if (!infile)
         {
             std::cout << "failed to load file from " << shader.path <<  " \n";
-            exit(-1);
+            return Result::eFailure;
         }
         
         std::vector<char> filedata;
@@ -1493,7 +1493,7 @@ namespace Cutlass
         pSSCI->pNext = nullptr;
         pSSCI->stage = stage;
         pSSCI->module = shaderModule;
-        pSSCI->pName = shader.entryPoint.c_str();
+        pSSCI->pName = "main";
 
         return Result::eSuccess;
     }
@@ -2032,7 +2032,7 @@ namespace Cutlass
                 }
             }
             
-            std::array<VkPipelineShaderStageCreateInfo, 2> ssciArr;
+            std::array<VkPipelineShaderStageCreateInfo, 2> ssciArr{};
 
             result = createShaderModule(info.vertexShader, VK_SHADER_STAGE_VERTEX_BIT, &ssciArr[0]);
             result = createShaderModule(info.fragmentShader, VK_SHADER_STAGE_FRAGMENT_BIT, &ssciArr[1]);
@@ -2181,33 +2181,33 @@ namespace Cutlass
         switch (command.type)//型とenumの対応はめんどくさい
         {
         case CommandType::eCmdBeginRenderPipeline:
-            // if (!std::holds_alternative<CmdBeginRenderPipeline>(command.info))
-            //     return Result::eFailure;
+             if (!std::holds_alternative<CmdBeginRenderPipeline>(command.info))
+                 return Result::eFailure;
             result = cmdBeginRenderPipeline(std::get<CmdBeginRenderPipeline>(command.info));
             break;
         case CommandType::eCmdEndRenderPipeline:
-            // if (!std::holds_alternative<CmdEndRenderPipeline>(command.info))
-            //     return Result::eFailure;
+             if (!std::holds_alternative<CmdEndRenderPipeline>(command.info))
+                 return Result::eFailure;
             result = cmdEndRenderPipeline(std::get<CmdEndRenderPipeline>(command.info));
             break;
         case CommandType::eCmdSetVB:
-            // if (!std::holds_alternative<CmdSetVB>(command.info))
-            //     return Result::eFailure;
+             if (!std::holds_alternative<CmdSetVB>(command.info))
+                 return Result::eFailure;
             result = cmdSetVB(std::get<CmdSetVB>(command.info));
             break;
         case CommandType::eCmdSetIB:
-            // if (!std::holds_alternative<CmdSetIB>(command.info))
-            //     return Result::eFailure;
+             if (!std::holds_alternative<CmdSetIB>(command.info))
+                 return Result::eFailure;
             result = cmdSetIB(std::get<CmdSetIB>(command.info));
             break;
         case CommandType::eCmdSetShaderResource:
-            // if (!std::holds_alternative<CmdSetShaderResource>(command.info))
-            //     return Result::eFailure;
+             if (!std::holds_alternative<CmdSetShaderResource>(command.info))
+                 return Result::eFailure;
             result = cmdSetShaderResource(std::get<CmdSetShaderResource>(command.info));
             break;
         case CommandType::eCmdRender:
-            // if (!std::holds_alternative<CmdRender>(command.info))
-            //     return Result::eFailure;
+             if (!std::holds_alternative<CmdRender>(command.info))
+                 return Result::eFailure;
             result = cmdRender(std::get<CmdRender>(command.info));
             break;
         default:
