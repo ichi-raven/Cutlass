@@ -62,6 +62,7 @@ namespace Cutlass
     {
         mInitializeInfo = initializeInfo;
         Result result;
+        mFrameIndex = 0;
 
         std::cout << "initialize started...\n";
 
@@ -190,16 +191,6 @@ namespace Cutlass
         if(VK_SUCCESS != vkDeviceWaitIdle(mDevice))
             std::cout << "device wait failed\n";
 
-        // vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
-        // for (auto &v : mFramebuffers)
-        // {
-        //     vkDestroyFramebuffer(mDevice, v, nullptr);
-        // }
-        // mFramebuffers.clear();
-
-        // vkFreeMemory(mDevice, mDepthBufferMemory, nullptr);
-        // vkDestroyImage(mDevice, mDepthBuffer, nullptr);
-
         for(auto& e : mBufferMap)
         {
             if(e.second.mBuffer)
@@ -212,6 +203,9 @@ namespace Cutlass
 
         for(auto& e : mImageMap)
         {
+            if (e.second.usage == TextureUsage::eSwapchainImage)
+                continue;
+
             if (e.second.mImage)
                 vkDestroyImage(mDevice, e.second.mImage.value(), nullptr);
             if (e.second.mMemory)
@@ -256,7 +250,6 @@ namespace Cutlass
         }
         mFences.clear();
         std::cout << "destroyed fences\n";
-
         
         vkDestroySemaphore(mDevice, mPresentCompletedSem, nullptr);
         vkDestroySemaphore(mDevice, mRenderCompletedSem, nullptr);
@@ -272,16 +265,24 @@ namespace Cutlass
         vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
         std::cout << "destroyed command pool\n";
 
-        for(auto& so : mSwapchainMap)
+        
+        for (auto& so : mSwapchainMap)
         {
             //std::cout << "destroyed swapchain imageViews\n";
-            
-            vkDestroySwapchainKHR(mDevice, so.second.mSwapchain.value(), nullptr);
-            std::cout << "destroyed swapchain\n";
+            if (so.second.mSwapchain)
+            {
+                vkDestroySwapchainKHR(mDevice, so.second.mSwapchain.value(), nullptr);
+                std::cout << "destroyed swapchain\n";
+            }
 
-            vkDestroySurfaceKHR(mInstance, so.second.mSurface.value(), nullptr);
-            std::cout << "destroyed surface\n";
+            if (so.second.mSurface)
+            {
+                vkDestroySurfaceKHR(mInstance, so.second.mSurface.value(), nullptr);
+                std::cout << "destroyed surface\n";
+            }
         }
+
+        mSwapchainMap.clear();
         std::cout << "destroyed all swapchain \n";
 
         vkDestroyDevice(mDevice, nullptr);
@@ -481,15 +482,49 @@ namespace Cutlass
     {
         Result result;
 
-        VkCommandPoolCreateInfo ci{};
-        ci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        ci.queueFamilyIndex = mGraphicsQueueIndex;
-        ci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-
-        result = checkVkResult(vkCreateCommandPool(mDevice, &ci, nullptr, &mCommandPool));
-        if (Result::eSuccess != result)
         {
-            return result;
+            VkCommandPoolCreateInfo ci{};
+            ci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+            ci.queueFamilyIndex = mGraphicsQueueIndex;
+            ci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+
+            result = checkVkResult(vkCreateCommandPool(mDevice, &ci, nullptr, &mCommandPool));
+            if (Result::eSuccess != result)
+            {
+                return result;
+            }
+        }
+
+        {
+            VkCommandBufferAllocateInfo ai{};
+            ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+            ai.commandPool = mCommandPool;
+            ai.commandBufferCount = uint32_t(mInitializeInfo.frameCount);
+            ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+            mCommands.resize(ai.commandBufferCount);
+            result = checkVkResult(vkAllocateCommandBuffers(mDevice, &ai, mCommands.data()));
+            if (result != Result::eSuccess)
+            {
+                std::cout << "Failed to create command buffers\n";
+                return Result::eFailure;
+            }
+        }
+
+        {
+            // コマンドバッファのフェンスも同数用意する
+            mFences.resize(mInitializeInfo.frameCount);
+            VkFenceCreateInfo ci{};
+            ci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+            ci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+            for (auto& v : mFences)
+            {
+                result = checkVkResult(vkCreateFence(mDevice, &ci, nullptr, &v));
+                if (result != Result::eSuccess)
+                {
+                    std::cout << "Failed to create command fence\n";
+                    return Result::eFailure;
+                }
+            }
         }
 
         return Result::eSuccess;
@@ -601,6 +636,7 @@ namespace Cutlass
             result = checkVkResult(vkCreateSwapchainKHR(mDevice, &ci, nullptr, &swapchain));
             if (Result::eSuccess != result)
             {
+                std::cout << "Failed to create Swapchain!\n";
                 return result;
             }
 
@@ -1460,7 +1496,7 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Device::createShaderModule(Shader shader, VkShaderStageFlagBits stage, VkPipelineShaderStageCreateInfo *pSSCI)
+    Result Device::createShaderModule(const Shader& shader, const VkShaderStageFlagBits& stage, VkPipelineShaderStageCreateInfo *pSSCI)
     {
         Result result;
 
@@ -1493,7 +1529,7 @@ namespace Cutlass
         pSSCI->pNext = nullptr;
         pSSCI->stage = stage;
         pSSCI->module = shaderModule;
-        pSSCI->pName = "main";
+        pSSCI->pName = shader.entryPoint.c_str();
 
         return Result::eSuccess;
     }
@@ -2220,7 +2256,7 @@ namespace Cutlass
     }
 
 
-    Result Device::cmdBeginRenderPipeline(const CmdBeginRenderPipeline &info){
+    Result Device::cmdBeginRenderPipeline(const CmdBeginRenderPipeline &info)
     {
         Result result = Result::eSuccess;
         if(mRPMap.count(info.RPHandle) <= 0)
@@ -2228,6 +2264,7 @@ namespace Cutlass
             std::cout << "invalid RP handle!";
             return Result::eFailure;
         }
+
         mRCState->mHRPO = info.RPHandle;
         auto& rpo = mRPMap[info.RPHandle];
         auto& rdsto = mRDSTMap[rpo.mHRenderDST];
@@ -2243,47 +2280,46 @@ namespace Cutlass
                     return result;
                 }
 
-                //if (command.clearValue.size() != rdsto.mTargetnum)
-                //{
-                //    std::cout << "invalid clear value!\n";
-                //}
-
                 // クリア値
-                std::vector<VkClearValue> clearValue;
-                clearValue.emplace_back(VkClearValue{ 0.5f, 0.5f, 0.5f, 0.f });
-                if (rdsto.mTargetNum > 1)
-                {
-                    clearValue.emplace_back(VkClearValue{ 1.0f, 0 });
-                }
+                VkClearValue clearValue;
+                clearValue.color = VkClearColorValue{ 0, 0, 0, 0 };
+                clearValue.depthStencil = VkClearDepthStencilValue{ 0, 0 };
 
                 bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
                 bi.renderPass = rdsto.mRenderPass.value();
                 bi.framebuffer = rdsto.mFramebuffers[mFrameIndex].value();
                 bi.renderArea.offset = VkOffset2D{ 0, 0 };
                 bi.renderArea.extent = swapchain.mSwapchainExtent;
-                bi.clearValueCount = clearValue.size();
-                bi.pClearValues = clearValue.data();
-            }
-            else
-            {
-                bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-                bi.renderPass = rdsto.mRenderPass.value();
-                bi.framebuffer = rdsto.mFramebuffers.back().value();
-                bi.renderArea.offset = VkOffset2D{ 0, 0 };
-                bi.renderArea.extent = VkExtent2D{ rdsto.mExtent.value().width, rdsto.mExtent.value().height};
-            }
-
-            auto& vkcommand = mCommands[mFrameIndex];
-            auto commandFence = mFences[mFrameIndex];
-            vkWaitForFences(mDevice, 1, &commandFence, VK_TRUE, UINT64_MAX);
-
-            VkCommandBufferBeginInfo commandBI{};
-            commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-            vkBeginCommandBuffer(mCommands[mFrameIndex], &commandBI);
+                bi.clearValueCount = 1;
+                bi.pClearValues = &clearValue;
         }
-         return Result::eSuccess;
+        else
+        {
+            bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+            bi.renderPass = rdsto.mRenderPass.value();
+            bi.framebuffer = rdsto.mFramebuffers.back().value();
+            bi.renderArea.offset = VkOffset2D{ 0, 0 };
+            bi.renderArea.extent = VkExtent2D{ rdsto.mExtent.value().width, rdsto.mExtent.value().height};
+        }
+
+        vkWaitForFences(mDevice, 1, &mFences[mFrameIndex], VK_TRUE, UINT64_MAX);
+        
+        VkCommandBufferBeginInfo commandBI{};
+        commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        
+        result = checkVkResult(vkBeginCommandBuffer(mCommands[mFrameIndex], &commandBI));
+        if (result != Result::eSuccess)
+        {
+            std::cout << "Failed to begin command buffer!\n";
+            return result;
+        }
+
+        vkCmdBeginRenderPass(mCommands[mFrameIndex], &bi, VK_SUBPASS_CONTENTS_INLINE);
+        
+
+        return Result::eSuccess;
     }
+
     Result Device::cmdEndRenderPipeline(const CmdEndRenderPipeline &info)
     {
         Result result;
@@ -2295,6 +2331,7 @@ namespace Cutlass
         
         return Result::eSuccess;
     }
+
     Result Device::cmdSetVB(const CmdSetVB &info)
     {
         if(mBufferMap.count(info.VBHandle) <= 0)
@@ -2303,6 +2340,7 @@ namespace Cutlass
         vkCmdBindVertexBuffers(mCommands[mFrameIndex], 0, 1, &vbo.mBuffer.value(), nullptr);
         return Result::eSuccess;
     }
+
     Result Device::cmdSetIB(const CmdSetIB &info)
     {
         if (mBufferMap.count(info.IBHandle) <= 0)
@@ -2311,6 +2349,7 @@ namespace Cutlass
         vkCmdBindIndexBuffer(mCommands[mFrameIndex], ibo.mBuffer.value(), 0, VK_INDEX_TYPE_UINT32);
         return Result::eSuccess;
     }
+
     Result Device::cmdSetShaderResource(const CmdSetShaderResource &info)
     {
         Result result;
@@ -2486,7 +2525,7 @@ namespace Cutlass
             return result;
         }
 
-        mFrameIndex = (mFrameIndex + 1) % so.mHSwapchainImages.size();
+        mFrameIndex = static_cast<uint64_t>((mFrameIndex) + 1) % so.mHSwapchainImages.size();
 
         return Result::eSuccess;
     }

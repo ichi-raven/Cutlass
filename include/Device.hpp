@@ -180,7 +180,7 @@ namespace Cutlass
         Result disableDebugReport();
         Result setImageMemoryBarrier(VkCommandBuffer command, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
 
-        Result createShaderModule(Shader shader, VkShaderStageFlagBits stage, VkPipelineShaderStageCreateInfo* pSSCI);
+        Result createShaderModule(const Shader& shader, const VkShaderStageFlagBits& stage, VkPipelineShaderStageCreateInfo* pSSCI);
 
         //各コマンド関数
         Result cmdBeginRenderPipeline(const CmdBeginRenderPipeline& info);
