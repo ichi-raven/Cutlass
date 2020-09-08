@@ -2315,7 +2315,7 @@ namespace Cutlass
         }
 
         vkCmdBeginRenderPass(mCommands[mFrameIndex], &bi, VK_SUBPASS_CONTENTS_INLINE);
-        
+        vkCmdBindPipeline(mCommands[mFrameIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, rpo.mPipeline.value());
 
         return Result::eSuccess;
     }
@@ -2466,6 +2466,14 @@ namespace Cutlass
     Result Device::execute()
     {
         Result result;
+
+        /*result = checkVkResult(vkEndCommandBuffer(mCommands[mFrameIndex]));
+        if (result != Result::eSuccess)
+        {
+            std::cout << "Failed to end command buffer!\n";
+            return result;
+        }*/
+
         // コマンドを実行（送信)
         VkSubmitInfo submitInfo{};
         VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
