@@ -47,7 +47,16 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/include" TYPE FILE FILES "/home/ichi/C++/CutlassEngine/include/Cutlass.hpp")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/include/Cutlass" TYPE FILE FILES
+    "/home/ichi/C++/CutlassEngine/include/Buffer.hpp"
+    "/home/ichi/C++/CutlassEngine/include/Command.hpp"
+    "/home/ichi/C++/CutlassEngine/include/Cutlass.hpp"
+    "/home/ichi/C++/CutlassEngine/include/Device.hpp"
+    "/home/ichi/C++/CutlassEngine/include/RenderDST.hpp"
+    "/home/ichi/C++/CutlassEngine/include/RenderPipeline.hpp"
+    "/home/ichi/C++/CutlassEngine/include/Texture.hpp"
+    "/home/ichi/C++/CutlassEngine/include/Utility.hpp"
+    )
 endif()
 
 if(CMAKE_INSTALL_COMPONENT)

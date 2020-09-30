@@ -21,6 +21,7 @@ namespace Cutlass
     {
         eUint32,
         eInt32,
+        eFloat,
         eFVec2,
         eFVec3,
         eFVec4,

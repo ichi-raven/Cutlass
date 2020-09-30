@@ -4,6 +4,7 @@
 #include <fstream>
 #include <vector>
 #include <variant>
+#include <memory>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -50,12 +51,6 @@ namespace Cutlass
         std::cout << pMessage << std::endl;
 
         return ret;
-    }
-
-    Device::~Device()
-    {
-        //destroy();
-        return;
     }
 
     Result Device::initialize(const InitializeInfo& initializeInfo, std::vector<HSwapchain>& handlesRef)
@@ -203,8 +198,8 @@ namespace Cutlass
 
         for(auto& e : mImageMap)
         {
-            if (e.second.usage == TextureUsage::eSwapchainImage)
-                continue;
+            //if (e.second.usage == TextureUsage::eSwapchainImage)
+            //    continue;
 
             if (e.second.mImage)
                 vkDestroyImage(mDevice, e.second.mImage.value(), nullptr);
@@ -295,6 +290,8 @@ namespace Cutlass
         std::cout << "destroyed instance\n";
 
         std::cout << "all destroying process succeeded\n";
+
+        
 
         return Result::eSuccess;
     }
@@ -932,8 +929,9 @@ namespace Cutlass
 
 			ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 			ci.pNext = nullptr;
-			switch (info.format.first)
-			{
+            
+            switch (info.format.first)
+            {
 			case ResourceType::eFVec3:
 				switch (info.format.second)
 				{
@@ -944,9 +942,11 @@ namespace Cutlass
 					io.format = VK_FORMAT_R16G16B16_SFLOAT;
 					break;
 				default:
-					return Result::eFailure;
-				}
-				break;
+                    std::cout << "invalid type of pixel!\n";
+                    return Result::eFailure;
+                    break;
+                }
+                break;
 			case ResourceType::eFVec4:
 				switch (info.format.second)
 				{
@@ -957,12 +957,14 @@ namespace Cutlass
 					io.format = VK_FORMAT_R16G16B16A16_SFLOAT;
 					break;
 				default:
-					return Result::eFailure;
-					break;
+                    std::cout << "invalid type of pixel!\n";
+                    return Result::eFailure;
+                    break;
 				}
 				break;
 			default:
-				return Result::eFailure;
+                std::cout << "invalid type of pixel!\n";
+                return Result::eFailure;
 				break;
 			}
 
@@ -981,7 +983,8 @@ namespace Cutlass
 				//     ci.extent = {uint32_t(info.width), uint32_t(info.height), uint32_t(info.depth)};
 				//     break;
 			default:
-				return Result::eFailure;
+                std::cout << "invalid dimention of texture!\n";
+                return Result::eFailure;
 				break;
 			}
 
@@ -1000,7 +1003,8 @@ namespace Cutlass
 				//     ci.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 				//     break;
 			default:
-				return Result::eFailure;
+                std::cout << "invalid usage!\n";
+                return Result::eFailure;
 				break;
 			}
 
@@ -1099,10 +1103,11 @@ namespace Cutlass
 
             {
                 VkImageView imageView;
-                if (VK_SUCCESS != vkCreateImageView(mDevice, &ci, nullptr, &imageView))
+                result = checkVkResult(vkCreateImageView(mDevice, &ci, nullptr, &imageView));
+                if (result != Result::eSuccess)
                 {
                     std::cout << "failed to create vkImageView!\n";
-                    exit(-1);
+                    return result;
                 }
 
                 io.mView = imageView;
@@ -1654,6 +1659,7 @@ namespace Cutlass
                     result = checkVkResult(vkCreateFramebuffer(mDevice, &fbci, nullptr, &framebuffer));
                     if (Result::eSuccess != result)
                     {
+                        std::cout << "failed to create frame buffer!\n";
                         return result;
                     }
                     rdsto.mFramebuffers.back() = framebuffer;
@@ -1674,6 +1680,7 @@ namespace Cutlass
                 result = checkVkResult(vkCreateFramebuffer(mDevice, &fbci, nullptr, &frameBuffer));
                 if (Result::eSuccess != result)
                 {
+                    std::cout << "failed to create framebuffer!\n";
                     return result;
                 }
             }
@@ -1836,9 +1843,9 @@ namespace Cutlass
         Result result;
         RenderPipelineObject rpo;
 
-        if(mRDSTMap.count(info.renderDST) <= 0)
+        if (mRDSTMap.count(info.renderDST) <= 0)
         {
-            std::cout << "invalid renderDST handle\n";
+            std::cout << "invalid renderDST handle!\n";
             return Result::eFailure;
         }
 
@@ -1849,59 +1856,74 @@ namespace Cutlass
         {
             //頂点バインディング
             VkVertexInputBindingDescription ib;
-            {
-                ib.binding = 0;
-                ib.stride = info.vertexLayout.sizeOfType;
-                ib.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-            }
-
             //頂点属性
             std::vector<VkVertexInputAttributeDescription> ia_vec;
-            {
-                if (info.vertexLayout.layouts.size() <= 0)
-                {
-                    return Result::eFailure;
-                }
-
-                for (size_t i = 0; i < info.vertexLayout.layouts.size(); ++i)
-                {
-                    ia_vec.emplace_back();
-                    ia_vec.back().binding = 0;
-                    switch(info.vertexLayout.layouts[i].first)
-                    {
-                    case ResourceType::eInt32:
-                        ia_vec.back().format = VK_FORMAT_R32_SINT;
-                        break;
-                    case ResourceType::eUint32:
-                        ia_vec.back().format = VK_FORMAT_R32_UINT;
-                        break;
-                    case ResourceType::eFVec2:
-                        ia_vec.back().format = VK_FORMAT_R32G32_SFLOAT;
-                        break;
-                    case ResourceType::eFVec3:
-                        ia_vec.back().format = VK_FORMAT_R32G32B32_SFLOAT;
-                        break;
-                    case ResourceType::eFVec4:
-                        ia_vec.back().format = VK_FORMAT_R32G32B32A32_SFLOAT;
-                        break;
-                    default:
-                        std::cout << "Resource type (" << i << ") is not described\n";
-                        return Result::eFailure;
-                        break;
-                    }
-                }
-            }
-
             //頂点まとめ
             VkPipelineVertexInputStateCreateInfo visci{};
+            if(info.vertexLayout)
+            {   
+                {
+                    ib.binding = 0;
+                    ib.stride = info.vertexLayout.value().sizeOfType;
+                    ib.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+                }
+                
+                {
+                    if (info.vertexLayout.value().layouts.size() <= 0)
+                    {
+                        return Result::eFailure;
+                    }
+
+                    for (size_t i = 0; i < info.vertexLayout.value().layouts.size(); ++i)
+                    {
+                        ia_vec.emplace_back();
+                        ia_vec.back().binding = 0;
+                        switch(info.vertexLayout.value().layouts[i].first)
+                        {
+                        case ResourceType::eInt32:
+                            ia_vec.back().format = VK_FORMAT_R32_SINT;
+                            break;
+                        case ResourceType::eUint32:
+                            ia_vec.back().format = VK_FORMAT_R32_UINT;
+                            break;
+                        case ResourceType::eFVec2:
+                            ia_vec.back().format = VK_FORMAT_R32G32_SFLOAT;
+                            break;
+                        case ResourceType::eFVec3:
+                            ia_vec.back().format = VK_FORMAT_R32G32B32_SFLOAT;
+                            break;
+                        case ResourceType::eFVec4:
+                            ia_vec.back().format = VK_FORMAT_R32G32B32A32_SFLOAT;
+                            break;
+                        default:
+                            std::cout << "Resource type (" << i << ") is not described\n";
+                            return Result::eFailure;
+                            break;
+                        }
+                    }
+                }
+
+                {
+                    visci.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+                    visci.pNext = nullptr;
+                    visci.vertexBindingDescriptionCount = 1;
+                    visci.pVertexBindingDescriptions = &ib;
+                    visci.vertexAttributeDescriptionCount = static_cast<uint32_t>(ia_vec.size());
+                    visci.pVertexAttributeDescriptions = ia_vec.data();
+                }
+            }
+            else//頂点構造がない場合
             {
+                
                 visci.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
                 visci.pNext = nullptr;
-                visci.vertexBindingDescriptionCount = 1;
-                visci.pVertexBindingDescriptions = &ib;
-                visci.vertexAttributeDescriptionCount = static_cast<uint32_t>(ia_vec.size());
-                visci.pVertexAttributeDescriptions = ia_vec.data();
+                visci.vertexBindingDescriptionCount = 0;
+                visci.pVertexBindingDescriptions = nullptr;
+                visci.vertexAttributeDescriptionCount = 0;
+                visci.pVertexAttributeDescriptions = nullptr;
+                
             }
+            
 
 
             // ブレンディング

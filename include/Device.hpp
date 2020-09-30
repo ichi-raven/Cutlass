@@ -10,6 +10,7 @@
 #include <string>
 #include <unordered_map>
 #include <optional>
+#include <memory>
 
 #include "Utility.hpp"
 #include "Buffer.hpp"
@@ -46,10 +47,12 @@ namespace Cutlass
                    mNextTextureHandle(1),
                    mNextRenderDSTHandle(1),
                    mNextRPHandle(1)
-                   {}
+                   {
+                      
+                   }
 
-        ~Device();
-
+        ~Device(){}
+        
         //初期化
         Result initialize(const InitializeInfo& info, std::vector<HSwapchain>& handlesRef);
 
@@ -230,5 +233,7 @@ namespace Cutlass
         //現在のフレームが指すスワップチェインイメージ
         uint32_t  mFrameIndex;
     };
+
+    using PDevice = std::shared_ptr<Device>;
 
 };

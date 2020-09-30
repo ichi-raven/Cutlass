@@ -6,6 +6,8 @@
 #include <optional>
 #include "Utility.hpp"
 
+//now this is uodated
+
 namespace Cutlass
 {
     // enum class RenderDSTType
@@ -16,7 +18,6 @@ namespace Cutlass
 
     using Viewport = std::array<std::array<float, 3>, 2>;
     using Scissor = std::array<std::array<float, 2>, 2>;
-
 
     enum class ColorBlend
     {
@@ -74,7 +75,7 @@ namespace Cutlass
 
     struct RenderPipelineInfo
     {
-        VertexLayout vertexLayout;
+        std::optional<VertexLayout> vertexLayout;
         ColorBlend colorBlend;
         Topology topology;
         RasterizerState rasterizerState;
