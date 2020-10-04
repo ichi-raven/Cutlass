@@ -1,4 +1,4 @@
-#include <Device.hpp>
+#include "../include/Device.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -46,27 +46,32 @@ namespace Cutlass
 
         if (pLayerPrefix)
         {
-            std::cout << "[" << pLayerPrefix << "] ";
+            std::cerr << "[" << pLayerPrefix << "] ";
         }
-        std::cout << pMessage << std::endl;
+        std::cerr << pMessage << std::endl;
 
         return ret;
     }
 
-    Result Device::initialize(const InitializeInfo& initializeInfo, std::vector<HSwapchain>& handlesRef)
+    Result Device::initialize(const InitializeInfo &initializeInfo, std::vector<HSwapchain> &handlesRef)
     {
         mInitializeInfo = initializeInfo;
         Result result;
         mFrameIndex = 0;
 
-        std::cout << "initialize started...\n";
+        std::cerr << "initialize started...\n";
 
         //GLFW初期化
-        glfwInit();
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfwWindowHint(GLFW_RESIZABLE, 0);
 
-        std::cout << "GLFW initialized\n";
+        if(!glfwInit())
+        {
+            std::cerr << "Failed to initialize GLFW!\n";
+            exit(-1);
+        }
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+        glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+
+        std::cerr << "GLFW initialized\n";
 
         //インスタンス作成
         result = createInstance();
@@ -74,9 +79,10 @@ namespace Cutlass
         {
             return result;
         }
-        std::cout << "created VkInstance\n";
 
-        if(mInitializeInfo.debugFlag)
+        std::cerr << "created VkInstance\n";
+
+        if (mInitializeInfo.debugFlag)
         {
             result = enableDebugReport();
             if (Result::eSuccess != result)
@@ -84,7 +90,6 @@ namespace Cutlass
                 return result;
             }
         }
-        std::cout << "enabled debug report\n";
 
         //物理デバイス選択(いまのところ特に指定なし、先頭デバイスを使用する)
         result = selectPhysicalDevice();
@@ -92,7 +97,7 @@ namespace Cutlass
         {
             return result;
         }
-        std::cout << "selected Physical Device\n";
+        std::cerr << "selected Physical Device\n";
 
         //グラフィクスキューのインデックス検索(いまのところ特に条件指定はない)
         result = searchGraphicsQueueIndex();
@@ -100,7 +105,7 @@ namespace Cutlass
         {
             return result;
         }
-        std::cout << "found index of GraphicsQueue\n";
+        std::cerr << "found index of GraphicsQueue\n";
 
         //論理デバイス作成
         result = createDevice();
@@ -108,7 +113,7 @@ namespace Cutlass
         {
             return result;
         }
-        std::cout << "created VkDevice\n";
+        std::cerr << "created VkDevice\n";
 
         //コマンドプール作成
         result = createCommandPool();
@@ -116,75 +121,81 @@ namespace Cutlass
         {
             return result;
         }
-        std::cout << "created VkCommandPool\n";
-
-        //ウィンドウサーフェス、スワップチェイン作成
-        {
-            int time = 0;
-            for (auto &w : mInitializeInfo.windows)
-            {
-                std::cout << "Swapchain No. " << time++ << "------\n";
-                SwapchainObject so;
-
-                so.mpWindow = std::make_optional(glfwCreateWindow(
-                    w.width,
-                    w.height,
-                    (mInitializeInfo.appName + std::string(" ") + w.windowName).c_str(),
-                    nullptr,
-                    nullptr));
-
-                result = createSurface(&so);
-                if (Result::eSuccess != result)
-                {
-                    return result;
-                }
-                std::cout << "created VkSurfaceKHR\n";
-
-                result = createSwapchain(&so);
-                if (Result::eSuccess != result)
-                {
-                    return result;
-                }
-                std::cout << "created VkSwapChainKHR\n";
-
-                result = createSwapchainImages(&so);
-                if (Result::eSuccess != result)
-                {
-                    return result;
-                }
-                std::cout << "created swapchain images\n";
-
-                result = createDepthBuffer(&so);
-                if (Result::eSuccess != result)
-                {
-                    return result;
-                }
-                std::cout << "created swapchain depthbuffer\n";
-
-                //スワップチェインオブジェクト格納
-                mSwapchainMap.emplace(mNextSwapchainHandle, so);
-                handlesRef.emplace_back(mNextSwapchainHandle++);
-            }
-
-        }
+        std::cerr << "created VkCommandPool\n";
 
         result = createSemaphores();
         if (Result::eSuccess != result)
         {
             return result;
         }
-        std::cout << "created VkSemaphore\n";
+        std::cerr << "created VkSemaphore\n";
 
-        std::cout << "all initialize processes succeeded\n";
+        //ウィンドウサーフェス、スワップチェイン作成
+        {
+            int time = 0;
+            for (auto &w : mInitializeInfo.windows)
+            {
+                std::cerr << "Swapchain No. " << time++ << "------\n";
+                SwapchainObject so;
+
+                so.mpWindow = std::make_optional(glfwCreateWindow(
+                    w.width,
+                    w.height,
+                    w.windowName.c_str(),
+                    nullptr,
+                    nullptr));
+
+                if(!so.mpWindow.value())
+                {
+                   std::cerr << "Failed to create GLFW Window!\n";
+                   destroy();
+                   exit(-1);
+                }
+
+                result = createSurface(&so);
+                if (Result::eSuccess != result)
+                {
+                    return result;
+                }
+                std::cerr << "created VkSurfaceKHR\n";
+
+                result = createSwapchain(&so);
+                if (Result::eSuccess != result)
+                {
+                    return result;
+                }
+                std::cerr << "created VkSwapChainKHR\n";
+
+                result = createSwapchainImages(&so);
+                if (Result::eSuccess != result)
+                {
+                    return result;
+                }
+                std::cerr << "created swapchain images\n";
+
+                result = createDepthBuffer(&so);
+                if (Result::eSuccess != result)
+                {
+                    return result;
+                }
+                std::cerr << "created swapchain depthbuffer\n";
+
+                //スワップチェインオブジェクト格納
+                mSwapchainMap.emplace(mNextSwapchainHandle, so);
+                handlesRef.emplace_back(mNextSwapchainHandle++);
+            }
+        }
+
+        std::cerr << "all initialize processes succeeded\n";
         return Result::eSuccess;
     }
 
     Result Device::destroy()
     {
-        std::cout << "destroying...\n";
+        std::cerr << "destroying...\n";
 
         if(VK_SUCCESS != vkDeviceWaitIdle(mDevice))
-            std::cout << "device wait failed\n";
+            std::cerr << "Failed to wait device idol\n";
 
         for(auto& e : mBufferMap)
         {
@@ -194,19 +205,21 @@ namespace Cutlass
                 vkFreeMemory(mDevice, e.second.mMemory.value(), nullptr);
         }
         mBufferMap.clear();
-        std::cout << "destroyed user allocated buffers\n";
+        std::cerr << "destroyed user allocated buffers\n";
 
         for(auto& e : mImageMap)
         {
-            //if (e.second.usage == TextureUsage::eSwapchainImage)
-            //    continue;
+            if (e.second.mView)
+                vkDestroyImageView(mDevice, e.second.mView.value(), nullptr);
+
+            if (e.second.usage == TextureUsage::eSwapchainImage)//SwapchainImageはここだけを破棄する
+                continue;
 
             if (e.second.mImage)
                 vkDestroyImage(mDevice, e.second.mImage.value(), nullptr);
             if (e.second.mMemory)
                 vkFreeMemory(mDevice, e.second.mMemory.value(), nullptr);
-            if (e.second.mView)
-                vkDestroyImageView(mDevice, e.second.mView.value(), nullptr);
+          
             //if(e.second.mFrameBuffer)
             //    vkDestroyFramebuffer(mDevice, e.second.mFrameBuffer.value(), nullptr);
 
@@ -214,8 +227,8 @@ namespace Cutlass
 				vkDestroySampler(mDevice, e.second.mSampler.value(), nullptr);
         }
         mImageMap.clear();
-        std::cout << "destroyed user allocated textures\n";
-        std::cout << "destroyed user allocated sampler\n";
+        std::cerr << "destroyed user allocated textures\n";
+        std::cerr << "destroyed user allocated sampler\n";
 
         for(auto& e : mRDSTMap)
         {
@@ -244,54 +257,60 @@ namespace Cutlass
             vkDestroyFence(mDevice, v, nullptr);
         }
         mFences.clear();
-        std::cout << "destroyed fences\n";
+        std::cerr << "destroyed fences\n";
         
         vkDestroySemaphore(mDevice, mPresentCompletedSem, nullptr);
         vkDestroySemaphore(mDevice, mRenderCompletedSem, nullptr);
-        std::cout << "destroyed semaphores\n";
+        std::cerr << "destroyed semaphores\n";
 
         if(mCommands.size() > 0)//現状こうしてある
         {
             vkFreeCommandBuffers(mDevice, mCommandPool, uint32_t(mCommands.size()), mCommands.data());
             mCommands.clear();
-            std::cout << "destroyed command buffers\n";
+            std::cerr << "destroyed command buffers\n";
         }
 
         vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
-        std::cout << "destroyed command pool\n";
+        std::cerr << "destroyed command pool\n";
 
-        
         for (auto& so : mSwapchainMap)
         {
-            //std::cout << "destroyed swapchain imageViews\n";
+            //std::cerr << "destroyed swapchain imageViews\n";
             if (so.second.mSwapchain)
             {
                 vkDestroySwapchainKHR(mDevice, so.second.mSwapchain.value(), nullptr);
-                std::cout << "destroyed swapchain\n";
+                std::cerr << "destroyed swapchain\n";
             }
 
             if (so.second.mSurface)
             {
                 vkDestroySurfaceKHR(mInstance, so.second.mSurface.value(), nullptr);
-                std::cout << "destroyed surface\n";
+                std::cerr << "destroyed surface\n";
+            }
+
+            if(so.second.mpWindow)
+            {   
+                glfwDestroyWindow(so.second.mpWindow.value());
+                std::cerr << "destroyed GLFW window\n";
             }
         }
 
         mSwapchainMap.clear();
-        std::cout << "destroyed all swapchain \n";
+        std::cerr << "destroyed all swapchain\n";
 
-        vkDestroyDevice(mDevice, nullptr);
-        std::cout << "destroyed device\n";
-
-        if(mInitializeInfo.debugFlag)
+        if (mInitializeInfo.debugFlag)
             disableDebugReport();
 
+        vkDestroyDevice(mDevice, nullptr);
+        std::cerr << "destroyed device\n";
+
         vkDestroyInstance(mInstance, nullptr);
-        std::cout << "destroyed instance\n";
+        std::cerr << "destroyed instance\n";
 
-        std::cout << "all destroying process succeeded\n";
+        glfwTerminate();
+        std::cerr << "GLFW Terminated\n";
 
-        
+        std::cerr << "all destroying process succeeded\n";        
 
         return Result::eSuccess;
     }
@@ -300,10 +319,9 @@ namespace Cutlass
     {
         if (result != VK_SUCCESS)
         {
-            std::cout << "ERROR!\nvulkan error : " << result << "\n";
+            std::cerr << "ERROR!\nvulkan error : " << result << "\n";
             return Result::eFailure;//ここをSwitchで分岐して独自結果を返す?
-        }
-
+        }       glfwTerminate();
         return Result::eSuccess;
     }
 
@@ -311,7 +329,7 @@ namespace Cutlass
     {
         Result result;
 
-        std::vector<const char*> extensions;
+        std::vector<const char *> extensions;
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
         appInfo.pApplicationName = mInitializeInfo.appName.c_str();
@@ -328,7 +346,7 @@ namespace Cutlass
             if (Result::eSuccess != result)
             {
                 return result;
-            }   
+            }
 
             props.resize(count);
             result = checkVkResult(vkEnumerateInstanceExtensionProperties(nullptr, &count, props.data()));
@@ -337,22 +355,22 @@ namespace Cutlass
                 return result;
             }
 
-            for (const auto& v : props)
+            for (const auto &v : props)
             {
                 extensions.push_back(v.extensionName);
             }
         }
 
         VkInstanceCreateInfo ci{};
-        ci.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO; 
+        ci.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
         ci.enabledExtensionCount = uint32_t(extensions.size());
         ci.ppEnabledExtensionNames = extensions.data();
         ci.pApplicationInfo = &appInfo;
 
-        if(mInitializeInfo.debugFlag)
+        if (mInitializeInfo.debugFlag)
         {
             // デバッグ時には検証レイヤーを有効化
-            const char* layers[] = { "VK_LAYER_KHRONOS_validation" };
+            const char *layers[] = {"VK_LAYER_KHRONOS_validation"};
             ci.enabledLayerCount = 1;
             ci.ppEnabledLayerNames = layers;
         }
@@ -390,7 +408,7 @@ namespace Cutlass
             return result;
         }
 
-        std::cout << "Physical Device number : " << physDevs.size() << "\n";
+        std::cerr << "Physical Device number : " << physDevs.size() << "\n";
 
         // 最初のデバイスを使用する
         mPhysDev = physDevs[0];
@@ -439,7 +457,7 @@ namespace Cutlass
                 return result;
             }
         }
-        
+
         {
             const float defaultQueuePriority(1.0f);
             VkDeviceQueueCreateInfo devQueueCI{};
@@ -502,7 +520,7 @@ namespace Cutlass
             result = checkVkResult(vkAllocateCommandBuffers(mDevice, &ai, mCommands.data()));
             if (result != Result::eSuccess)
             {
-                std::cout << "Failed to create command buffers\n";
+                std::cerr << "Failed to create command buffers\n";
                 return Result::eFailure;
             }
         }
@@ -513,12 +531,12 @@ namespace Cutlass
             VkFenceCreateInfo ci{};
             ci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
             ci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-            for (auto& v : mFences)
+            for (auto &v : mFences)
             {
                 result = checkVkResult(vkCreateFence(mDevice, &ci, nullptr, &v));
                 if (result != Result::eSuccess)
                 {
-                    std::cout << "Failed to create command fence\n";
+                    std::cerr << "Failed to create command fence\n";
                     return Result::eFailure;
                 }
             }
@@ -527,13 +545,13 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Device::createSurface(SwapchainObject* pSO)
+    Result Device::createSurface(SwapchainObject *pSO)
     {
         Result result;
 
         VkSurfaceKHR surface;
         result = checkVkResult(glfwCreateWindowSurface(mInstance, pSO->mpWindow.value(), nullptr, &surface));
-        if(Result::eSuccess != result)
+        if (Result::eSuccess != result)
         {
             return result;
         }
@@ -563,18 +581,18 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Device::selectSurfaceFormat(SwapchainObject* pSO, VkFormat format)
+    Result Device::selectSurfaceFormat(SwapchainObject *pSO, VkFormat format)
     {
         Result result;
 
-        uint32_t surfaceFormatCount = 0;//個数取得
+        uint32_t surfaceFormatCount = 0; //個数取得
         result = checkVkResult(vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysDev, pSO->mSurface.value(), &surfaceFormatCount, nullptr));
         if (Result::eSuccess != result)
         {
             return result;
         }
 
-        std::vector<VkSurfaceFormatKHR> formats(surfaceFormatCount);//実際のフォーマット取得
+        std::vector<VkSurfaceFormatKHR> formats(surfaceFormatCount); //実際のフォーマット取得
         result = checkVkResult(vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysDev, pSO->mSurface.value(), &surfaceFormatCount, formats.data()));
         if (Result::eSuccess != result)
         {
@@ -593,7 +611,7 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Device::createSwapchain(SwapchainObject* pSO)
+    Result Device::createSwapchain(SwapchainObject *pSO)
     {
         Result result;
 
@@ -633,7 +651,7 @@ namespace Cutlass
             result = checkVkResult(vkCreateSwapchainKHR(mDevice, &ci, nullptr, &swapchain));
             if (Result::eSuccess != result)
             {
-                std::cout << "Failed to create Swapchain!\n";
+                std::cerr << "Failed to create Swapchain!\n";
                 return result;
             }
 
@@ -645,7 +663,7 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Device::createSwapchainImages(SwapchainObject* pSO)
+    Result Device::createSwapchainImages(SwapchainObject *pSO)
     {
         Result result;
 
@@ -683,7 +701,7 @@ namespace Cutlass
             result = checkVkResult(vkCreateImageView(mDevice, &ci, nullptr, &swapchainViews[i]));
             if (Result::eSuccess != result)
             {
-                std::cout << "failed to create swapchain image views!\n";
+                std::cerr << "failed to create swapchain image views!\n";
                 return result;
             }
         }
@@ -695,7 +713,7 @@ namespace Cutlass
             io.mView = swapchainViews[i];
             io.usage = TextureUsage::eSwapchainImage;
             io.mIsHostVisible = false;
-            io.extent = { pSO->mSwapchainExtent.width, pSO->mSwapchainExtent.height, static_cast<uint32_t>(1)};
+            io.extent = {pSO->mSwapchainExtent.width, pSO->mSwapchainExtent.height, static_cast<uint32_t>(1)};
             io.format = pSO->mSurfaceFormat.format;
 
             pSO->mHSwapchainImages.emplace_back(mNextTextureHandle++);
@@ -757,8 +775,7 @@ namespace Cutlass
 
     Result Device::enableDebugReport()
     {
-        std::cout << "enabled debug mode\n";
-
+        
         GetInstanceProcAddr(vkCreateDebugReportCallbackEXT);
         GetInstanceProcAddr(vkDebugReportMessageEXT);
         GetInstanceProcAddr(vkDestroyDebugReportCallbackEXT);
@@ -771,6 +788,8 @@ namespace Cutlass
         drcci.pfnCallback = &DebugReportCallback;
         mvkCreateDebugReportCallbackEXT(mInstance, &drcci, nullptr, &mDebugReport);
 
+        std::cerr << "enabled debug mode\n";
+
         return Result::eSuccess;
     }
 
@@ -782,7 +801,7 @@ namespace Cutlass
             mvkDestroyDebugReportCallbackEXT(mInstance, mDebugReport, nullptr);
         }
 
-        std::cout << " disabled debug mode\n";
+        std::cerr << "disabled debug mode\n";
 
         return Result::eSuccess;
     }
@@ -806,7 +825,6 @@ namespace Cutlass
         }
         return result;
     }
-
     Result Device::createBuffer(const BufferInfo &info, HBuffer *pHandle)
     {
         Result result = Result::eFailure;
@@ -828,7 +846,7 @@ namespace Cutlass
                 ci.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
                 break;
             default:
-                std::cout << "buffer usage is not descibed.\n";
+                std::cerr << "buffer usage is not descibed.\n";
                 return Result::eFailure;
                 break;
             }
@@ -942,7 +960,7 @@ namespace Cutlass
 					io.format = VK_FORMAT_R16G16B16_SFLOAT;
 					break;
 				default:
-                    std::cout << "invalid type of pixel!\n";
+                    std::cerr << "invalid type of pixel!\n";
                     return Result::eFailure;
                     break;
                 }
@@ -957,13 +975,13 @@ namespace Cutlass
 					io.format = VK_FORMAT_R16G16B16A16_SFLOAT;
 					break;
 				default:
-                    std::cout << "invalid type of pixel!\n";
+                    std::cerr << "invalid type of pixel!\n";
                     return Result::eFailure;
                     break;
 				}
 				break;
 			default:
-                std::cout << "invalid type of pixel!\n";
+                std::cerr << "invalid type of pixel!\n";
                 return Result::eFailure;
 				break;
 			}
@@ -976,14 +994,14 @@ namespace Cutlass
 				ci.imageType = VK_IMAGE_TYPE_2D;
 				ci.extent = { uint32_t(info.width), uint32_t(info.height), 1 };
 				if (info.depth != 1)
-					std::cout << "ignored invalid depth param\n";
+					std::cerr << "ignored invalid depth param\n";
 				break;
 				// case TextureDimention::e3D:
 				//     ci.imageType = VK_IMAGE_TYPE_3D;
 				//     ci.extent = {uint32_t(info.width), uint32_t(info.height), uint32_t(info.depth)};
 				//     break;
 			default:
-                std::cout << "invalid dimention of texture!\n";
+                std::cerr << "invalid dimention of texture!\n";
                 return Result::eFailure;
 				break;
 			}
@@ -1003,7 +1021,7 @@ namespace Cutlass
 				//     ci.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 				//     break;
 			default:
-                std::cout << "invalid usage!\n";
+                std::cerr << "invalid usage!\n";
                 return Result::eFailure;
 				break;
 			}
@@ -1106,7 +1124,7 @@ namespace Cutlass
                 result = checkVkResult(vkCreateImageView(mDevice, &ci, nullptr, &imageView));
                 if (result != Result::eSuccess)
                 {
-                    std::cout << "failed to create vkImageView!\n";
+                    std::cerr << "failed to create vkImageView!\n";
                     return result;
                 }
 
@@ -1152,7 +1170,7 @@ namespace Cutlass
 
             if (!fileName)
             {
-                std::cout << "invalid file name\n";
+                std::cerr << "invalid file name\n";
                 return Result::eFailure;
             }
     
@@ -1160,7 +1178,7 @@ namespace Cutlass
             channel = 4;
             if (!pImage)
             {
-                std::cout << "Failed to load texture file!\n";
+                std::cerr << "Failed to load texture file!\n";
                 return Result::eFailure;
             }
 
@@ -1433,7 +1451,7 @@ namespace Cutlass
                 result = checkVkResult(vkCreateImage(mDevice, &ci, nullptr, &image));
                 if (Result::eSuccess != result)
                 {
-                    std::cout << "failed to create depth buffer's image\n";
+                    std::cerr << "failed to create depth buffer's image\n";
                     return result;
                 }
                 io.mImage = image;
@@ -1487,7 +1505,7 @@ namespace Cutlass
             result = checkVkResult(vkCreateImageView(mDevice, &ci, nullptr, &imageView));
             if (Result::eSuccess != result)
             {
-                std::cout << "failed to create vkImageView!\n";
+                std::cerr << "failed to create vkImageView!\n";
                 return result;
             }
 
@@ -1508,7 +1526,7 @@ namespace Cutlass
         std::ifstream infile(shader.path.c_str(), std::ios::binary);
         if (!infile)
         {
-            std::cout << "failed to load file from " << shader.path <<  " \n";
+            std::cerr << "failed to load file from " << shader.path <<  " \n";
             return Result::eFailure;
         }
         
@@ -1525,7 +1543,7 @@ namespace Cutlass
         result = checkVkResult(vkCreateShaderModule(mDevice, &ci, nullptr, &shaderModule));
         if(result != Result::eSuccess)
         {
-            std::cout << "failed to create Shader Module\n";
+            std::cerr << "failed to create Shader Module\n";
             return result;
         }
 
@@ -1549,7 +1567,7 @@ namespace Cutlass
 
         if(mSwapchainMap.count(handle) <= 0)
         {
-            std::cout << "invalid swapchain handle\n";
+            std::cerr << "invalid swapchain handle\n";
             return Result::eFailure;
         }
 
@@ -1577,7 +1595,7 @@ namespace Cutlass
 
             if (mImageMap.count(rdst) <= 0)
             {
-                std::cout << "invalid swapchain image handle\n";
+                std::cerr << "invalid swapchain image handle\n";
                 return Result::eFailure;
             }
 
@@ -1659,7 +1677,7 @@ namespace Cutlass
                     result = checkVkResult(vkCreateFramebuffer(mDevice, &fbci, nullptr, &framebuffer));
                     if (Result::eSuccess != result)
                     {
-                        std::cout << "failed to create frame buffer!\n";
+                        std::cerr << "failed to create frame buffer!\n";
                         return result;
                     }
                     rdsto.mFramebuffers.back() = framebuffer;
@@ -1680,7 +1698,7 @@ namespace Cutlass
                 result = checkVkResult(vkCreateFramebuffer(mDevice, &fbci, nullptr, &frameBuffer));
                 if (Result::eSuccess != result)
                 {
-                    std::cout << "failed to create framebuffer!\n";
+                    std::cerr << "failed to create framebuffer!\n";
                     return result;
                 }
             }
@@ -1710,7 +1728,7 @@ namespace Cutlass
             {
                 if (mImageMap.count(tex) <= 0)
                 {
-                    std::cout << "invalid texture handle\n";
+                    std::cerr << "invalid texture handle\n";
                     return Result::eFailure;
                 }
                 auto &io = mImageMap[tex];
@@ -1718,7 +1736,7 @@ namespace Cutlass
                 //使いみちが違うのはアウト
                 if (io.usage != TextureUsage::eColorTarget || io.usage != TextureUsage::eDepthStencilTarget)
                 {
-                    std::cout << "invalid texture usage\n";
+                    std::cerr << "invalid texture usage\n";
                     return Result::eFailure;
                 }
 
@@ -1729,7 +1747,7 @@ namespace Cutlass
                 &&  rdsto.mExtent.value().height != io.extent.height
                 &&  rdsto.mExtent.value().depth != io.extent.depth)
                 {
-                    std::cout << "invalid texture extent\n";
+                    std::cerr << "invalid texture extent\n";
                     return Result::eFailure;
                 }
             }
@@ -1845,7 +1863,7 @@ namespace Cutlass
 
         if (mRDSTMap.count(info.renderDST) <= 0)
         {
-            std::cout << "invalid renderDST handle!\n";
+            std::cerr << "invalid renderDST handle!\n";
             return Result::eFailure;
         }
 
@@ -1896,7 +1914,7 @@ namespace Cutlass
                             ia_vec.back().format = VK_FORMAT_R32G32B32A32_SFLOAT;
                             break;
                         default:
-                            std::cout << "Resource type (" << i << ") is not described\n";
+                            std::cerr << "Resource type (" << i << ") is not described\n";
                             return Result::eFailure;
                             break;
                         }
@@ -1953,7 +1971,7 @@ namespace Cutlass
                     break;
 
                 default:
-                    std::cout << "color blend state is not described\n";
+                    std::cerr << "color blend state is not described\n";
                     return Result::eFailure;
                     break;
                 }
@@ -2022,7 +2040,7 @@ namespace Cutlass
                     iaci.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
                     break;
                 default:
-                    std::cout << "primitive topology is not described\n";
+                    std::cerr << "primitive topology is not described\n";
                     return Result::eFailure;
                     break;
                 }
@@ -2041,7 +2059,7 @@ namespace Cutlass
                     rci.lineWidth = 1.f;
                     break;
                 default:
-                    std::cout << "rasterizer state is not described\n";
+                    std::cerr << "rasterizer state is not described\n";
                     return Result::eFailure;
                     break;
                 }
@@ -2057,7 +2075,7 @@ namespace Cutlass
                     msci.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
                     break;
                 default:
-                    std::cout << "multisampling state is not described\n";
+                    std::cerr << "multisampling state is not described\n";
                     return Result::eFailure;
                     break;
                 }
@@ -2084,7 +2102,7 @@ namespace Cutlass
                     dsci.depthTestEnable = dsci.stencilTestEnable = VK_TRUE;
                     break;
                 default:
-                    std::cout << "depth stencil state is not described\n";
+                    std::cerr << "depth stencil state is not described\n";
                     return Result::eFailure;
                     break;
                 }
@@ -2134,41 +2152,11 @@ namespace Cutlass
                     result = checkVkResult(vkCreateDescriptorSetLayout(mDevice, &descLayoutci, nullptr, &descriptorSetLayout));
                     if(result != Result::eSuccess)
                     {
-                        std::cout << "failed to create descriptor set layout\n";
+                        std::cerr << "failed to create descriptor set layout\n";
                         return result;
                     }
 
                     rpo.mDescriptorSetLayout = descriptorSetLayout;
-                }
-            }
-
-            {//ディスクリプタプール構築
-                std::array<VkDescriptorPoolSize, 2> sizes;
-                sizes[0].descriptorCount = rpo.mDescriptorCount.first;
-                sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                sizes[1].descriptorCount = rpo.mDescriptorCount.second;
-                sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-
-                VkDescriptorPoolCreateInfo dpci{};
-                dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-                dpci.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-                if(info.maxSR < rpo.mDescriptorCount.first + rpo.mDescriptorCount.second)
-                {
-                    std::cout << "invalid max SR count\n";
-                    return Result::eFailure;
-                }
-                dpci.maxSets = info.maxSR;
-                dpci.poolSizeCount = sizes.size();
-                dpci.pPoolSizes = sizes.data();
-                {
-                    VkDescriptorPool descriptorPool;
-                    result = checkVkResult(vkCreateDescriptorPool(mDevice, &dpci, nullptr, &descriptorPool));
-                    if (result != Result::eSuccess)
-                    {
-                        std::cout << "failed to create Descriptor Pool\n";
-                        return result;
-                    }
-                    rpo.mDescriptorPool = descriptorPool;
                 }
             }
 
@@ -2184,7 +2172,7 @@ namespace Cutlass
                     result = checkVkResult(vkCreatePipelineLayout(mDevice, &ci, nullptr, &pipelineLayout));
                     if (result != Result::eSuccess)
                     {
-                        std::cout << "failed to create pipeline layout\n";
+                        std::cerr << "failed to create pipeline layout\n";
                         return result;
                     }
 
@@ -2211,83 +2199,193 @@ namespace Cutlass
                     result = checkVkResult(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &ci, nullptr, &pipeline));
                     if(result != Result::eSuccess)
                     {
-                        std::cout << "failed to create graphics pipeline\n";
+                        std::cerr << "failed to create graphics pipeline\n";
                         return result;
                     }
 
                     rpo.mPipeline = pipeline;
                 }
             }
+
+            //ShaderModule破棄
+            for (auto &ssci : ssciArr)
+                vkDestroyShaderModule(mDevice, ssci.module, nullptr);
         }
 
-        *pHandle = mNextRPHandle++;
-        mRPMap.emplace(*pHandle, rpo);
+            *pHandle = mNextRPHandle++;
+            mRPMap.emplace(*pHandle, rpo);
 
-        return Result::eSuccess;
+            return Result::eSuccess;
     }
 
     Result Device::writeCommand(const Command& command)//ボトルネック
     {
-        Result result = Result::eSuccess;
+        mWroteCommands.emplace_back(command);
 
-        {//optionalに構築したオブジェクトを代入している
-            RunningCommandState tmp;
-            mRCState = tmp;
-        }
-
-
-        switch (command.type)//型とenumの対応はめんどくさい
+        switch (command.type) //型とenumの対応はめんどくさい
         {
         case CommandType::eCmdBeginRenderPipeline:
-             if (!std::holds_alternative<CmdBeginRenderPipeline>(command.info))
-                 return Result::eFailure;
-            result = cmdBeginRenderPipeline(std::get<CmdBeginRenderPipeline>(command.info));
+            if (!std::holds_alternative<CmdBeginRenderPipeline>(command.info))
+                return Result::eFailure;
+
+            std::get<CmdBeginRenderPipeline>(command.info);
+
+            if (mRPMap.count(std::get<CmdBeginRenderPipeline>(command.info).RPHandle) <= 0)
+            {
+                std::cerr << "invalid RP handle!";
+                return Result::eFailure;
+            }
+
+            mRCState->mHRPO = std::get<CmdBeginRenderPipeline>(command.info).RPHandle;
             break;
+
+        case CommandType::eCmdSetShaderResource:
+            if (!std::holds_alternative<CmdSetShaderResource>(command.info))
+                return Result::eFailure;
+
+            mRCState->maxSR +=
+                std::get<CmdSetShaderResource>(command.info).shaderResource.uniformBuffer.size() +
+                std::get<CmdSetShaderResource>(command.info).shaderResource.combinedTexture.size();
+            break;
+
         case CommandType::eCmdEndRenderPipeline:
-             if (!std::holds_alternative<CmdEndRenderPipeline>(command.info))
-                 return Result::eFailure;
-            result = cmdEndRenderPipeline(std::get<CmdEndRenderPipeline>(command.info));
             break;
         case CommandType::eCmdSetVB:
-             if (!std::holds_alternative<CmdSetVB>(command.info))
-                 return Result::eFailure;
-            result = cmdSetVB(std::get<CmdSetVB>(command.info));
             break;
         case CommandType::eCmdSetIB:
-             if (!std::holds_alternative<CmdSetIB>(command.info))
-                 return Result::eFailure;
-            result = cmdSetIB(std::get<CmdSetIB>(command.info));
-            break;
-        case CommandType::eCmdSetShaderResource:
-             if (!std::holds_alternative<CmdSetShaderResource>(command.info))
-                 return Result::eFailure;
-            result = cmdSetShaderResource(std::get<CmdSetShaderResource>(command.info));
             break;
         case CommandType::eCmdRender:
-             if (!std::holds_alternative<CmdRender>(command.info))
-                 return Result::eFailure;
-            result = cmdRender(std::get<CmdRender>(command.info));
             break;
         default:
-            std::cout << "invalid command!\n";
-            result = Result::eFailure;
+            std::cerr << "invalid command!\n";
+            return Result::eFailure;
             break;
         }
 
-        return result;
+        return Result::eSuccess;
     }
 
+    Result Device::execute()
+    {
+        Result result = Result::eSuccess;
+
+        //ここでディスクリプタプール作成
+
+        auto& rpo = mRPMap[mRCState->mHRPO.value()];
+
+        if(mRCState->maxSR > 0)
+        { //ディスクリプタプール構築
+            std::array<VkDescriptorPoolSize, 2> sizes;
+            sizes[0].descriptorCount = rpo.mDescriptorCount.first;
+            sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            sizes[1].descriptorCount = rpo.mDescriptorCount.second;
+            sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+
+            VkDescriptorPoolCreateInfo dpci{};
+            dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+            dpci.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+            if (mRCState->maxSR < rpo.mDescriptorCount.first + rpo.mDescriptorCount.second)
+            {
+                std::cerr << "invalid max SR count\n";
+                return Result::eFailure;
+            }
+            dpci.maxSets = mRCState->maxSR;
+            dpci.poolSizeCount = sizes.size();
+            dpci.pPoolSizes = sizes.data();
+            {
+                VkDescriptorPool descriptorPool;
+                result = checkVkResult(vkCreateDescriptorPool(mDevice, &dpci, nullptr, &descriptorPool));
+                if (result != Result::eSuccess)
+                {
+                    std::cerr << "failed to create Descriptor Pool\n";
+                    return result;
+                }
+                mRCState->mDescriptorPool = descriptorPool;
+            }
+        }
+
+        for (const auto &command : mWroteCommands)
+        {
+            switch (command.type) //型とenumの対応はめんどくさい
+            {
+            case CommandType::eCmdBeginRenderPipeline:
+                if (!std::holds_alternative<CmdBeginRenderPipeline>(command.info))
+                    return Result::eFailure;
+                result = cmdBeginRenderPipeline(std::get<CmdBeginRenderPipeline>(command.info));
+                break;
+            case CommandType::eCmdEndRenderPipeline:
+                if (!std::holds_alternative<CmdEndRenderPipeline>(command.info))
+                    return Result::eFailure;
+                result = cmdEndRenderPipeline(std::get<CmdEndRenderPipeline>(command.info));
+                break;
+            case CommandType::eCmdSetVB:
+                if (!std::holds_alternative<CmdSetVB>(command.info))
+                    return Result::eFailure;
+                result = cmdSetVB(std::get<CmdSetVB>(command.info));
+                break;
+            case CommandType::eCmdSetIB:
+                if (!std::holds_alternative<CmdSetIB>(command.info))
+                    return Result::eFailure;
+                result = cmdSetIB(std::get<CmdSetIB>(command.info));
+                break;
+            case CommandType::eCmdSetShaderResource:
+                if (!std::holds_alternative<CmdSetShaderResource>(command.info))
+                    return Result::eFailure;
+                result = cmdSetShaderResource(std::get<CmdSetShaderResource>(command.info));
+                break;
+            case CommandType::eCmdRender:
+                if (!std::holds_alternative<CmdRender>(command.info))
+                    return Result::eFailure;
+                result = cmdRender(std::get<CmdRender>(command.info));
+                break;
+            default:
+                std::cerr << "invalid command!\n";
+                result = Result::eFailure;
+                break;
+            }
+        }
+
+        // コマンドを実行（送信)
+        VkSubmitInfo submitInfo{};
+        VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &mCommands[mFrameIndex];
+        submitInfo.pWaitDstStageMask = &waitStageMask;
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = &mPresentCompletedSem;
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = &mRenderCompletedSem;
+
+        result = checkVkResult(vkResetFences(mDevice, 1, &mFences[mFrameIndex]));
+        if (result != Result::eSuccess)
+        {
+            std::cerr << "failed to reset fences!\n";
+            return result;
+        }
+
+        result = checkVkResult(vkQueueSubmit(mDeviceQueue, 1, &submitInfo, mFences[mFrameIndex]));
+        if (result != Result::eSuccess)
+        {
+            std::cerr << "failed to submit cmd to queue!\n";
+            return result;
+        }
+
+        //注意 : VkDescriptorSetについての解放がよくわかっていない
+        {
+            mRCState = std::nullopt;//解放
+            if(mRCState->mDescriptorPool)
+                vkDestroyDescriptorPool(mDevice, mRCState->mDescriptorPool.value(), nullptr);
+            RunningCommandState tmp;
+            mRCState = tmp; //新しいインスタンス取得
+        }
+        return Result::eSuccess;
+    }
 
     Result Device::cmdBeginRenderPipeline(const CmdBeginRenderPipeline &info)
     {
         Result result = Result::eSuccess;
-        if(mRPMap.count(info.RPHandle) <= 0)
-        {
-            std::cout << "invalid RP handle!";
-            return Result::eFailure;
-        }
 
-        mRCState->mHRPO = info.RPHandle;
         auto& rpo = mRPMap[info.RPHandle];
         auto& rdsto = mRDSTMap[rpo.mHRenderDST];
         VkRenderPassBeginInfo bi{};
@@ -2298,22 +2396,22 @@ namespace Cutlass
                 result = checkVkResult(vkAcquireNextImageKHR(mDevice, swapchain.mSwapchain.value(), UINT64_MAX, mPresentCompletedSem, VK_NULL_HANDLE, &mFrameIndex));
                 if (result != Result::eSuccess)
                 {
-                    std::cout << "failed to acquire next swapchain image!\n";
+                    std::cerr << "failed to acquire next swapchain image!\n";
                     return result;
                 }
 
                 // クリア値
-                VkClearValue clearValue;
-                clearValue.color = VkClearColorValue{ 0, 0, 0, 0 };
-                clearValue.depthStencil = VkClearDepthStencilValue{ 0, 0 };
+                VkClearValue clearValues[2];
+                clearValues[0].color = VkClearColorValue{ 0, 0, 0, 0 };
+                clearValues[1].depthStencil = VkClearDepthStencilValue{ 0, 0 };
 
                 bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
                 bi.renderPass = rdsto.mRenderPass.value();
                 bi.framebuffer = rdsto.mFramebuffers[mFrameIndex].value();
                 bi.renderArea.offset = VkOffset2D{ 0, 0 };
                 bi.renderArea.extent = swapchain.mSwapchainExtent;
-                bi.clearValueCount = 1;
-                bi.pClearValues = &clearValue;
+                bi.clearValueCount = 2;
+                bi.pClearValues = clearValues;
         }
         else
         {
@@ -2332,7 +2430,7 @@ namespace Cutlass
         result = checkVkResult(vkBeginCommandBuffer(mCommands[mFrameIndex], &commandBI));
         if (result != Result::eSuccess)
         {
-            std::cout << "Failed to begin command buffer!\n";
+            std::cerr << "Failed to begin command buffer!\n";
             return result;
         }
 
@@ -2378,7 +2476,7 @@ namespace Cutlass
 
         if(!mRCState->mHRPO)
         {
-            std::cout << "render pipeline object is not registed yet!\n";
+            std::cerr << "render pipeline object is not registed yet!\n";
             return Result::eFailure;
         }
 
@@ -2388,13 +2486,13 @@ namespace Cutlass
         {
             VkDescriptorSetAllocateInfo dsai{};
             dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-            dsai.descriptorPool = rpo.mDescriptorPool.value();
+            dsai.descriptorPool = mRCState->mDescriptorPool.value();
             dsai.descriptorSetCount = 1;
             dsai.pSetLayouts = &rpo.mDescriptorSetLayout.value();
             result = checkVkResult(vkAllocateDescriptorSets(mDevice, &dsai, &descriptorSet));
             if (result != Result::eSuccess)
             {
-                std::cout << "failed to allocate descriptor set\n";
+                std::cerr << "failed to allocate descriptor set\n";
                 return result;
             }
 
@@ -2408,7 +2506,7 @@ namespace Cutlass
 
                 if (mBufferMap.count(hub) <= 0)
                 {
-                    std::cout << "invalid uniform buffer handle!\n";
+                    std::cerr << "invalid uniform buffer handle!\n";
                     return Result::eFailure;
                 }
 
@@ -2434,7 +2532,7 @@ namespace Cutlass
 
                 if (mImageMap.count(hct) <= 0)
                 {
-                    std::cout << "invalid combined texture handle!\n";
+                    std::cerr << "invalid combined texture handle!\n";
                     return Result::eFailure;
                 }
 
@@ -2482,51 +2580,10 @@ namespace Cutlass
             info.vertexOffset, 
             info.firstInstance
         );
-        return Result::eSuccess;
-    }
-
-    Result Device::execute()
-    {
-        Result result;
-
-        /*result = checkVkResult(vkEndCommandBuffer(mCommands[mFrameIndex]));
-        if (result != Result::eSuccess)
-        {
-            std::cout << "Failed to end command buffer!\n";
-            return result;
-        }*/
-
-        // コマンドを実行（送信)
-        VkSubmitInfo submitInfo{};
-        VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &mCommands[mFrameIndex];
-        submitInfo.pWaitDstStageMask = &waitStageMask;
-        submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = &mPresentCompletedSem;
-        submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = &mRenderCompletedSem;
-
-        result = checkVkResult(vkResetFences(mDevice, 1, &mFences[mFrameIndex]));
-        if(result != Result::eSuccess)
-        {
-            std::cout << "failed to reset fences!\n";
-            return result;
-        }
-
-        result = checkVkResult(vkQueueSubmit(mDeviceQueue, 1, &submitInfo, mFences[mFrameIndex]));
-        if(result != Result::eSuccess)
-        {
-            std::cout << "failed to submit cmd to queue!\n";
-            return result;
-        }
-
-        //注意 : VkDescriptorSetについての解放がよくわかっていない
-        mRCState = std::nullopt;
 
         return Result::eSuccess;
     }
+
 
     Result Device::present(const HSwapchain& handle)
     {
@@ -2534,7 +2591,7 @@ namespace Cutlass
 
         if(mSwapchainMap.count(handle) <= 0)
         {
-            std::cout << "invalid swapchian handle!\n";
+            std::cerr << "invalid swapchian handle!\n";
             return Result::eFailure;
         }
 
@@ -2551,7 +2608,7 @@ namespace Cutlass
         result = checkVkResult(vkQueuePresentKHR(mDeviceQueue, &presentInfo));
         if (result != Result::eSuccess)
         {
-            std::cout << "failed to present queue!\n";
+            std::cerr << "failed to present queue!\n";
             return result;
         }
 
@@ -2564,7 +2621,7 @@ namespace Cutlass
 
     //     if (mRPMap.count(handle) <= 0)
     //     {
-    //         std::cout << "invalid renderPipeline handle!\n";
+    //         std::cerr << "invalid renderPipeline handle!\n";
     //         return Result::eFailure;
     //     }
     //     auto &rpo = mRPMap[handle];
@@ -2579,7 +2636,7 @@ namespace Cutlass
     //         result = checkVkResult(vkAllocateDescriptorSets(mDevice, &dsai, &descriptorSet));
     //         if (result != Result::eSuccess)
     //         {
-    //             std::cout << "failed to allocate descriptor set\n";
+    //             std::cerr << "failed to allocate descriptor set\n";
     //             return result;
     //         }
 
@@ -2593,7 +2650,7 @@ namespace Cutlass
 
     //             if (mBufferMap.count(hub) <= 0)
     //             {
-    //                 std::cout << "invalid uniform buffer handle!\n";
+    //                 std::cerr << "invalid uniform buffer handle!\n";
     //                 return Result::eFailure;
     //             }
 
@@ -2619,7 +2676,7 @@ namespace Cutlass
 
     //             if (mImageMap.count(hct) <= 0)
     //             {
-    //                 std::cout << "invalid combined texture handle!\n";
+    //                 std::cerr << "invalid combined texture handle!\n";
     //                 return Result::eFailure;
     //             }
 
@@ -2650,13 +2707,13 @@ namespace Cutlass
     //             result = checkVkResult(vkAcquireNextImageKHR(mDevice, swapchain.mSwapchain.value(), UINT64_MAX, mPresentCompletedSem, VK_NULL_HANDLE, &mFrameIndex));
     //             if (result != Result::eSuccess)
     //             {
-    //                 std::cout << "failed to acquire next swapchain image!\n";
+    //                 std::cerr << "failed to acquire next swapchain image!\n";
     //                 return result;
     //             }
 
     //             //if (command.clearValue.size() != rdsto.mTargetnum)
     //             //{
-    //             //    std::cout << "invalid clear value!\n";
+    //             //    std::cerr << "invalid clear value!\n";
     //             //}
 
     //             // クリア値
@@ -2692,14 +2749,14 @@ namespace Cutlass
 
     //if (mBufferMap.count(command.hVertexBuffer.value()) <= 0)
     //{
-    //    std::cout << "invalid Buffer handle!\n";
+    //    std::cerr << "invalid Buffer handle!\n";
     //    return Result::eFailure;
     //}
     //auto& vbo = mBufferMap[command.hVertexBuffer.value()];
 
     //if (mBufferMap.count(command.hIndexBuffer.value()) <= 0)
     //{
-    //    std::cout << "invalid Buffer handle!\n";
+    //    std::cerr << "invalid Buffer handle!\n";
     //    return Result::eFailure;
     //}
     //auto ibo = mBufferMap[command.hIndexBuffer.value()];

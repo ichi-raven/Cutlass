@@ -1,12 +1,13 @@
 #pragma once
 
+#include "Utility.hpp"
+
 #include <vector>
+#include <array>
 #include <string>
 #include <cstdint>
 #include <optional>
-#include "Utility.hpp"
 
-//now this is uodated
 
 namespace Cutlass
 {
@@ -50,8 +51,14 @@ namespace Cutlass
 
     struct VertexLayout
     {
-        size_t sizeOfType;//全体としての型のサイズ
+        
+        size_t sizeOfType; //全体としての型のサイズ
         std::vector<std::pair<ResourceType, std::string>> layouts;
+
+        void addLayout(const ResourceType &type, const std::string &name)
+        {
+            layouts.emplace_back(std::pair(type, name));
+        }
         //std::vector<std::string> names;
     };
 
