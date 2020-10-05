@@ -321,7 +321,7 @@ namespace Cutlass
         {
             std::cerr << "ERROR!\nvulkan error : " << result << "\n";
             return Result::eFailure;//ここをSwitchで分岐して独自結果を返す?
-        }       glfwTerminate();
+        }
         return Result::eSuccess;
     }
 
@@ -2289,6 +2289,7 @@ namespace Cutlass
                 std::cerr << "invalid max SR count\n";
                 return Result::eFailure;
             }
+
             dpci.maxSets = mRCState->maxSR;
             dpci.poolSizeCount = sizes.size();
             dpci.pPoolSizes = sizes.data();
@@ -2393,25 +2394,26 @@ namespace Cutlass
         if (rdsto.mHSwapchain)
         {
             auto& swapchain = mSwapchainMap[rdsto.mHSwapchain.value()];
-                result = checkVkResult(vkAcquireNextImageKHR(mDevice, swapchain.mSwapchain.value(), UINT64_MAX, mPresentCompletedSem, VK_NULL_HANDLE, &mFrameIndex));
-                if (result != Result::eSuccess)
-                {
-                    std::cerr << "failed to acquire next swapchain image!\n";
-                    return result;
-                }
 
-                // クリア値
-                VkClearValue clearValues[2];
-                clearValues[0].color = VkClearColorValue{ 0, 0, 0, 0 };
-                clearValues[1].depthStencil = VkClearDepthStencilValue{ 0, 0 };
+            result = checkVkResult(vkAcquireNextImageKHR(mDevice, swapchain.mSwapchain.value(), UINT64_MAX, mPresentCompletedSem, VK_NULL_HANDLE, &mFrameIndex));
+            if (result != Result::eSuccess)
+            {
+                std::cerr << "failed to acquire next swapchain image!\n";
+                return result;
+            }
 
-                bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-                bi.renderPass = rdsto.mRenderPass.value();
-                bi.framebuffer = rdsto.mFramebuffers[mFrameIndex].value();
-                bi.renderArea.offset = VkOffset2D{ 0, 0 };
-                bi.renderArea.extent = swapchain.mSwapchainExtent;
-                bi.clearValueCount = 2;
-                bi.pClearValues = clearValues;
+            // クリア値
+            VkClearValue clearValues[2];
+            clearValues[0].color = VkClearColorValue{ 0, 0, 0, 0 };
+            clearValues[1].depthStencil = VkClearDepthStencilValue{ 0, 0 };
+
+            bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+            bi.renderPass = rdsto.mRenderPass.value();
+            bi.framebuffer = rdsto.mFramebuffers[mFrameIndex].value();
+            bi.renderArea.offset = VkOffset2D{ 0, 0 };
+            bi.renderArea.extent = swapchain.mSwapchainExtent;
+            bi.clearValueCount = 2;
+            bi.pClearValues = clearValues;
         }
         else
         {

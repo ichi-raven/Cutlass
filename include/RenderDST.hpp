@@ -8,12 +8,8 @@
 
 namespace Cutlass
 {
-	enum class RenderMode
-	{
-		e
-	};
 
-	struct RenderDSTInfo //スワップチェーンへの描画かテクスチャへの描画かどちらかを指定してください
+	struct RenderDSTInfo //スワップチェインへの描画かテクスチャへの描画かどちらかを指定してください
 	{
 		std::optional<HSwapchain> hSwapchain;
 		std::optional<std::vector<HTexture>> hRenderTargets;
