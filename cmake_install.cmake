@@ -1,4 +1,4 @@
-# Install script for directory: /home/ichi/C++/CutlassEngine
+# Install script for directory: /home/ichi/C++/Cutlass
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -43,19 +43,19 @@ if(NOT DEFINED CMAKE_OBJDUMP)
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY FILES "/home/ichi/C++/CutlassEngine/libcutlass.a")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY FILES "/home/ichi/C++/Cutlass/libcutlass.a")
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/include/Cutlass" TYPE FILE FILES
-    "/home/ichi/C++/CutlassEngine/include/Buffer.hpp"
-    "/home/ichi/C++/CutlassEngine/include/Command.hpp"
-    "/home/ichi/C++/CutlassEngine/include/Cutlass.hpp"
-    "/home/ichi/C++/CutlassEngine/include/Device.hpp"
-    "/home/ichi/C++/CutlassEngine/include/RenderDST.hpp"
-    "/home/ichi/C++/CutlassEngine/include/RenderPipeline.hpp"
-    "/home/ichi/C++/CutlassEngine/include/Texture.hpp"
-    "/home/ichi/C++/CutlassEngine/include/Utility.hpp"
+    "/home/ichi/C++/Cutlass/include/Buffer.hpp"
+    "/home/ichi/C++/Cutlass/include/Command.hpp"
+    "/home/ichi/C++/Cutlass/include/Cutlass.hpp"
+    "/home/ichi/C++/Cutlass/include/Device.hpp"
+    "/home/ichi/C++/Cutlass/include/RenderDST.hpp"
+    "/home/ichi/C++/Cutlass/include/RenderPipeline.hpp"
+    "/home/ichi/C++/Cutlass/include/Texture.hpp"
+    "/home/ichi/C++/Cutlass/include/Utility.hpp"
     )
 endif()
 
@@ -67,5 +67,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/home/ichi/C++/CutlassEngine/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/home/ichi/C++/Cutlass/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
