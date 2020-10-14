@@ -55,20 +55,25 @@ namespace Cutlass
         size_t sizeOfType; //全体としての型のサイズ
         std::vector<std::pair<ResourceType, std::string>> layouts;
 
-        void addLayout(const ResourceType &type, const std::string &name)
+        void add(const ResourceType &type, const std::string &name)
         {
             layouts.emplace_back(std::pair(type, name));
         }
-        //std::vector<std::string> names;
     };
 
-    struct ShaderResourceLayout
+    struct ShaderResourceSetLayout
     {
         uint32_t uniformBufferCount;
         uint32_t combinedTextureCount;
     };
 
-    struct ShaderResource
+    struct ShaderResourceDesc
+    {
+        ShaderResourceSetLayout layout;
+        uint32_t maxSetCount;
+    };
+
+    struct ShaderResourceSet
     {
         std::vector<HBuffer> uniformBuffer;
         std::vector<HTexture> combinedTexture;
@@ -88,9 +93,9 @@ namespace Cutlass
         RasterizerState rasterizerState;
         MultiSampleState multiSampleState;
         DepthStencilState depthStencilState;
-        Shader vertexShader;
-        Shader fragmentShader;
-        ShaderResourceLayout SRLayouts;
+        Shader VS;
+        Shader FS;
+        ShaderResourceDesc SRDesc;
         uint32_t maxSR; //シェーダリソースの割り当てられうる最大数
         std::optional<Viewport> viewport; //左上手前、右下奥3次元(Depthは正規化座標)
         std::optional<Scissor> scissor;  //左上、右下2次元

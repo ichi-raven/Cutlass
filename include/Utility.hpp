@@ -10,6 +10,7 @@ namespace Cutlass
     //using HSampler = uint32_t;
 	using HRenderDST = uint32_t;
     using HRenderPipeline = uint32_t;
+    using HCommandList = uint32_t;
 
     enum class Result
     {

@@ -69,9 +69,6 @@ namespace Cutlass
         //テクスチャにデータ書き込み(使用注意, 書き込むデータのサイズはテクスチャのサイズに従うもの以外危険)
         Result writeTexture(const void *const pData, const HTexture &handle);
 
-        //テクスチャのusage変更
-        Result changeTextureUsage(const HTexture *pHandle);
-
         //用途変更
         Result changeTextureUsage(TextureUsage prev, TextureUsage next, const HTexture *pHandle);
 
@@ -84,14 +81,16 @@ namespace Cutlass
         //描画パイプライン構築
         Result createRenderPipeline(const RenderPipelineInfo &info, HRenderPipeline *pHandle);
 
+        Result createCommandList(HCommandList* const pHandle);
+
         //コマンド記述
-        Result writeCommand(const Command &command);
+        Result writeCommand(CommandType, CommandInfo, const HCommandList& handle);
 
         //コマンド実行
-        Result execute();
+        Result execute(const HCommandList& handle);
 
         //バックバッファ表示
-        Result present(const HSwapchain &handle);
+        Result present(const HSwapchain& swapchain);
 
         //破棄
         Result destroy();
@@ -102,7 +101,6 @@ namespace Cutlass
             std::optional<GLFWwindow*> mpWindow;
             std::optional<VkSurfaceKHR> mSurface;
             std::optional<VkSwapchainKHR> mSwapchain;
-
             VkSurfaceCapabilitiesKHR mSurfaceCaps;
             VkSurfaceFormatKHR mSurfaceFormat;
             VkPresentModeKHR mPresentMode;
@@ -146,19 +144,22 @@ namespace Cutlass
             std::optional<VkPipelineLayout> mPipelineLayout;
             std::optional<VkPipeline> mPipeline;
             std::optional<VkDescriptorSetLayout> mDescriptorSetLayout;
-            //std::optional<VkDescriptorPool> mDescriptorPool;
-            std::pair<uint32_t, uint32_t> mDescriptorCount; //firstがユニフォームバッファ, シェーダリソースの接続管轄用
+            std::optional<VkDescriptorPool> mDescriptorPool;
+            ShaderResourceSetLayout layout; //firstがユニフォームバッファ, シェーダリソースの接続管轄用
             HRenderDST mHRenderDST;
         };
 
-        struct RunningCommandState
-        {
-            RunningCommandState()
-            : maxSR(0)
-            {}
-            uint32_t maxSR;
+        // struct RunningCommandState
+        // {
+            
+        // };
+
+        struct CommandObject
+        {//バッファリングは自動で行う
+            std::vector<VkCommandBuffer> mCommandBuffers;
+            std::vector<VkFence> mFences;
+            std::optional<HRenderDST> mHRenderDST;
             std::optional<HRenderPipeline> mHRPO;
-            std::optional<VkDescriptorPool> mDescriptorPool;
             std::optional<VkDescriptorSet> mDescriptorSet;
         };
 
@@ -203,14 +204,15 @@ namespace Cutlass
         HTexture                mNextTextureHandle;
 		HRenderDST				mNextRenderDSTHandle;
         HRenderPipeline         mNextRPHandle;
-        std::unordered_map<HSwapchain, SwapchainObject>				mSwapchainMap;
+        HCommandList            mNextCLHandle;
+        std::unordered_map<HSwapchain, SwapchainObject>             mSwapchainMap;
         std::unordered_map<HBuffer, BufferObject>					mBufferMap;
         std::unordered_map<HTexture, ImageObject>					mImageMap;
         std::unordered_map<HRenderPipeline, RenderPipelineObject>	mRPMap;
 		std::unordered_map<HRenderDST, RenderDSTObject>				mRDSTMap;
+        std::unordered_map<HCommandList, CommandObject>             mCommandMap;
 
-        std::vector<Command> mWroteCommands;
-        std::optional<RunningCommandState> mRCState;
+        //std::vector<Command> mWroteCommands;
 
         //Vulkan API
         VkInstance mInstance;
@@ -221,10 +223,10 @@ namespace Cutlass
         VkQueue mDeviceQueue;
         VkCommandPool mCommandPool;
 
-        std::vector<VkFence> mFences;
+        //std::vector<VkFence> mFences;
         VkSemaphore mRenderCompletedSem;
         VkSemaphore mPresentCompletedSem;
-        std::vector<VkCommandBuffer> mCommands;
+        //std::vector<VkCommandBuffer> mCommands;
 
         // デバッグレポート関連
         PFN_vkCreateDebugReportCallbackEXT mvkCreateDebugReportCallbackEXT;
