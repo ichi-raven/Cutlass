@@ -21,7 +21,7 @@
 
 namespace Cutlass
 {
-    constexpr const char *ENGINE_NAME = "CutlassEngine";
+    constexpr const char* ENGINE_NAME = "CutlassEngine";
 
     struct WindowInfo
     {
@@ -41,11 +41,13 @@ namespace Cutlass
     class Device
     {
     public:
-        Device() : mNextSwapchainHandle(1),
+        Device() : mMaxFrameNum(0),
+                   mNextSwapchainHandle(1),
                    mNextBufferHandle(1),
                    mNextTextureHandle(1),
                    mNextRenderDSTHandle(1),
-                   mNextRPHandle(1)
+                   mNextRPHandle(1),
+                   mNextCBHandle(1)
         {
         }
 
@@ -81,19 +83,20 @@ namespace Cutlass
         //描画パイプライン構築
         Result createRenderPipeline(const RenderPipelineInfo &info, HRenderPipeline *pHandle);
 
-        Result createCommandList(HCommandList* const pHandle);
+        Result createCommandBuffer(const CommandList& commandList, HCommandBuffer* const pHandle);
 
         //コマンド記述
-        Result writeCommand(CommandType, CommandInfo, const HCommandList& handle);
+        //Result writeCommand(CommandType, CommandInfo, const HCommandList& handle);
 
-        //コマンド実行
-        Result execute(const HCommandList& handle);
+        //コマンド実行, バックバッファ表示
+        Result execute(const HCommandBuffer& handle, const HSwapchain& swapchain);
 
-        //バックバッファ表示
-        Result present(const HSwapchain& swapchain);
+        //無
+        //Result present();
 
-        //破棄
+        //全部破棄
         Result destroy();
+        //TODO:フラグによる未セット時のデストラクタに置けるDestroy
 
     private:
         struct SwapchainObject
@@ -149,18 +152,13 @@ namespace Cutlass
             HRenderDST mHRenderDST;
         };
 
-        // struct RunningCommandState
-        // {
-            
-        // };
-
         struct CommandObject
         {//バッファリングは自動で行う
             std::vector<VkCommandBuffer> mCommandBuffers;
             std::vector<VkFence> mFences;
             std::optional<HRenderDST> mHRenderDST;
             std::optional<HRenderPipeline> mHRPO;
-            std::optional<VkDescriptorSet> mDescriptorSet;
+            std::vector<VkDescriptorSet> mDescriptorSets;
         };
 
         static inline Result checkVkResult(VkResult);
@@ -188,12 +186,13 @@ namespace Cutlass
         Result createShaderModule(const Shader &shader, const VkShaderStageFlagBits &stage, VkPipelineShaderStageCreateInfo *pSSCI);
 
         //各コマンド関数
-        Result cmdBeginRenderPipeline(const CmdBeginRenderPipeline &info);
-        Result cmdEndRenderPipeline(const CmdEndRenderPipeline &info);
-        Result cmdSetVB(const CmdSetVB &info);
-        Result cmdSetIB(const CmdSetIB &info);
-        Result cmdSetShaderResource(const CmdSetShaderResource &info);
-        Result cmdRender(const CmdRender &info);
+        inline Result cmdBeginRenderPipeline(CommandObject& co, const CmdBeginRenderPipeline& info);
+        inline Result cmdEndRenderPipeline(CommandObject& co, const CmdEndRenderPipeline &info);
+        inline Result cmdBindVB(CommandObject& co,const CmdBindVB& info);
+        inline Result cmdBindIB(CommandObject& co, const CmdBindIB &info);
+        inline Result cmdBindSRSet(CommandObject& co, const CmdBindSRSet &info);
+        inline Result cmdRenderIndexed(CommandObject& co, const CmdRenderIndexed &info);
+        inline Result cmdRender(CommandObject& co, const CmdRender &info);
 
         //ユーザ指定
         InitializeInfo mInitializeInfo;
@@ -204,13 +203,13 @@ namespace Cutlass
         HTexture                mNextTextureHandle;
 		HRenderDST				mNextRenderDSTHandle;
         HRenderPipeline         mNextRPHandle;
-        HCommandList            mNextCLHandle;
+        HCommandBuffer          mNextCBHandle;
         std::unordered_map<HSwapchain, SwapchainObject>             mSwapchainMap;
         std::unordered_map<HBuffer, BufferObject>					mBufferMap;
         std::unordered_map<HTexture, ImageObject>					mImageMap;
         std::unordered_map<HRenderPipeline, RenderPipelineObject>	mRPMap;
 		std::unordered_map<HRenderDST, RenderDSTObject>				mRDSTMap;
-        std::unordered_map<HCommandList, CommandObject>             mCommandMap;
+        std::unordered_map<HCommandBuffer, CommandObject>           mCommandBufferMap;
 
         //std::vector<Command> mWroteCommands;
 
@@ -223,9 +222,9 @@ namespace Cutlass
         VkQueue mDeviceQueue;
         VkCommandPool mCommandPool;
 
+        std::vector<VkSemaphore> mRenderCompletedSems;
+        std::vector<VkSemaphore> mPresentCompletedSems;
         //std::vector<VkFence> mFences;
-        VkSemaphore mRenderCompletedSem;
-        VkSemaphore mPresentCompletedSem;
         //std::vector<VkCommandBuffer> mCommands;
 
         // デバッグレポート関連
@@ -236,5 +235,7 @@ namespace Cutlass
 
         //現在のフレームが指すスワップチェインイメージ
         uint32_t mFrameIndex;
+        //フレームの個数
+        uint32_t mMaxFrameNum;
     };
 };

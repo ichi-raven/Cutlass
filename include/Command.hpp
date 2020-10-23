@@ -21,22 +21,22 @@ namespace Cutlass
         //指定するものがあれば
     };
 
-    struct CmdSetVB
+    struct CmdBindVB
     {
         HBuffer VBHandle;
     };
 
-    struct CmdSetIB
+    struct CmdBindIB
     {
         HBuffer IBHandle;
     };
 
-    struct CmdSetShaderResource
+    struct CmdBindSRSet
     {
         ShaderResourceSet SRSet;
     };
 
-    struct CmdRender
+    struct CmdRenderIndexed
     {
         uint32_t firstIndex;//何番目のインデックスから描画を開始するか
         uint32_t indexCount;//いくつインデックスを描画するか
@@ -45,44 +45,68 @@ namespace Cutlass
         uint32_t firstInstance;//インスタシング描画しないなら0
     };
 
+    struct CmdRender
+    {
+        uint32_t vertexCount; //描画する頂点の個数
+        uint32_t instanceCount; //インスタンシング描画しない場合は1
+        uint32_t vertexOffset;  //描画し終わった頂点だけずらす、普通は0
+        uint32_t firstInstance; //インスタシング描画しないなら0
+    };
+
+    //コマンド追加時はここ
     enum class CommandType
     {
         eBeginRenderPipeline,
         eEndRenderPipeline,
-        eSetVB,
-        eSetIB,
-        eSetShaderResource,
+        eBindVB,
+        eBindIB,
+        eBindSRSet,
+        eRenderIndexed,
         eRender,
     };
 
+    //とここ
     using CommandInfoVariant = std::variant<
         CmdBeginRenderPipeline,
         CmdEndRenderPipeline,
-        CmdSetVB,
-        CmdSetIB,
-        CmdSetShaderResource,
+        CmdBindVB,
+        CmdBindIB,
+        CmdBindSRSet,
+        CmdRenderIndexed,
         CmdRender>;
 
-    class CommandBuffer
+    using InternalCommandList = std::vector<std::pair<CommandType, CommandInfoVariant>>;
+
+    //ただのヘルパークラス 要速度検証
+    class CommandList
     {
     public:
-        inline void beginRenderPipeline(const HRenderPipeline& RPHandle);
-        inline void endRenderPipeline();
-        inline void setVB(const HBuffer& VBHandle);
-        inline void setIB(const HBuffer &IBHandle);
-        inline void setSRSet(const ShaderResourceSetLayout &SRSet);
-        inline void render
+        void beginRenderPipeline(const HRenderPipeline& RPHandle);
+        void endRenderPipeline();
+        void bindVB(const HBuffer& VBHandle);
+        void bindIB(const HBuffer &IBHandle);
+        void bindSRSet(const ShaderResourceSet &shaderResourceSet);
+        void renderIndexed
         (
             uint32_t firstIndex,    //何番目のインデックスから描画を開始するか
             uint32_t indexCount,    //いくつインデックスを描画するか
             uint32_t instanceCount, //インスタンシング描画しない場合は1
             uint32_t vertexOffset,  //描画し終わった頂点だけずらす、普通は0
-            uint32_t firstInstance  //インスタシング描画しないなら0)
+            uint32_t firstInstance  //インスタシング描画しないなら0
         );
 
-        const std::vector<std::pair<CommandType, CommandInfoVariant>>& getInternalCommandData();
+        void render
+        (
+            uint32_t vertexCount,   //描画する頂点の個数
+            uint32_t instanceCount, //インスタンシング描画しない場合は1
+            uint32_t vertexOffset,  //描画し終わった頂点だけずらす、普通は0
+            uint32_t firstInstance //インスタシング描画しないなら0
+        );
+
+        const InternalCommandList& getInternalCommandData() const;
+
     private:
-        std::vector<std::pair<CommandType, CommandInfoVariant>> mCommands;
+        InternalCommandList mCommands;
     };
 
 
