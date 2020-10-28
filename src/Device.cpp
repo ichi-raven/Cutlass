@@ -57,7 +57,7 @@ namespace Cutlass
     {
         mInitializeInfo = initializeInfo;
         Result result;
-        mFrameIndex = 0;
+        mCurrentFrame = 0;
 
         std::cerr << "initialize started...\n";
 
@@ -518,7 +518,7 @@ namespace Cutlass
             VkCommandPoolCreateInfo ci{};
             ci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
             ci.queueFamilyIndex = mGraphicsQueueIndex;
-            ci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+            ci.flags = 0;
 
             result = checkVkResult(vkCreateCommandPool(mDevice, &ci, nullptr, &mCommandPool));
             if (Result::eSuccess != result)
@@ -537,6 +537,7 @@ namespace Cutlass
         result = checkVkResult(glfwCreateWindowSurface(mInstance, pSO->mpWindow.value(), nullptr, &surface));
         if (Result::eSuccess != result)
         {
+            std::cerr << "Failed to create window surface!\n";
             return result;
         }
         pSO->mSurface = surface;
@@ -545,6 +546,7 @@ namespace Cutlass
         result = selectSurfaceFormat(pSO, VK_FORMAT_B8G8R8A8_UNORM);
         if (Result::eSuccess != result)
         {
+            std::cout << "Failed to select surface format!\n";
             return result;
         }
 
@@ -552,6 +554,7 @@ namespace Cutlass
         result = checkVkResult(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mPhysDev, pSO->mSurface.value(), &pSO->mSurfaceCaps));
         if (Result::eSuccess != result)
         {
+            std::cerr << "Failed to get physical device surface capability!\n";
             return result;
         }
 
@@ -600,14 +603,15 @@ namespace Cutlass
         Result result;
 
         mMaxFrameNum = std::max(pSO->mSurfaceCaps.minImageCount, mInitializeInfo.frameCount);
-        auto extent = pSO->mSurfaceCaps.currentExtent;
-        if (extent.width == ~0u || extent.height == ~0u)
+        mMaxFrameInFlight = mMaxFrameNum - 1;
+        auto &extent = pSO->mSurfaceCaps.currentExtent;
+        if (extent.width <= 0u || extent.height <= 0u)
         {
             // 値が無効なのでウィンドウサイズを使用する
             int width, height;
             glfwGetWindowSize(pSO->mpWindow.value(), &width, &height);
-            extent.width = uint32_t(width);
-            extent.height = uint32_t(height);
+            extent.width = static_cast<uint32_t>(width);
+            extent.height = static_cast <uint32_t>(height);
         }
 
         pSO->mPresentMode = VK_PRESENT_MODE_FIFO_KHR;
@@ -713,23 +717,22 @@ namespace Cutlass
 
         VkSemaphoreCreateInfo ci{};
         ci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-        mPresentCompletedSems.resize(mMaxFrameNum);
-        mRenderCompletedSems.resize(mMaxFrameNum);
+        mPresentCompletedSems.resize(mMaxFrameInFlight);
+        mRenderCompletedSems.resize(mMaxFrameInFlight);
 
-        // for (size_t i = 0; i < mMaxFrameNum; ++i)
-        // {
-        //     //mRenderCompletedSems.emplace_back();
-        //     result = checkVkResult(vkCreateSemaphore(mDevice, &ci, nullptr, &mRenderCompletedSems[i]));
-        //     if (Result::eSuccess != result)
-        //     {
-        //         std::cerr << "Failed to create render completed semaphore!\n";
-        //         return result;
-        //     }
-        // }
-        std::cout << mPresentCompletedSems.size() << "erfjaiop\n";
-        for (size_t i = 0; i < mMaxFrameNum; ++i)
+        for (size_t i = 0; i < mMaxFrameInFlight; ++i)
         {
-            //mPresentCompletedSems.emplace_back();
+            //mRenderCompletedSems.emplace_back();
+            result = checkVkResult(vkCreateSemaphore(mDevice, &ci, nullptr, &mRenderCompletedSems[i]));
+            if (Result::eSuccess != result)
+            {
+                std::cerr << "Failed to create render completed semaphore!\n";
+                return result;
+            }
+        }
+
+        for (size_t i = 0; i < mMaxFrameInFlight; ++i)
+        {
             result = checkVkResult(vkCreateSemaphore(mDevice, &ci, nullptr, &mPresentCompletedSems[i]));
             if (Result::eSuccess != result)
             {
@@ -737,6 +740,9 @@ namespace Cutlass
                 return result;
             }
         }
+
+        imagesInFlight.resize(mMaxFrameNum, VK_NULL_HANDLE);
+
         return Result::eSuccess;
     }
 
@@ -1604,7 +1610,7 @@ namespace Cutlass
             adVec.back().format = io.format;
             adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
             adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-            adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
             adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
             adVec.back().finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
             ar.attachment = 0;
@@ -1632,7 +1638,7 @@ namespace Cutlass
                 adVec.back().format = depthBuffer.format;
                 adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
                 adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-                adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
                 adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
                 adVec.back().finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
                 depthAr.attachment = 1;
@@ -1701,15 +1707,17 @@ namespace Cutlass
                 const auto &img = mImageMap[h];
                 VkImageView iv = img.mView.value();
                 fbci.pAttachments = &iv;
-
                 rdsto.mFramebuffers.emplace_back();
-                VkFramebuffer frameBuffer = rdsto.mFramebuffers.back().value();
+
+                VkFramebuffer frameBuffer;
                 result = checkVkResult(vkCreateFramebuffer(mDevice, &fbci, nullptr, &frameBuffer));
                 if (Result::eSuccess != result)
                 {
                     std::cerr << "failed to create framebuffer!\n";
                     return result;
                 }
+
+                rdsto.mFramebuffers.back() = frameBuffer;
             }
         }
 
@@ -2220,7 +2228,7 @@ namespace Cutlass
                 }
             }
 
-            {
+            {//パイプライン構築
                 VkGraphicsPipelineCreateInfo ci{};
                 ci.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;                        
                 ci.stageCount = static_cast<uint32_t>(ssciArr.size());
@@ -2264,6 +2272,7 @@ namespace Cutlass
 
         //コマンドオブジェクトの構築・初期化
         CommandObject co;
+
         {
             VkCommandBufferAllocateInfo ai{};
             ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -2278,20 +2287,22 @@ namespace Cutlass
                 return result;
             }
 
-            // コマンドバッファのフェンスも同数用意する.
-            co.mFences.resize(ai.commandBufferCount);
+            co.mFences.resize(mMaxFrameInFlight);
             VkFenceCreateInfo ci{};
             ci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
             ci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-            for (auto& v : co.mFences)
+            for (size_t i = 0; i < co.mFences.size(); ++i)
             {
-                result = checkVkResult(vkCreateFence(mDevice, &ci, nullptr, &v));
+                result = checkVkResult(vkCreateFence(mDevice, &ci, nullptr, &co.mFences[i]));
                 if (Result::eSuccess != result)
                 {
                     std::cerr << "Failed to create fence!\n";
                     return result;
                 }
             }
+
+            std::cout << co.mFences.size() << "eawfa\n";
+
         }
 
         const InternalCommandList& cmdList = commandList.getInternalCommandData();
@@ -2362,21 +2373,25 @@ namespace Cutlass
 
         auto& so = mSwapchainMap[handle];
         auto& co = mCommandBufferMap[handle];
+        result = checkVkResult(vkWaitForFences(mDevice, 1, &co.mFences[mCurrentFrame], VK_TRUE, UINT64_MAX));
+        if (result != Result::eSuccess)
+        {
+            std::cerr << "Failed to wait fence!\n";
+            return result;
+        }
 
-        vkWaitForFences(mDevice, 1, &co.mFences[mFrameIndex], VK_TRUE, UINT64_MAX);
+        uint32_t swapchainImageIndex = 0;
 
-        result = checkVkResult
-        (
-            vkAcquireNextImageKHR
-            (
-                mDevice, 
-                so.mSwapchain.value(), 
-                UINT64_MAX, 
-                mPresentCompletedSems[mFrameIndex], 
-                VK_NULL_HANDLE, 
-                &mFrameIndex
-            )
-        );
+        result = checkVkResult(
+            vkAcquireNextImageKHR(
+                mDevice,
+                so.mSwapchain.value(),
+                UINT64_MAX,
+                mPresentCompletedSems[mCurrentFrame],
+                VK_NULL_HANDLE,
+                &swapchainImageIndex));
+
+        std::cout << swapchainImageIndex << " : swapchain image index\n";
 
         if (result != Result::eSuccess)
         {
@@ -2384,27 +2399,29 @@ namespace Cutlass
             return result;
         }
 
+        if (imagesInFlight[swapchainImageIndex] != VK_NULL_HANDLE)
+            vkWaitForFences(mDevice, 1, &imagesInFlight[swapchainImageIndex], VK_TRUE, UINT64_MAX);
+        imagesInFlight[swapchainImageIndex] = co.mFences[mCurrentFrame];
+
         // コマンドを実行（送信)
         VkSubmitInfo submitInfo{};
         VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &(co.mCommandBuffers[mFrameIndex]);
+        submitInfo.pCommandBuffers = &(co.mCommandBuffers[swapchainImageIndex]);
         submitInfo.pWaitDstStageMask = &waitStageMask;
         submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = &mPresentCompletedSems[mFrameIndex];
+        submitInfo.pWaitSemaphores = &mPresentCompletedSems[mCurrentFrame];
         submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = &mRenderCompletedSems[mFrameIndex];
-
-        
-        result = checkVkResult(vkResetFences(mDevice, 1, &co.mFences[mFrameIndex]));
+        submitInfo.pSignalSemaphores = &mRenderCompletedSems[mCurrentFrame];
+        result = checkVkResult(vkResetFences(mDevice, 1, &co.mFences[mCurrentFrame]));
         if (result != Result::eSuccess)
         {
-            std::cerr << "failed to reset fences!\n";
+            std::cerr << "failed to reset fence!\n";
             return result;
         }
 
-        result = checkVkResult(vkQueueSubmit(mDeviceQueue, 1, &submitInfo, co.mFences[mFrameIndex]));
+        result = checkVkResult(vkQueueSubmit(mDeviceQueue, 1, &submitInfo, co.mFences[mCurrentFrame]));
         if (result != Result::eSuccess)
         {
             std::cerr << "failed to submit cmd to queue!\n";
@@ -2416,9 +2433,9 @@ namespace Cutlass
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = &so.mSwapchain.value();
-        presentInfo.pImageIndices = &mFrameIndex;
+        presentInfo.pImageIndices = &swapchainImageIndex;
         presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores = &mRenderCompletedSems[mFrameIndex];
+        presentInfo.pWaitSemaphores = &mRenderCompletedSems[mCurrentFrame];
 
         result = checkVkResult(vkQueuePresentKHR(mDeviceQueue, &presentInfo));
         if (Result::eSuccess != result)
@@ -2429,7 +2446,9 @@ namespace Cutlass
 
         //vkQueueWaitIdle(mDeviceQueue);
 
-        mFrameIndex = (mFrameIndex + 1) % mMaxFrameNum;
+        mCurrentFrame = (mCurrentFrame + 1) % mMaxFrameInFlight;
+
+        //mFrameIndex = (mFrameIndex + 1) % mMaxFrameNum;
 
         //
         // {
@@ -2486,45 +2505,45 @@ namespace Cutlass
         auto& rpo = mRPMap[info.RPHandle];
         auto& rdsto = mRDSTMap[rpo.mHRenderDST];
         VkRenderPassBeginInfo bi{};
-
-        if (rdsto.mHSwapchain)
-        {
-            auto& swapchain = mSwapchainMap[rdsto.mHSwapchain.value()];
-
-            // クリア値
-            VkClearValue clearValues[2];
-            clearValues[0].color = VkClearColorValue{ 0, 0, 0, 0 };
-            clearValues[1].depthStencil = VkClearDepthStencilValue{ 0, 0 };
-
-            bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-            bi.renderPass = rdsto.mRenderPass.value();
-            bi.framebuffer = rdsto.mFramebuffers[mFrameIndex].value();
-            bi.renderArea.offset = VkOffset2D{ 0, 0 };
-            bi.renderArea.extent = swapchain.mSwapchainExtent;
-            bi.clearValueCount = 2;
-            bi.pClearValues = clearValues;
-            bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-            bi.renderPass = rdsto.mRenderPass.value();
-            bi.framebuffer = rdsto.mFramebuffers.back().value();
-            bi.renderArea.offset = VkOffset2D{ 0, 0 };
-            bi.renderArea.extent = VkExtent2D{ rdsto.mExtent.value().width, rdsto.mExtent.value().height};
-            //TODO: テクスチャレンダリング時のここ
-        }
         
         VkCommandBufferBeginInfo commandBI{};
         commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         
-        for(const auto& command : co.mCommandBuffers)
+        for(size_t i = 0; i < co.mCommandBuffers.size(); ++i)
         {
-            result = checkVkResult(vkBeginCommandBuffer(command, &commandBI));
+            result = checkVkResult(vkBeginCommandBuffer(co.mCommandBuffers[i], &commandBI));
             if (result != Result::eSuccess)
             {
                 std::cerr << "Failed to begin command buffer!\n";
                 return result;
             }
 
-            vkCmdBeginRenderPass(command, &bi, VK_SUBPASS_CONTENTS_INLINE);
-            vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, rpo.mPipeline.value());
+            if (rdsto.mHSwapchain)
+            {
+                auto &swapchain = mSwapchainMap[rdsto.mHSwapchain.value()];
+
+                // クリア値
+                VkClearValue clearValues[2];
+                clearValues[0].color = VkClearColorValue{0, 0, 0, 1.f};
+                clearValues[1].depthStencil = VkClearDepthStencilValue{0, 0};
+
+                bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+                bi.renderPass = rdsto.mRenderPass.value();
+                bi.framebuffer = rdsto.mFramebuffers[i].value();
+                bi.renderArea.offset = VkOffset2D{0, 0};
+                bi.renderArea.extent = swapchain.mSwapchainExtent;
+                bi.clearValueCount = 2;
+                bi.pClearValues = clearValues;
+                bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+                bi.renderPass = rdsto.mRenderPass.value();
+                bi.framebuffer = rdsto.mFramebuffers.back().value();
+                bi.renderArea.offset = VkOffset2D{0, 0};
+                bi.renderArea.extent = VkExtent2D{rdsto.mExtent.value().width, rdsto.mExtent.value().height};
+                //TODO: テクスチャレンダリング時のここ
+            }
+
+            vkCmdBeginRenderPass(co.mCommandBuffers[i], &bi, VK_SUBPASS_CONTENTS_INLINE);
+            vkCmdBindPipeline(co.mCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, rpo.mPipeline.value());
         }
 
         return Result::eSuccess;
