@@ -519,7 +519,7 @@ namespace Cutlass
             VkCommandPoolCreateInfo ci{};
             ci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
             ci.queueFamilyIndex = mGraphicsQueueIndex;
-            ci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+            ci.flags = 0;
 
             result = checkVkResult(vkCreateCommandPool(mDevice, &ci, nullptr, &mCommandPool));
             if (Result::eSuccess != result)
@@ -538,6 +538,7 @@ namespace Cutlass
         result = checkVkResult(glfwCreateWindowSurface(mInstance, pSO->mpWindow.value(), nullptr, &surface));
         if (Result::eSuccess != result)
         {
+            std::cerr << "Failed to create window surface!\n";
             return result;
         }
         pSO->mSurface = surface;
@@ -546,6 +547,7 @@ namespace Cutlass
         result = selectSurfaceFormat(pSO, VK_FORMAT_B8G8R8A8_UNORM);
         if (Result::eSuccess != result)
         {
+            std::cout << "Failed to select surface format!\n";
             return result;
         }
 
@@ -553,6 +555,7 @@ namespace Cutlass
         result = checkVkResult(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mPhysDev, pSO->mSurface.value(), &pSO->mSurfaceCaps));
         if (Result::eSuccess != result)
         {
+            std::cerr << "Failed to get physical device surface capability!\n";
             return result;
         }
 
@@ -602,14 +605,15 @@ namespace Cutlass
 
         mMaxFrameNum = std::max(pSO->mSurfaceCaps.minImageCount, mInitializeInfo.frameCount);
         mMaxFrameInFlight = mMaxFrameNum - 1;
-        auto extent = pSO->mSurfaceCaps.currentExtent;
-        if (extent.width == ~0u || extent.height == ~0u)
+
+        auto &extent = pSO->mSurfaceCaps.currentExtent;
+        if (extent.width <= 0u || extent.height <= 0u)
         {
             // 値が無効なのでウィンドウサイズを使用する
             int width, height;
             glfwGetWindowSize(pSO->mpWindow.value(), &width, &height);
-            extent.width = uint32_t(width);
-            extent.height = uint32_t(height);
+            extent.width = static_cast<uint32_t>(width);
+            extent.height = static_cast <uint32_t>(height);
         }
 
         pSO->mPresentMode = VK_PRESENT_MODE_FIFO_KHR;
@@ -715,23 +719,22 @@ namespace Cutlass
 
         VkSemaphoreCreateInfo ci{};
         ci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-        mPresentCompletedSems.resize(mMaxFrameNum);
-        mRenderCompletedSems.resize(mMaxFrameNum);
+        mPresentCompletedSems.resize(mMaxFrameInFlight);
+        mRenderCompletedSems.resize(mMaxFrameInFlight);
 
-         for (size_t i = 0; i < mMaxFrameNum; ++i)
-         {
-             //mRenderCompletedSems.emplace_back();
-             result = checkVkResult(vkCreateSemaphore(mDevice, &ci, nullptr, &mRenderCompletedSems[i]));
-             if (Result::eSuccess != result)
-             {
-                 std::cerr << "Failed to create render completed semaphore!\n";
-                 return result;
-             }
-         }
-
-        for (size_t i = 0; i < mMaxFrameNum; ++i)
+        for (size_t i = 0; i < mMaxFrameInFlight; ++i)
         {
-            //mPresentCompletedSems.emplace_back();
+            //mRenderCompletedSems.emplace_back();
+            result = checkVkResult(vkCreateSemaphore(mDevice, &ci, nullptr, &mRenderCompletedSems[i]));
+            if (Result::eSuccess != result)
+            {
+                std::cerr << "Failed to create render completed semaphore!\n";
+                return result;
+            }
+        }
+
+        for (size_t i = 0; i < mMaxFrameInFlight; ++i)
+        {
             result = checkVkResult(vkCreateSemaphore(mDevice, &ci, nullptr, &mPresentCompletedSems[i]));
             if (Result::eSuccess != result)
             {
@@ -1639,7 +1642,7 @@ namespace Cutlass
                 adVec.back().format = depthBuffer.format;
                 adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
                 adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-                adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
                 adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
                 adVec.back().finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
                 depthAr.attachment = 1;
@@ -1705,6 +1708,7 @@ namespace Cutlass
             fbci.attachmentCount = 1;
             for (auto& h : swapchain.mHSwapchainImages)
             {
+
                 //const auto& img = mImageMap[h];
                 //VkImageView iv = img.mView.value();
                 fbci.pAttachments = &mImageMap[h].mView.value();
@@ -1719,6 +1723,7 @@ namespace Cutlass
 
                 rdsto.mFramebuffers.emplace_back(frameBuffer);
                 //rdsto.mFramebuffers.back() = frameBuffer;
+
             }
         }
 
@@ -2230,7 +2235,7 @@ namespace Cutlass
                 }
             }
 
-            {
+            {//繝代う繝励Λ繧､繝ｳ讒狗ｯ・
                 VkGraphicsPipelineCreateInfo ci{};
                 ci.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
                 ci.stageCount = static_cast<uint32_t>(ssciArr.size());
@@ -2274,6 +2279,7 @@ namespace Cutlass
 
         //コマンドオブジェクトの構築・初期化
         CommandObject co;
+
         {
             VkCommandBufferAllocateInfo ai{};
             ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -2288,20 +2294,23 @@ namespace Cutlass
                 return result;
             }
 
-            // コマンドバッファのフェンスも同数用意する.
-            co.mFences.resize(ai.commandBufferCount);
+            co.mFences.resize(mMaxFrameInFlight);
+
             VkFenceCreateInfo ci{};
             ci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
             ci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-            for (auto& v : co.mFences)
+            for (size_t i = 0; i < co.mFences.size(); ++i)
             {
-                result = checkVkResult(vkCreateFence(mDevice, &ci, nullptr, &v));
+                result = checkVkResult(vkCreateFence(mDevice, &ci, nullptr, &co.mFences[i]));
                 if (Result::eSuccess != result)
                 {
                     std::cerr << "Failed to create fence!\n";
                     return result;
                 }
             }
+
+            std::cout << co.mFences.size() << "eawfa\n";
+
         }
 
         const InternalCommandList& cmdList = commandList.getInternalCommandData();
@@ -2401,6 +2410,7 @@ namespace Cutlass
         if (imagesInFlight[swapchainImageIndex] != VK_NULL_HANDLE)
             vkWaitForFences(mDevice, 1, &imagesInFlight[swapchainImageIndex], VK_TRUE, UINT64_MAX);
         imagesInFlight[swapchainImageIndex] = co.mFences[mCurrentFrame];
+
 
         // コマンドを実行（送信)
         VkSubmitInfo submitInfo{};
