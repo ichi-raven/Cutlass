@@ -25,7 +25,6 @@ namespace Cutlass
 
     void CommandList::bindSRSet(const ShaderResourceSet &SRSet)
     {
-        ;
         mCommands.emplace_back(CommandType::eBindSRSet, CmdBindSRSet{SRSet});
     }
 

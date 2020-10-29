@@ -49,11 +49,13 @@ namespace Cutlass
         eBoth,
     };
 
+    using VertexElement = std::pair<ResourceType, std::string>;
+
     struct VertexLayout
     {
         
         size_t sizeOfType; //全体としての型のサイズ
-        std::vector<std::pair<ResourceType, std::string>> layouts;
+        std::vector<VertexElement> layouts;
 
         void add(const ResourceType &type, const std::string &name)
         {
