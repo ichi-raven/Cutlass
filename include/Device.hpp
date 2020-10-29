@@ -139,6 +139,7 @@ namespace Cutlass
             DepthStencilState mDSs;
             std::optional<VkExtent3D> mExtent;
             uint32_t mTargetNum;
+            bool mDepthTestEnable;
         };
 
         struct RenderPipelineObject
@@ -233,9 +234,14 @@ namespace Cutlass
         PFN_vkDestroyDebugReportCallbackEXT mvkDestroyDebugReportCallbackEXT;
         VkDebugReportCallbackEXT mDebugReport;
 
-        //現在のフレームが指すスワップチェインイメージ
-        uint32_t mFrameIndex;
+        //現在のフレーム(処理用、Swapchainのインデックスとは関係ない)
+        uint32_t mCurrentFrame;
         //フレームの個数
         uint32_t mMaxFrameNum;
+        //同時処理可能なフレーム数
+        uint32_t mMaxFrameInFlight;
+
+        //フレーム同時処理用一時的格納場所
+        std::vector<VkFence> imagesInFlight;
     };
 };
