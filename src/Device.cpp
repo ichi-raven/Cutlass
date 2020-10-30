@@ -13,14 +13,11 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/hash.hpp>
 
-
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
 
 #define GetInstanceProcAddr(FuncName) \
     m##FuncName = reinterpret_cast<PFN_##FuncName>(vkGetInstanceProcAddr(mInstance, #FuncName))
-
-
 
 namespace Cutlass
 {
@@ -33,9 +30,9 @@ namespace Cutlass
         uint64_t object,
         size_t location,
         int32_t messageCode,
-        const char* pLayerPrefix,
-        const char* pMessage,
-        void* pUserData)
+        const char *pLayerPrefix,
+        const char *pMessage,
+        void *pUserData)
     {
         VkBool32 ret = VK_FALSE;
         if (flags & VK_DEBUG_REPORT_INFORMATION_BIT_EXT ||
@@ -53,7 +50,13 @@ namespace Cutlass
         return ret;
     }
 
-    Result Device::initialize(const InitializeInfo& initializeInfo, std::vector<HSwapchain>& handlesRef)
+    Device::~Device()
+    {
+        if(!mIsDestroyed)
+            destroy();
+    }
+
+    Result Device::initialize(const InitializeInfo &initializeInfo, std::vector<HSwapchain> &handlesRef)
     {
         mInitializeInfo = initializeInfo;
         Result result;
@@ -61,7 +64,7 @@ namespace Cutlass
 
         std::cerr << "initialize started...\n";
 
-        //GLFW初期化
+        //GLFW initialization
 
         if (!glfwInit())
         {
@@ -73,7 +76,7 @@ namespace Cutlass
 
         std::cerr << "GLFW initialized\n";
 
-        //インスタンス作成
+        //instance
         result = createInstance();
         if (Result::eSuccess != result)
         {
@@ -91,7 +94,7 @@ namespace Cutlass
             }
         }
 
-        //物理デバイス選択(いまのところ特に指定なし、先頭デバイスを使用する)
+        //select physical device
         result = selectPhysicalDevice();
         if (Result::eSuccess != result)
         {
@@ -99,7 +102,7 @@ namespace Cutlass
         }
         std::cerr << "selected Physical Device\n";
 
-        //グラフィクスキューのインデックス検索(いまのところ特に条件指定はない)
+        //search graphics queue
         result = searchGraphicsQueueIndex();
         if (Result::eSuccess != result)
         {
@@ -107,7 +110,7 @@ namespace Cutlass
         }
         std::cerr << "found index of GraphicsQueue\n";
 
-        //論理デバイス作成
+        //logical device
         result = createDevice();
         if (Result::eSuccess != result)
         {
@@ -115,7 +118,7 @@ namespace Cutlass
         }
         std::cerr << "created VkDevice\n";
 
-        //コマンドプール作成
+        //command pool
         result = createCommandPool();
         if (Result::eSuccess != result)
         {
@@ -123,10 +126,10 @@ namespace Cutlass
         }
         std::cerr << "created VkCommandPool\n";
 
-        //ウィンドウサーフェス、スワップチェイン作成
+        //window surface, swapchain
         {
             int time = 0;
-            for (auto& w : mInitializeInfo.windows)
+            for (auto &w : mInitializeInfo.windows)
             {
                 std::cerr << "Swapchain No. " << time++ << "------\n";
                 SwapchainObject so;
@@ -173,7 +176,7 @@ namespace Cutlass
                 }
                 std::cerr << "created swapchain depthbuffer\n";
 
-                //スワップチェインオブジェクト格納
+                //set swapchain object
                 mSwapchainMap.emplace(mNextSwapchainHandle, so);
                 handlesRef.emplace_back(mNextSwapchainHandle++);
             }
@@ -187,6 +190,8 @@ namespace Cutlass
         std::cerr << "created VkSemaphore\n";
 
         std::cerr << "all initialize processes succeeded\n";
+        mIsInitialized = true;
+        
         return Result::eSuccess;
     }
 
@@ -197,7 +202,7 @@ namespace Cutlass
         if (VK_SUCCESS != vkDeviceWaitIdle(mDevice))
             std::cerr << "Failed to wait device idol\n";
 
-        for (auto& e : mBufferMap)
+        for (auto &e : mBufferMap)
         {
             if (e.second.mBuffer)
                 vkDestroyBuffer(mDevice, e.second.mBuffer.value(), nullptr);
@@ -207,12 +212,12 @@ namespace Cutlass
         mBufferMap.clear();
         std::cerr << "destroyed user allocated buffers\n";
 
-        for (auto& e : mImageMap)
+        for (auto &e : mImageMap)
         {
             if (e.second.mView)
                 vkDestroyImageView(mDevice, e.second.mView.value(), nullptr);
 
-            if (e.second.usage == TextureUsage::eSwapchainImage)//SwapchainImageはここだけを破棄する
+            if (e.second.usage == TextureUsage::eSwapchainImage) //avoid destroying SwapchainImage
                 continue;
 
             if (e.second.mImage)
@@ -230,16 +235,16 @@ namespace Cutlass
         std::cerr << "destroyed user allocated textures\n";
         std::cerr << "destroyed user allocated sampler\n";
 
-        for (auto& e : mRDSTMap)
+        for (auto &e : mRDSTMap)
         {
-            for (auto& f : e.second.mFramebuffers)
+            for (auto &f : e.second.mFramebuffers)
                 vkDestroyFramebuffer(mDevice, f.value(), nullptr);
 
             if (e.second.mRenderPass)
                 vkDestroyRenderPass(mDevice, e.second.mRenderPass.value(), nullptr);
         }
 
-        for (auto& e : mRPMap)
+        for (auto &e : mRPMap)
         {
             if (e.second.mDescriptorSetLayout)
                 vkDestroyDescriptorSetLayout(mDevice, e.second.mDescriptorSetLayout.value(), nullptr);
@@ -251,11 +256,11 @@ namespace Cutlass
                 vkDestroyPipeline(mDevice, e.second.mPipeline.value(), nullptr);
         }
 
-        for (auto& e : mCommandBufferMap)
+        for (auto &e : mCommandBufferMap)
         {
             vkFreeCommandBuffers(mDevice, mCommandPool, uint32_t(e.second.mCommandBuffers.size()), e.second.mCommandBuffers.data());
             //e.second.mCommandBuffers.clear();
-            for (auto& f : e.second.mFences)
+            for (auto &f : e.second.mFences)
                 vkDestroyFence(mDevice, f, nullptr);
         }
 
@@ -267,30 +272,16 @@ namespace Cutlass
         //}
         //mSamplerMap.clear();
 
-
-        // for (auto &v : mFences)
-        // {
-        //     vkDestroyFence(mDevice, v, nullptr);
-        // }
-        //mFences.clear();
-
-        for (const auto& pcSem : mPresentCompletedSems)
+        for (const auto &pcSem : mPresentCompletedSems)
             vkDestroySemaphore(mDevice, pcSem, nullptr);
-        for (const auto& rcSem : mRenderCompletedSems)
+        for (const auto &rcSem : mRenderCompletedSems)
             vkDestroySemaphore(mDevice, rcSem, nullptr);
         std::cerr << "destroyed semaphores\n";
-
-        // if(mCommands.size() > 0)//現状こうしてある
-        // {
-        //     vkFreeCommandBuffers(mDevice, mCommandPool, uint32_t(mCommands.size()), mCommands.data());
-        //     mCommands.clear();
-
-        // }
 
         vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
         std::cerr << "destroyed command pool\n";
 
-        for (auto& so : mSwapchainMap)
+        for (auto &so : mSwapchainMap)
         {
             //std::cerr << "destroyed swapchain imageViews\n";
             if (so.second.mSwapchain)
@@ -337,7 +328,7 @@ namespace Cutlass
         if (result != VK_SUCCESS)
         {
             std::cerr << "ERROR!\nvulkan error : " << result << "\n";
-            return Result::eFailure;//ここをSwitchで分岐して独自結果を返す?
+            return Result::eFailure; //TODO: switch and error handling
         }
         return Result::eSuccess;
     }
@@ -346,7 +337,7 @@ namespace Cutlass
     {
         Result result;
 
-        std::vector<const char*> extensions;
+        std::vector<const char *> extensions;
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
         appInfo.pApplicationName = mInitializeInfo.appName.c_str();
@@ -354,7 +345,7 @@ namespace Cutlass
         appInfo.apiVersion = VK_API_VERSION_1_1;
         appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
 
-        // 拡張情報の取得
+        //get extention properties
         std::vector<VkExtensionProperties> props;
 
         {
@@ -372,7 +363,7 @@ namespace Cutlass
                 return result;
             }
 
-            for (const auto& v : props)
+            for (const auto &v : props)
             {
                 extensions.push_back(v.extensionName);
             }
@@ -386,8 +377,8 @@ namespace Cutlass
 
         if (mInitializeInfo.debugFlag)
         {
-            // デバッグ時には検証レイヤーを有効化
-            const char* layers[] = { "VK_LAYER_KHRONOS_validation" };
+            // debug layer, depending on SDK version
+            const char *layers[] = {"VK_LAYER_KHRONOS_validation"};
             //const char* layers[] = { "VK_LAYER_LUNARG_standard_validation" };
             ci.enabledLayerCount = 1;
             ci.ppEnabledLayerNames = layers;
@@ -398,10 +389,18 @@ namespace Cutlass
             ci.ppEnabledLayerNames = nullptr;
         }
 
-        // インスタンス生成
         result = checkVkResult(vkCreateInstance(&ci, nullptr, &mInstance));
         if (Result::eSuccess != result)
         {
+            std::cerr << "Failed to enable debug layer! creating VkInstance without debug layer...\n";
+            ci.enabledLayerCount = 0;
+            ci.ppEnabledLayerNames = nullptr;
+            result = checkVkResult(vkCreateInstance(&ci, nullptr, &mInstance));
+        }
+
+        if (Result::eSuccess != result)
+        {
+            std::cerr << "Failed to create Vulkan instance!\n";
             return result;
         }
 
@@ -428,9 +427,39 @@ namespace Cutlass
 
         std::cerr << "Physical Device number : " << physDevs.size() << "\n";
 
-        // 最初のデバイスを使用する
-        mPhysDev = physDevs[0];
-        // メモリプロパティを取得しておく
+        //select suitable device
+        for (const auto &pd : physDevs)
+        {
+            std::optional<uint32_t> indices;
+
+            uint32_t queueFamilyCount = 0;
+            vkGetPhysicalDeviceQueueFamilyProperties(pd, &queueFamilyCount, nullptr);
+
+            std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+            vkGetPhysicalDeviceQueueFamilyProperties(pd, &queueFamilyCount, queueFamilies.data());
+
+            int i = 0;
+            for (const auto &queueFamily : queueFamilies)
+            {
+                if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+                    indices = i;
+                
+                if (indices)
+                {
+                    mPhysDev = pd;
+                    break;
+                }
+    
+                i++;
+            }
+        }
+
+        if (mPhysDev == VK_NULL_HANDLE)
+        {
+            throw std::runtime_error("failed to find a suitable GPU!");
+        }
+
+        //get physical memory properties
         vkGetPhysicalDeviceMemoryProperties(mPhysDev, &mPhysMemProps);
 
         return Result::eSuccess;
@@ -460,7 +489,6 @@ namespace Cutlass
         std::vector<VkExtensionProperties> devExtProps;
 
         {
-            // 拡張情報の取得.
             uint32_t count = 0;
             result = checkVkResult(vkEnumerateDeviceExtensionProperties(mPhysDev, nullptr, &count, nullptr));
             if (Result::eSuccess != result)
@@ -484,8 +512,8 @@ namespace Cutlass
             devQueueCI.queueCount = 1;
             devQueueCI.pQueuePriorities = &defaultQueuePriority;
 
-            std::vector<const char*> extensions;
-            for (const auto& v : devExtProps)
+            std::vector<const char *> extensions;
+            for (const auto &v : devExtProps)
             {
                 if (strcmp(v.extensionName, "VK_KHR_buffer_device_address"))
                     extensions.push_back(v.extensionName);
@@ -505,7 +533,6 @@ namespace Cutlass
             }
         }
 
-        // デバイスキューの取得
         vkGetDeviceQueue(mDevice, mGraphicsQueueIndex, 0, &mDeviceQueue);
 
         return Result::eSuccess;
@@ -530,7 +557,7 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Device::createSurface(SwapchainObject* pSO)
+    Result Device::createSurface(SwapchainObject *pSO)
     {
         Result result;
 
@@ -543,7 +570,6 @@ namespace Cutlass
         }
         pSO->mSurface = surface;
 
-        // サーフェスのフォーマット情報選択
         result = selectSurfaceFormat(pSO, VK_FORMAT_B8G8R8A8_UNORM);
         if (Result::eSuccess != result)
         {
@@ -551,7 +577,6 @@ namespace Cutlass
             return result;
         }
 
-        // サーフェスの能力値情報取得
         result = checkVkResult(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mPhysDev, pSO->mSurface.value(), &pSO->mSurfaceCaps));
         if (Result::eSuccess != result)
         {
@@ -569,26 +594,26 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Device::selectSurfaceFormat(SwapchainObject* pSO, VkFormat format)
+    Result Device::selectSurfaceFormat(SwapchainObject *pSO, VkFormat format)
     {
         Result result;
 
-        uint32_t surfaceFormatCount = 0; //個数取得
+        uint32_t surfaceFormatCount = 0; //get count of formats
         result = checkVkResult(vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysDev, pSO->mSurface.value(), &surfaceFormatCount, nullptr));
         if (Result::eSuccess != result)
         {
             return result;
         }
 
-        std::vector<VkSurfaceFormatKHR> formats(surfaceFormatCount); //実際のフォーマット取得
+        std::vector<VkSurfaceFormatKHR> formats(surfaceFormatCount); //get actual format
         result = checkVkResult(vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysDev, pSO->mSurface.value(), &surfaceFormatCount, formats.data()));
         if (Result::eSuccess != result)
         {
             return result;
         }
 
-        //一致するフォーマットを検索
-        for (const auto& f : formats)
+        // search matched format
+        for (const auto &f : formats)
         {
             if (f.format == format)
             {
@@ -599,7 +624,7 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Device::createSwapchain(SwapchainObject* pSO)
+    Result Device::createSwapchain(SwapchainObject *pSO)
     {
         Result result;
 
@@ -609,16 +634,16 @@ namespace Cutlass
         auto &extent = pSO->mSurfaceCaps.currentExtent;
         if (extent.width <= 0u || extent.height <= 0u)
         {
-            // 値が無効なのでウィンドウサイズを使用する
+            // ignore invalid param and use window size
             int width, height;
             glfwGetWindowSize(pSO->mpWindow.value(), &width, &height);
             extent.width = static_cast<uint32_t>(width);
-            extent.height = static_cast <uint32_t>(height);
+            extent.height = static_cast<uint32_t>(height);
         }
 
         pSO->mPresentMode = VK_PRESENT_MODE_FIFO_KHR;
 
-        uint32_t queueFamilyIndices[] = { mGraphicsQueueIndex };
+        uint32_t queueFamilyIndices[] = {mGraphicsQueueIndex};
         VkSwapchainCreateInfoKHR ci{};
         ci.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
         ci.surface = pSO->mSurface.value();
@@ -653,7 +678,7 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Device::createSwapchainImages(SwapchainObject* pSO)
+    Result Device::createSwapchainImages(SwapchainObject *pSO)
     {
         Result result;
 
@@ -680,13 +705,13 @@ namespace Cutlass
             ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
             ci.format = pSO->mSurfaceFormat.format;
             ci.components =
-            {
-                VK_COMPONENT_SWIZZLE_IDENTITY,
-                VK_COMPONENT_SWIZZLE_IDENTITY,
-                VK_COMPONENT_SWIZZLE_IDENTITY,
-                VK_COMPONENT_SWIZZLE_IDENTITY,
-            };
-            ci.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+                {
+                    VK_COMPONENT_SWIZZLE_IDENTITY,
+                    VK_COMPONENT_SWIZZLE_IDENTITY,
+                    VK_COMPONENT_SWIZZLE_IDENTITY,
+                    VK_COMPONENT_SWIZZLE_IDENTITY,
+                };
+            ci.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
             ci.image = swapchainImages[i];
             result = checkVkResult(vkCreateImageView(mDevice, &ci, nullptr, &swapchainViews[i]));
             if (Result::eSuccess != result)
@@ -703,7 +728,7 @@ namespace Cutlass
             io.mView = swapchainViews[i];
             io.usage = TextureUsage::eSwapchainImage;
             io.mIsHostVisible = false;
-            io.extent = { pSO->mSwapchainExtent.width, pSO->mSwapchainExtent.height, static_cast<uint32_t>(1) };
+            io.extent = {pSO->mSwapchainExtent.width, pSO->mSwapchainExtent.height, static_cast<uint32_t>(1)};
             io.format = pSO->mSurfaceFormat.format;
 
             pSO->mHSwapchainImages.emplace_back(mNextTextureHandle++);
@@ -724,7 +749,6 @@ namespace Cutlass
 
         for (size_t i = 0; i < mMaxFrameInFlight; ++i)
         {
-            //mRenderCompletedSems.emplace_back();
             result = checkVkResult(vkCreateSemaphore(mDevice, &ci, nullptr, &mRenderCompletedSems[i]));
             if (Result::eSuccess != result)
             {
@@ -817,7 +841,7 @@ namespace Cutlass
         {
             if (requestBits & 1)
             {
-                const auto& types = mPhysMemProps.memoryTypes[i];
+                const auto &types = mPhysMemProps.memoryTypes[i];
                 if ((types.propertyFlags & requestProps) == requestProps)
                 {
                     result = i;
@@ -829,7 +853,7 @@ namespace Cutlass
         }
         return result;
     }
-    Result Device::createBuffer(const BufferInfo& info, HBuffer* pHandle)
+    Result Device::createBuffer(const BufferInfo &info, HBuffer *pHandle)
     {
         Result result = Result::eFailure;
         BufferObject bo;
@@ -893,9 +917,9 @@ namespace Cutlass
             VkMemoryAllocateInfo ai{};
             ai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
             ai.allocationSize = reqs.size;
-            // 基本的にメモリタイプは指定
             ai.memoryTypeIndex = getMemoryTypeIndex(reqs.memoryTypeBits, fb);
-            // メモリの確保
+
+            // allocate device memory
             {
                 VkDeviceMemory memory;
                 result = checkVkResult(vkAllocateMemory(mDevice, &ai, nullptr, &memory));
@@ -907,7 +931,7 @@ namespace Cutlass
                 bo.mMemory = memory;
             }
 
-            // メモリのバインド
+            // bind memory
             result = checkVkResult(vkBindBufferMemory(mDevice, bo.mBuffer.value(), bo.mMemory.value(), 0));
             if (Result::eSuccess != result)
             {
@@ -922,15 +946,15 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Device::writeBuffer(const size_t size, const void* const pData, const HBuffer& handle)
+    Result Device::writeBuffer(const size_t size, const void *const pData, const HBuffer &handle)
     {
         Result result = Result::eFailure;
         if (mBufferMap.count(handle) <= 0)
             return result;
 
-        BufferObject& bo = mBufferMap[handle];
+        BufferObject &bo = mBufferMap[handle];
 
-        void* p;//マップ先アドレス
+        void *p; //mapping dst address
 
         result = checkVkResult(vkMapMemory(mDevice, bo.mMemory.value(), 0, VK_WHOLE_SIZE, 0, &p));
         if (result != Result::eSuccess)
@@ -941,7 +965,7 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Device::createTexture(const TextureInfo& info, HTexture* pHandle)
+    Result Device::createTexture(const TextureInfo &info, HTexture *pHandle)
     {
         Result result;
         ImageObject io;
@@ -996,7 +1020,7 @@ namespace Cutlass
             {
             case TextureDimention::e2D:
                 ci.imageType = VK_IMAGE_TYPE_2D;
-                ci.extent = { uint32_t(info.width), uint32_t(info.height), 1 };
+                ci.extent = {uint32_t(info.width), uint32_t(info.height), 1};
                 if (info.depth != 1)
                     std::cerr << "ignored invalid depth param\n";
                 break;
@@ -1024,7 +1048,7 @@ namespace Cutlass
                 ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
                 //ci.initialLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL_KHR;
                 break;
-                // case TextureUsage::eUnordered: //不定なのでこまった
+                // case TextureUsage::eUnordered: 
                 //     ci.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
                 //     break;
             default:
@@ -1054,13 +1078,13 @@ namespace Cutlass
             }
         }
 
-        // メモリ量の算出
+        // calc memory size
         VkMemoryRequirements reqs;
         vkGetImageMemoryRequirements(mDevice, io.mImage.value(), &reqs);
         VkMemoryAllocateInfo ai{};
         ai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         ai.allocationSize = reqs.size;
-        // メモリタイプの判定
+        // decide memory type
         VkMemoryPropertyFlagBits fb;
         if (info.isHostVisible)
         {
@@ -1074,18 +1098,18 @@ namespace Cutlass
         }
 
         ai.memoryTypeIndex = getMemoryTypeIndex(reqs.memoryTypeBits, fb);
-        // メモリの確保
+        // allocate memory
         {
             VkDeviceMemory memory;
             vkAllocateMemory(mDevice, &ai, nullptr, &memory);
 
             io.mMemory = memory;
         }
-        // メモリのバインド
+        // bind memory
         vkBindImageMemory(mDevice, io.mImage.value(), io.mMemory.value(), 0);
 
         {
-            // テクスチャ参照用のビューを生成
+            //view
             VkImageViewCreateInfo ci{};
             ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 
@@ -1102,26 +1126,25 @@ namespace Cutlass
                 break;
             }
 
-            //ビュー作成がやばい
             ci.image = io.mImage.value();
             ci.format = io.format;
             ci.components =
-            {
-                VK_COMPONENT_SWIZZLE_R,
-                VK_COMPONENT_SWIZZLE_G,
-                VK_COMPONENT_SWIZZLE_B,
-                VK_COMPONENT_SWIZZLE_A,
-            };
+                {
+                    VK_COMPONENT_SWIZZLE_R,
+                    VK_COMPONENT_SWIZZLE_G,
+                    VK_COMPONENT_SWIZZLE_B,
+                    VK_COMPONENT_SWIZZLE_A,
+                };
 
             switch (info.usage)
             {
             case TextureUsage::eDepthStencilTarget:
                 ci.subresourceRange = {
-                    VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 };
+                    VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
                 break;
             default:
                 ci.subresourceRange = {
-                    VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+                    VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
                 break;
             }
 
@@ -1139,7 +1162,8 @@ namespace Cutlass
         }
 
         {
-            VkSamplerCreateInfo sci{};//適当なサンプラー
+            //TODO: impl changing sampler
+            VkSamplerCreateInfo sci{}; 
             sci.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
             sci.pNext = nullptr;
             sci.minFilter = VK_FILTER_LINEAR;
@@ -1161,14 +1185,14 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Device::createTextureFromFile(const char* fileName, HTexture* pHandle)
+    Result Device::createTextureFromFile(const char *fileName, HTexture *pHandle)
     {
         ImageObject io;
         Result result;
 
-        stbi_uc* pImage = nullptr;
+        stbi_uc *pImage = nullptr;
         int width = 0, height = 0, channel = 0;
-        io.format = VK_FORMAT_R8G8B8A8_SRGB;//固定する
+        io.format = VK_FORMAT_R8G8B8A8_SRGB; //fixed format
         io.usage = TextureUsage::eShaderResource;
 
         {
@@ -1188,9 +1212,9 @@ namespace Cutlass
                 return Result::eFailure;
             }
 
-            io.extent = { uint32_t(width), uint32_t(height), 1 };
+            io.extent = {uint32_t(width), uint32_t(height), 1};
 
-            // テクスチャのVkImageを生成
+            // image
             ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
             ci.extent = io.extent;
             ci.format = io.format;
@@ -1213,41 +1237,38 @@ namespace Cutlass
             }
         }
 
-        // メモリ量の算出
+        // calc memory size
         VkMemoryRequirements reqs;
         vkGetImageMemoryRequirements(mDevice, io.mImage.value(), &reqs);
         VkMemoryAllocateInfo ai{};
         ai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         ai.allocationSize = reqs.size;
-        // メモリタイプの判定
+        // decide memory type
         VkMemoryPropertyFlagBits fb;
         fb = static_cast<VkMemoryPropertyFlagBits>(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         io.mIsHostVisible = true;
         ai.memoryTypeIndex = getMemoryTypeIndex(reqs.memoryTypeBits, fb);
 
-        // メモリの確保
+        // allocate device memory
         {
             VkDeviceMemory memory;
             vkAllocateMemory(mDevice, &ai, nullptr, &memory);
 
             io.mMemory = memory;
         }
-        // メモリのバインド
+        // bind device memory
         vkBindImageMemory(mDevice, io.mImage.value(), io.mMemory.value(), 0);
 
         {
-            // テクスチャ参照用のビューを生成
+            //view
             VkImageViewCreateInfo ci{};
             ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
             ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
-            //ビュー作成がやばい
             ci.image = io.mImage.value();
             ci.format = io.format;
 
-
             ci.subresourceRange = {
-                VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-            
+                VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
 
             {
                 VkImageView imageView;
@@ -1263,7 +1284,7 @@ namespace Cutlass
         }
 
         {
-            VkSamplerCreateInfo sci{}; //適当なサンプラー
+            VkSamplerCreateInfo sci{};
             sci.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
             sci.pNext = nullptr;
             sci.minFilter = VK_FILTER_LINEAR;
@@ -1298,18 +1319,16 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Device::writeTexture(const void* const pData, const HTexture& handle)
+    Result Device::writeTexture(const void *const pData, const HTexture &handle)
     {
         Result result = Result::eFailure;
 
         if (mImageMap.count(handle) <= 0)
             return Result::eFailure;
 
-        ImageObject& io = mImageMap[handle];
+        ImageObject &io = mImageMap[handle];
 
-        // ステージングバッファを用意
         BufferObject stagingBo;
-
         {
             size_t imageSize = io.extent.width * io.extent.height * io.extent.depth;
             VkBufferCreateInfo ci{};
@@ -1330,19 +1349,17 @@ namespace Cutlass
                 ai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
                 ai.allocationSize = reqs.size;
                 ai.memoryTypeIndex = getMemoryTypeIndex(reqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-                //メモリ確保
+
                 {
                     VkDeviceMemory memory;
                     vkAllocateMemory(mDevice, &ai, nullptr, &memory);
                     stagingBo.mMemory = memory;
                 }
 
-                // メモリバインド
                 vkBindBufferMemory(mDevice, stagingBo.mBuffer.value(), stagingBo.mMemory.value(), 0);
             }
 
-            //データ書き込み
-            void* p;
+            void *p;
             result = checkVkResult(vkMapMemory(mDevice, stagingBo.mMemory.value(), 0, VK_WHOLE_SIZE, 0, &p));
             if (Result::eSuccess != result)
                 return result;
@@ -1353,12 +1370,11 @@ namespace Cutlass
 
         VkBufferImageCopy copyRegion{};
         copyRegion.imageExtent =
-        {
-            static_cast<uint32_t>(io.extent.width),
-            static_cast<uint32_t>(io.extent.height),
-            static_cast<uint32_t>(io.extent.depth)
-        };
-        copyRegion.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+            {
+                static_cast<uint32_t>(io.extent.width),
+                static_cast<uint32_t>(io.extent.height),
+                static_cast<uint32_t>(io.extent.depth)};
+        copyRegion.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
         VkCommandBuffer command;
         {
             VkCommandBufferAllocateInfo ai{};
@@ -1384,11 +1400,11 @@ namespace Cutlass
         submitInfo.pCommandBuffers = &command;
         vkQueueSubmit(mDeviceQueue, 1, &submitInfo, VK_NULL_HANDLE);
 
-        //コピー終了
+        //end copying
         vkDeviceWaitIdle(mDevice);
         vkFreeCommandBuffers(mDevice, mCommandPool, 1, &command);
 
-        // ステージングバッファ解放
+        //release staging buffer
         vkFreeMemory(mDevice, stagingBo.mMemory.value(), nullptr);
         vkDestroyBuffer(mDevice, stagingBo.mBuffer.value(), nullptr);
 
@@ -1403,12 +1419,12 @@ namespace Cutlass
         imb.newLayout = newLayout;
         imb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         imb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        imb.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+        imb.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
         imb.image = image;
 
-        // パイプライン中でリソースへの書込み最終のステージ
+        //final stage that write to resource in pipelines
         VkPipelineStageFlags srcStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-        // パイプライン中で次にリソースに書き込むステージ
+        //next state that write to resource in pipelines
         VkPipelineStageFlags dstStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 
         switch (oldLayout)
@@ -1470,7 +1486,7 @@ namespace Cutlass
             return result;
         }
 
-        // コマンドバッファのフェンスも同数用意する.
+        // ?R?}???h?o?b?t?@??t?F???X???????p?????.
         mFences.resize(ai.commandBufferCount);
         VkFenceCreateInfo ci{};
         ci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -1488,8 +1504,7 @@ namespace Cutlass
         return Result::eSuccess;
     }*/
 
-
-    Result Device::createDepthBuffer(SwapchainObject* pSO)
+    Result Device::createDepthBuffer(SwapchainObject *pSO)
     {
         Result result;
         ImageObject io;
@@ -1508,10 +1523,10 @@ namespace Cutlass
             ci.samples = VK_SAMPLE_COUNT_1_BIT;
             ci.arrayLayers = 1;
 
-            //ImageObjectの保有データ設定
+            
             io.format = ci.format;
             io.extent = ci.extent;
-            //imageオブジェクト作成
+            
             {
                 VkImage image;
                 result = checkVkResult(vkCreateImage(mDevice, &ci, nullptr, &image));
@@ -1556,16 +1571,15 @@ namespace Cutlass
             ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
             ci.format = io.format;
             ci.components =
-            {
-                VK_COMPONENT_SWIZZLE_R,
-                VK_COMPONENT_SWIZZLE_G,
-                VK_COMPONENT_SWIZZLE_B,
-                VK_COMPONENT_SWIZZLE_A,
-            };
+                {
+                    VK_COMPONENT_SWIZZLE_R,
+                    VK_COMPONENT_SWIZZLE_G,
+                    VK_COMPONENT_SWIZZLE_B,
+                    VK_COMPONENT_SWIZZLE_A,
+                };
             ci.subresourceRange =
-            {
-                VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1
-            };
+                {
+                    VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
 
             VkImageView imageView;
             result = checkVkResult(vkCreateImageView(mDevice, &ci, nullptr, &imageView));
@@ -1585,7 +1599,7 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Device::createShaderModule(const Shader& shader, const VkShaderStageFlagBits& stage, VkPipelineShaderStageCreateInfo* pSSCI)
+    Result Device::createShaderModule(const Shader &shader, const VkShaderStageFlagBits &stage, VkPipelineShaderStageCreateInfo *pSSCI)
     {
         Result result;
 
@@ -1604,7 +1618,7 @@ namespace Cutlass
         VkShaderModuleCreateInfo ci{};
         ci.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         ci.pNext = nullptr;
-        ci.pCode = reinterpret_cast<uint32_t*>(filedata.data());
+        ci.pCode = reinterpret_cast<uint32_t *>(filedata.data());
         ci.codeSize = filedata.size();
         result = checkVkResult(vkCreateShaderModule(mDevice, &ci, nullptr, &shaderModule));
         if (result != Result::eSuccess)
@@ -1623,16 +1637,14 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-
-    Result Device::createRenderDSTFromSwapchain(const HSwapchain& handle, bool depthTestEnable, HRenderDST* pHandle)
+    Result Device::createRenderDSTFromSwapchain(const HSwapchain &handle, bool depthTestEnable, HRenderDST *pHandle)
     {
         Result result;
         RenderDSTObject rdsto;
 
-        //フラグはさっさと代入
         rdsto.mDepthTestEnable = depthTestEnable;
 
-        //Renderpass, 対象に応じたFramebuffer構築
+        //Renderpass, framebuffer
 
         if (mSwapchainMap.count(handle) <= 0)
         {
@@ -1641,7 +1653,7 @@ namespace Cutlass
         }
 
         rdsto.mHSwapchain = handle;
-        auto& swapchain = mSwapchainMap[handle];
+        auto &swapchain = mSwapchainMap[handle];
 
         {
             VkExtent3D extent;
@@ -1657,9 +1669,9 @@ namespace Cutlass
             VkAttachmentReference ar;
             VkAttachmentReference depthAr;
 
-            //adVec.reserve(2);
+            adVec.reserve(2);
 
-            const auto& rdst = swapchain.mHSwapchainImages[0]; //情報得るだけなのでどれでもいい
+            const auto &rdst = swapchain.mHSwapchainImages[0]; //only for info
 
             if (mImageMap.count(rdst) <= 0)
             {
@@ -1667,7 +1679,7 @@ namespace Cutlass
                 return Result::eFailure;
             }
 
-            auto& io = mImageMap[rdst];
+            auto &io = mImageMap[rdst];
             adVec.emplace_back();
             adVec.back().format = io.format;
             adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
@@ -1691,12 +1703,12 @@ namespace Cutlass
             dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
             dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
-            //指定されていれば末尾にDSBを追加
+            //if use depthBuffer, create attachment
             if (depthTestEnable)
             {
                 adVec.emplace_back();
 
-                auto& depthBuffer = mImageMap[swapchain.mHDepthBuffer];
+                auto &depthBuffer = mImageMap[swapchain.mHDepthBuffer];
                 adVec.back().format = depthBuffer.format;
                 adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
                 adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -1731,7 +1743,6 @@ namespace Cutlass
             }
         }
 
-
         VkFramebufferCreateInfo fbci{};
         fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         fbci.renderPass = rdsto.mRenderPass.value();
@@ -1741,12 +1752,12 @@ namespace Cutlass
 
         if (depthTestEnable)
         {
-            const auto& depth = mImageMap[swapchain.mHDepthBuffer];
-            for (auto& h : swapchain.mHSwapchainImages)
+            const auto &depth = mImageMap[swapchain.mHDepthBuffer];
+            for (auto &h : swapchain.mHSwapchainImages)
             {
 
-                const auto& img = mImageMap[h];
-                std::array<VkImageView, 2> ivArr = { img.mView.value(), depth.mView.value() };
+                const auto &img = mImageMap[h];
+                std::array<VkImageView, 2> ivArr = {img.mView.value(), depth.mView.value()};
                 fbci.attachmentCount = 2;
                 fbci.pAttachments = ivArr.data();
 
@@ -1758,13 +1769,12 @@ namespace Cutlass
                     return result;
                 }
                 rdsto.mFramebuffers.emplace_back(framebuffer);
-                
             }
         }
         else
         {
             fbci.attachmentCount = 1;
-            for (auto& h : swapchain.mHSwapchainImages)
+            for (auto &h : swapchain.mHSwapchainImages)
             {
 
                 //const auto& img = mImageMap[h];
@@ -1781,7 +1791,6 @@ namespace Cutlass
 
                 rdsto.mFramebuffers.emplace_back(frameBuffer);
                 //rdsto.mFramebuffers.back() = frameBuffer;
-
             }
         }
 
@@ -1791,7 +1800,7 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Device::createRenderDSTFromTextures(const std::vector<HTexture> textures, HRenderDST* pHandle)
+    Result Device::createRenderDSTFromTextures(const std::vector<HTexture> textures, HRenderDST *pHandle)
     {
         Result result;
         RenderDSTObject rdsto;
@@ -1803,30 +1812,28 @@ namespace Cutlass
         std::vector<VkAttachmentReference> arVec;
         std::optional<HTexture> hDepthBuffer;
 
-        if (mInitializeInfo.debugFlag)//チェック
+        if (mInitializeInfo.debugFlag) //for debug mode
         {
-            for (auto& tex : textures)
+            for (auto &tex : textures)
             {
                 if (mImageMap.count(tex) <= 0)
                 {
                     std::cerr << "invalid texture handle\n";
                     return Result::eFailure;
                 }
-                auto& io = mImageMap[tex];
+                auto &io = mImageMap[tex];
 
-                //使いみちが違うのはアウト
+                //usage check
                 if (io.usage != TextureUsage::eColorTarget || io.usage != TextureUsage::eDepthStencilTarget)
                 {
                     std::cerr << "invalid texture usage\n";
                     return Result::eFailure;
                 }
 
-                //サイズが違うのもアウト
+                //extent substitute and check
                 if (!rdsto.mExtent)
                     rdsto.mExtent = io.extent;
-                if (rdsto.mExtent.value().width != io.extent.width
-                    && rdsto.mExtent.value().height != io.extent.height
-                    && rdsto.mExtent.value().depth != io.extent.depth)
+                if (rdsto.mExtent.value().width != io.extent.width || rdsto.mExtent.value().height != io.extent.height || rdsto.mExtent.value().depth != io.extent.depth)
                 {
                     std::cerr << "invalid texture extent\n";
                     return Result::eFailure;
@@ -1834,17 +1841,16 @@ namespace Cutlass
             }
         }
 
-        //Renderpass, 対象に応じたFramebuffer構築
-        for (auto& tex : textures)
+        //Renderpass, Framebuffer
+        for (auto &tex : textures)
         {
 
-            auto& io = mImageMap[tex];
+            auto &io = mImageMap[tex];
             adVec.emplace_back();
             arVec.emplace_back();
 
             if (!rdsto.mExtent)
                 rdsto.mExtent = io.extent;
-
 
             adVec.back().format = io.format;
             adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
@@ -1860,11 +1866,11 @@ namespace Cutlass
                 arVec.back().layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
                 break;
             case TextureUsage::eDepthStencilTarget:
-                hDepthBuffer = tex;//デプスバッファ登録して情報は消しとく
+                hDepthBuffer = tex;
                 adVec.pop_back();
                 arVec.pop_back();
                 break;
-            default: //くるわけないのであるが...
+            default: //did not expected
                 return Result::eFailure;
                 break;
             }
@@ -1875,12 +1881,12 @@ namespace Cutlass
         subpassDesc.colorAttachmentCount = arVec.size();
         subpassDesc.pColorAttachments = arVec.data();
 
-        //指定されていれば末尾にDSBを追加
+        //if use depthBuffer, create attachment
         if (hDepthBuffer)
         {
             VkAttachmentReference depthAr;
             adVec.emplace_back();
-            auto& depthBuffer = mImageMap[hDepthBuffer.value()];
+            auto &depthBuffer = mImageMap[hDepthBuffer.value()];
 
             adVec.back().format = depthBuffer.format;
             adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
@@ -1917,9 +1923,9 @@ namespace Cutlass
 
         fbci.attachmentCount = rdsto.mTargetNum = adVec.size();
         std::vector<VkImageView> ivVec;
-        for (auto& tex : textures)
+        for (auto &tex : textures)
         {
-            const auto& img = mImageMap[tex];
+            const auto &img = mImageMap[tex];
             ivVec.emplace_back(img.mView.value());
         }
 
@@ -1937,7 +1943,7 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Device::createRenderPipeline(const RenderPipelineInfo& info, HRenderPipeline* pHandle)
+    Result Device::createRenderPipeline(const RenderPipelineInfo &info, HRenderPipeline *pHandle)
     {
         Result result;
         RenderPipelineObject rpo;
@@ -1951,13 +1957,13 @@ namespace Cutlass
         RenderDSTObject rdsto = mRDSTMap[info.renderDST];
         rpo.mHRenderDST = info.renderDST;
 
-        //PSO構築
+        //PSO
         {
-            //頂点バインディング
+            
             VkVertexInputBindingDescription ib;
-            //頂点属性
+            
             std::vector<VkVertexInputAttributeDescription> ia_vec;
-            //頂点まとめ
+            
             VkPipelineVertexInputStateCreateInfo visci{};
             if (info.vertexLayout)
             {
@@ -1970,6 +1976,7 @@ namespace Cutlass
                 {
                     if (info.vertexLayout.value().layouts.size() <= 0)
                     {
+                        std::cerr << "invalid size!\n";
                         return Result::eFailure;
                     }
 
@@ -2019,7 +2026,7 @@ namespace Cutlass
                     visci.pVertexAttributeDescriptions = ia_vec.data();
                 }
             }
-            else//頂点構造がない場合
+            else //vertex input state
             {
 
                 visci.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -2028,11 +2035,9 @@ namespace Cutlass
                 visci.pVertexBindingDescriptions = nullptr;
                 visci.vertexAttributeDescriptionCount = 0;
                 visci.pVertexAttributeDescriptions = nullptr;
-
             }
 
-
-            // ブレンディング
+            //color blend
             VkPipelineColorBlendAttachmentState blendAttachment{};
             VkPipelineColorBlendStateCreateInfo cbci{};
             {
@@ -2065,7 +2070,7 @@ namespace Cutlass
                 }
             }
 
-            // ビューポート, シザー
+            //viewport and scissor
             VkPipelineViewportStateCreateInfo vpsci{};
             VkViewport viewport{};
             VkRect2D scissor{};
@@ -2083,7 +2088,7 @@ namespace Cutlass
                 }
                 else
                 {
-                    const VkExtent3D& extent = rdsto.mExtent.value();
+                    const VkExtent3D &extent = rdsto.mExtent.value();
                     viewport.x = 0;
                     viewport.y = 0;
                     viewport.width = static_cast<float>(extent.width);
@@ -2097,15 +2102,15 @@ namespace Cutlass
                     scissor.offset.x = static_cast<float>(info.scissor.value()[0][0]);
                     scissor.offset.y = static_cast<float>(info.scissor.value()[0][1]);
                     scissor.extent =
-                    { static_cast<uint32_t>(info.scissor.value()[1][0]),
-                    static_cast<uint32_t>(info.scissor.value()[1][1]) };
+                        {static_cast<uint32_t>(info.scissor.value()[1][0]),
+                         static_cast<uint32_t>(info.scissor.value()[1][1])};
                 }
                 else
                 {
-                    scissor.offset = { 0, 0 };
+                    scissor.offset = {0, 0};
                     scissor.extent =
-                    { rdsto.mExtent.value().width,
-                    rdsto.mExtent.value().height };
+                        {rdsto.mExtent.value().width,
+                         rdsto.mExtent.value().height};
                 }
 
                 vpsci.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -2115,7 +2120,7 @@ namespace Cutlass
                 vpsci.pScissors = &scissor;
             }
 
-            //プリミティブトポロジー
+            //input assembly
             VkPipelineInputAssemblyStateCreateInfo iaci{};
             {
                 iaci.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -2134,7 +2139,7 @@ namespace Cutlass
                 }
             }
 
-            //ラスタライザ
+            //rasterization
             VkPipelineRasterizationStateCreateInfo rci{};
             {
                 rci.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -2153,7 +2158,7 @@ namespace Cutlass
                 }
             }
 
-            //マルチサンプルステート
+            //multi sampling
             VkPipelineMultisampleStateCreateInfo msci{};
             {
                 msci.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
@@ -2169,7 +2174,7 @@ namespace Cutlass
                 }
             }
 
-            //デプスステンシルステート
+            //depth stencil
             VkPipelineDepthStencilStateCreateInfo dsci{};
             {
                 dsci.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
@@ -2197,11 +2202,9 @@ namespace Cutlass
             }
 
             std::array<VkPipelineShaderStageCreateInfo, 2> ssciArr{};
-
             result = createShaderModule(info.VS, VK_SHADER_STAGE_VERTEX_BIT, &ssciArr[0]);
             result = createShaderModule(info.FS, VK_SHADER_STAGE_FRAGMENT_BIT, &ssciArr[1]);
-
-            {//DescriptorSetLayout構築
+            { //DescriptorSetLayout
 
                 VkDescriptorSetLayoutCreateInfo descLayoutci{};
                 std::vector<VkDescriptorSetLayoutBinding> bindings;
@@ -2211,7 +2214,7 @@ namespace Cutlass
                 for (int i = 0; i < info.SRDesc.layout.uniformBufferCount; ++i)
                 {
                     bindings.emplace_back();
-                    auto& b = bindings.back();
+                    auto &b = bindings.back();
 
                     b.binding = i;
                     b.descriptorCount = 1;
@@ -2223,7 +2226,7 @@ namespace Cutlass
                 for (int i = info.SRDesc.layout.uniformBufferCount; i < info.SRDesc.layout.uniformBufferCount + info.SRDesc.layout.combinedTextureCount; ++i)
                 {
                     bindings.emplace_back();
-                    auto& b = bindings.back();
+                    auto &b = bindings.back();
 
                     b.binding = i;
                     b.descriptorCount = 1;
@@ -2250,7 +2253,7 @@ namespace Cutlass
             }
 
             if (info.SRDesc.maxSetCount > 0)
-            { //DescriptorPool構築
+            { //DescriptorPool
                 std::array<VkDescriptorPoolSize, 2> sizes;
                 sizes[0].descriptorCount = rpo.layout.uniformBufferCount;
                 sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -2267,7 +2270,7 @@ namespace Cutlass
                     std::cerr << "invalid max SR count\n";
                     return Result::eFailure;
                 }
-                dpci.maxSets = info.SRDesc.maxSetCount;//*sumDescriptor; //エラーが出るようならこっち
+                dpci.maxSets = info.SRDesc.maxSetCount; //*sumDescriptor; //?G???[???o??????????
                 dpci.poolSizeCount = sizes.size();
                 dpci.pPoolSizes = sizes.data();
                 {
@@ -2282,7 +2285,7 @@ namespace Cutlass
                 }
             }
 
-            {//パイプラインレイアウト構築
+            {//pipeline layout
                 VkPipelineLayoutCreateInfo ci{};
                 ci.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
                 ci.setLayoutCount = 1;
@@ -2302,7 +2305,7 @@ namespace Cutlass
                 }
             }
 
-            {//繝代う繝励Λ繧､繝ｳ讒狗ｯ・
+            {// graphics pipeline layout
                 VkGraphicsPipelineCreateInfo ci{};
                 ci.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
                 ci.stageCount = static_cast<uint32_t>(ssciArr.size());
@@ -2329,8 +2332,8 @@ namespace Cutlass
                 }
             }
 
-            //ShaderModule破棄
-            for (auto& ssci : ssciArr)
+            //won't be used
+            for (auto &ssci : ssciArr)
                 vkDestroyShaderModule(mDevice, ssci.module, nullptr);
         }
 
@@ -2340,11 +2343,10 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Device::createCommandBuffer(const CommandList& commandList, HCommandBuffer* const pHandle)
+    Result Device::createCommandBuffer(const CommandList &commandList, HCommandBuffer *const pHandle)
     {
         Result result = Result::eSuccess;
 
-        //コマンドオブジェクトの構築・初期化
         CommandObject co;
 
         {
@@ -2375,13 +2377,13 @@ namespace Cutlass
                     return result;
                 }
             }
-
         }
 
-        const InternalCommandList& cmdList = commandList.getInternalCommandData();
+        //get internal(public) command info vector
+        const auto &cmdList = commandList.getInternalCommandData();
 
-        //書き込み
-        for (const auto& command : cmdList)
+
+        for (const auto &command : cmdList)
         {
             switch (command.first) //RTTI...
             {
@@ -2433,24 +2435,35 @@ namespace Cutlass
         return result;
     }
 
-    Result Device::execute(const HCommandBuffer& handle, const HSwapchain& swapchain)
+    Result Device::execute(const HCommandBuffer &handle)
     {
         Result result = Result::eSuccess;
 
-        if (mCommandBufferMap.count(handle) <= 0)
+        if(mInitializeInfo.debugFlag)
         {
-            std::cerr << "invalid commandbuffer handle!\n";
+            if (mCommandBufferMap.count(handle) <= 0)
+            {
+                std::cerr << "invalid commandbuffer handle!\n";
+                return Result::eFailure;
+            }
+
+            if (mSwapchainMap.count(handle) <= 0)
+            {
+                std::cerr << "invalid swapchain handle!\n";
+                return Result::eFailure;
+            }
+        }
+        
+        auto &co = mCommandBufferMap[handle];
+        if(!co.mHRenderDST)
+        {
+            std::cerr << "renderDST of this command is invalid!\n";
             return Result::eFailure;
         }
 
-        if (mSwapchainMap.count(handle) <= 0)
-        {
-            std::cerr << "invalid swapchain handle!\n";
-            return Result::eFailure;
-        }
+        auto &rdsto = mRDSTMap[co.mHRenderDST.value()];
 
-        auto& so = mSwapchainMap[handle];
-        auto& co = mCommandBufferMap[handle];
+
         result = checkVkResult(vkWaitForFences(mDevice, 1, &co.mFences[mCurrentFrame], VK_TRUE, UINT64_MAX));
         if (result != Result::eSuccess)
         {
@@ -2458,179 +2471,143 @@ namespace Cutlass
             return result;
         }
 
-        uint32_t swapchainImageIndex = 0;
 
-        result = checkVkResult(
-            vkAcquireNextImageKHR(
-                mDevice,
-                so.mSwapchain.value(),
-                UINT64_MAX,
-                mPresentCompletedSems[mCurrentFrame],
-                VK_NULL_HANDLE,
-                &swapchainImageIndex));
-
-        std::cout << swapchainImageIndex << " : swapchain image index\n";
-
-        if (result != Result::eSuccess)
+        if(rdsto.mHSwapchain)
         {
-            std::cerr << "failed to acquire next swapchain image!\n";
-            return result;
+            auto &so = mSwapchainMap[rdsto.mHSwapchain.value()];
+            uint32_t swapchainImageIndex = 0;
+
+            result = checkVkResult(
+                vkAcquireNextImageKHR(
+                    mDevice,
+                    so.mSwapchain.value(),
+                    UINT64_MAX,
+                    mPresentCompletedSems[mCurrentFrame],
+                    VK_NULL_HANDLE,
+                    &swapchainImageIndex));
+
+            std::cout << swapchainImageIndex << " : swapchain image index\n";
+
+            if (result != Result::eSuccess)
+            {
+                std::cerr << "failed to acquire next swapchain image!\n";
+                return result;
+            }
+
+            if (imagesInFlight[swapchainImageIndex] != VK_NULL_HANDLE)
+                vkWaitForFences(mDevice, 1, &imagesInFlight[swapchainImageIndex], VK_TRUE, UINT64_MAX);
+            imagesInFlight[swapchainImageIndex] = co.mFences[mCurrentFrame];
+
+            //submit command
+            VkSubmitInfo submitInfo{};
+            VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+            submitInfo.commandBufferCount = 1;
+            submitInfo.pCommandBuffers = &(co.mCommandBuffers[swapchainImageIndex]);
+            submitInfo.pWaitDstStageMask = &waitStageMask;
+            submitInfo.waitSemaphoreCount = 1;
+            submitInfo.pWaitSemaphores = &mPresentCompletedSems[mCurrentFrame];
+            submitInfo.signalSemaphoreCount = 1;
+            submitInfo.pSignalSemaphores = &mRenderCompletedSems[mCurrentFrame];
+            result = checkVkResult(vkResetFences(mDevice, 1, &co.mFences[mCurrentFrame]));
+            if (result != Result::eSuccess)
+            {
+                std::cerr << "failed to reset fence!\n";
+                return result;
+            }
+
+            result = checkVkResult(vkQueueSubmit(mDeviceQueue, 1, &submitInfo, co.mFences[mCurrentFrame]));
+            if (result != Result::eSuccess)
+            {
+                std::cerr << "failed to submit cmd to queue!\n";
+                return result;
+            }
+
+            //present
+            VkPresentInfoKHR presentInfo{};
+            presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+            presentInfo.swapchainCount = 1;
+            presentInfo.pSwapchains = &so.mSwapchain.value();
+            presentInfo.pImageIndices = &swapchainImageIndex;
+            presentInfo.waitSemaphoreCount = 1;
+            presentInfo.pWaitSemaphores = &mRenderCompletedSems[mCurrentFrame];
+
+            result = checkVkResult(vkQueuePresentKHR(mDeviceQueue, &presentInfo));
+            if (Result::eSuccess != result)
+            {
+                std::cerr << "Failed to present queue!\n";
+                return result;
+            }
         }
-
-        if (imagesInFlight[swapchainImageIndex] != VK_NULL_HANDLE)
-            vkWaitForFences(mDevice, 1, &imagesInFlight[swapchainImageIndex], VK_TRUE, UINT64_MAX);
-        imagesInFlight[swapchainImageIndex] = co.mFences[mCurrentFrame];
-
-
-        // コマンドを実行（送信)
-        VkSubmitInfo submitInfo{};
-        VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &(co.mCommandBuffers[swapchainImageIndex]);
-        submitInfo.pWaitDstStageMask = &waitStageMask;
-        submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = &mPresentCompletedSems[mCurrentFrame];
-        submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = &mRenderCompletedSems[mCurrentFrame];
-        result = checkVkResult(vkResetFences(mDevice, 1, &co.mFences[mCurrentFrame]));
-        if (result != Result::eSuccess)
+        else
         {
-            std::cerr << "failed to reset fence!\n";
-            return result;
+            std::cerr << "this process does not implemented yet!";
+            exit(-1);
         }
-
-        result = checkVkResult(vkQueueSubmit(mDeviceQueue, 1, &submitInfo, co.mFences[mCurrentFrame]));
-        if (result != Result::eSuccess)
-        {
-            std::cerr << "failed to submit cmd to queue!\n";
-            return result;
-        }
-
-        //present
-        VkPresentInfoKHR presentInfo{};
-        presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-        presentInfo.swapchainCount = 1;
-        presentInfo.pSwapchains = &so.mSwapchain.value();
-        presentInfo.pImageIndices = &swapchainImageIndex;
-        presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores = &mRenderCompletedSems[mCurrentFrame];
-
-        result = checkVkResult(vkQueuePresentKHR(mDeviceQueue, &presentInfo));
-        if (Result::eSuccess != result)
-        {
-            std::cerr << "Failed to present queue!\n";
-            return result;
-        }
-
+        //baddest sync process
         //vkQueueWaitIdle(mDeviceQueue);
 
         mCurrentFrame = (mCurrentFrame + 1) % mMaxFrameInFlight;
 
-        //
-        // {
-        //     if (mRCState->mDescriptorSet && mRCState->mDescriptorPool)
-        //         vkFreeDescriptorSets(mDevice, mRCState->mDescriptorPool.value(), 1, &mRCState->mDescriptorSet.value());
-        //     if (mRCState->mDescriptorPool)
-        //         vkDestroyDescriptorPool(mDevice, mRCState->mDescriptorPool.value(), nullptr);
-        //     mRCState = std::nullopt; //解放
-        //     RunningCommandState tmp;
-        //     mRCState = tmp; //新しいインスタンス取得
-        // }
-
         return Result::eSuccess;
     }
 
-    // Result Device::present(const HSwapchain &handle)
-    // {
-    //     Result result;
-
-    //     if (mSwapchainMap.count(handle) <= 0)
-    //     {
-    //         std::cerr << "invalid swapchain handle!\n";
-    //         return Result::eFailure;
-    //     }
-
-    //     auto& so = mSwapchainMap[handle];
-
-    //     VkPresentInfoKHR presentInfo{};
-    //     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    //     presentInfo.swapchainCount = 1;
-    //     presentInfo.pSwapchains = &so.mSwapchain.value();
-    //     presentInfo.pImageIndices = &mFrameIndex;
-    //     presentInfo.waitSemaphoreCount = 1;
-    //     presentInfo.pWaitSemaphores = &mRenderCompletedSem;
-
-    //     result = checkVkResult(vkQueuePresentKHR(mDeviceQueue, &presentInfo));
-    //     if (Result::eSuccess != result)
-    //     {
-    //         std::cerr << "Failed to present queue!\n";
-    //         return result;
-    //     }
-
-    //     vkQueueWaitIdle(mDeviceQueue);
-
-    //     mFrameIndex = (mFrameIndex + 1) % mMaxFrameNum;
-
-    //     return Result::eSuccess;
-    // }
-
-    Result Device::cmdBeginRenderPipeline(CommandObject& co, const CmdBeginRenderPipeline& info)
+    Result Device::cmdBeginRenderPipeline(CommandObject &co, const CmdBeginRenderPipeline &info)
     {
         Result result = Result::eSuccess;
 
-        auto& rpo = mRPMap[info.RPHandle];
-        auto& rdsto = mRDSTMap[rpo.mHRenderDST];
-        
+        auto &rpo = mRPMap[info.RPHandle];
+        auto &rdsto = mRDSTMap[rpo.mHRenderDST];
+
         co.mHRPO = info.RPHandle;
         co.mHRenderDST = rpo.mHRenderDST;
-        
-        VkRenderPassBeginInfo bi{};
 
         VkCommandBufferBeginInfo commandBI{};
         commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         commandBI.flags = 0;
         commandBI.pInheritanceInfo = nullptr;
 
+        VkRenderPassBeginInfo bi{};
+
         if (rdsto.mHSwapchain)
         {
-            auto& swapchain = mSwapchainMap[rdsto.mHSwapchain.value()];
+            const auto& swapchain = mSwapchainMap[rdsto.mHSwapchain.value()];
 
-            //VkClearValue clearValues[2];
-            //clearValues[0] = { 1.0, 0, 0, 0 };
-            //clearValues[1] = { 0, 0 };
+            VkClearValue clearValues[2];
+            clearValues[0] = {0.5, 0.5, 0.5, 1.0};
+            clearValues[1] = { 0, 0 };
 
-            VkClearValue clearValue = { 0.5, 0.5, 0.5, 1.0};
+            //VkClearValue clearValue = {0.5, 0.5, 0.5, 1.0};
 
             bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
             bi.renderPass = rdsto.mRenderPass.value();
-            bi.renderArea.offset = { 0, 0 };
+            bi.renderArea.offset = {0, 0};
             bi.renderArea.extent = swapchain.mSwapchainExtent;
 
-            // クリア値
+            // is this param OK?
             if (rdsto.mDepthTestEnable)
             {
-                std::cerr << "this process does not implemented yet!";
-                exit(-1);
-                //bi.clearValueCount = 2;
-                //bi.pClearValues = clearValues;
+                //std::cerr << "this process does not implemented yet!";
+                //exit(-1);
+                bi.clearValueCount = 2;
+                bi.pClearValues = clearValues;
             }
             else
             {
                 bi.clearValueCount = 1;
-                bi.pClearValues = &clearValue;
+                bi.pClearValues = clearValues;
             }
         }
         else
         {
-            //TODO: テクスチャレンダリング時のここ
+            //TODO: impl of this
             std::cerr << "this process does not implemented yet!\n";
+            return Result::eFailure;
         }
-
 
         for (size_t i = 0; i < co.mCommandBuffers.size(); ++i)
         {
-            auto& command = co.mCommandBuffers[i];
+            auto &command = co.mCommandBuffers[i];
             result = checkVkResult(vkBeginCommandBuffer(command, &commandBI));
             if (result != Result::eSuccess)
             {
@@ -2647,11 +2624,10 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Device::cmdEndRenderPipeline(CommandObject& co, const CmdEndRenderPipeline& info)
+    Result Device::cmdEndRenderPipeline(CommandObject &co, const CmdEndRenderPipeline &info)
     {
         Result result;
-        // コマンド・レンダーパス終了
-        for (const auto& command : co.mCommandBuffers)
+        for (const auto &command : co.mCommandBuffers)
         {
             vkCmdEndRenderPass(command);
             result = checkVkResult(vkEndCommandBuffer(command));
@@ -2665,32 +2641,32 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Device::cmdBindVB(CommandObject& co, const CmdBindVB& info)
+    Result Device::cmdBindVB(CommandObject &co, const CmdBindVB &info)
     {
         if (mBufferMap.count(info.VBHandle) <= 0)
             return Result::eFailure;
-        auto& vbo = mBufferMap[info.VBHandle];
+        auto &vbo = mBufferMap[info.VBHandle];
 
         VkDeviceSize offsets[] = {0};
-        for (const auto& command : co.mCommandBuffers)
+        for (const auto &command : co.mCommandBuffers)
             vkCmdBindVertexBuffers(command, 0, 1, &vbo.mBuffer.value(), offsets);
 
         return Result::eSuccess;
     }
 
-    Result Device::cmdBindIB(CommandObject& co, const CmdBindIB& info)
+    Result Device::cmdBindIB(CommandObject &co, const CmdBindIB &info)
     {
         if (mBufferMap.count(info.IBHandle) <= 0)
             return Result::eFailure;
-        auto& ibo = mBufferMap[info.IBHandle];
+        auto &ibo = mBufferMap[info.IBHandle];
 
-        for (const auto& command : co.mCommandBuffers)
+        for (const auto &command : co.mCommandBuffers)
             vkCmdBindIndexBuffer(command, ibo.mBuffer.value(), 0, VK_INDEX_TYPE_UINT32);
 
         return Result::eSuccess;
     }
 
-    Result Device::cmdBindSRSet(CommandObject& co, const CmdBindSRSet& info)
+    Result Device::cmdBindSRSet(CommandObject &co, const CmdBindSRSet &info)
     {
         Result result = Result::eSuccess;
 
@@ -2700,7 +2676,7 @@ namespace Cutlass
             return Result::eFailure;
         }
 
-        auto& rpo = mRPMap[co.mHRPO.value()];
+        auto &rpo = mRPMap[co.mHRPO.value()];
 
         if (!rpo.mDescriptorPool)
         {
@@ -2712,21 +2688,21 @@ namespace Cutlass
         std::vector<VkDescriptorBufferInfo> dbi_vec;
         std::vector<VkDescriptorImageInfo> dii_vec;
 
-        for (auto& hub : info.SRSet.uniformBuffer)
+        for (auto &hub : info.SRSet.uniformBuffer)
         {
             if (mBufferMap.count(hub) <= 0)
             {
                 std::cerr << "invalid uniform buffer handle!\n";
                 return Result::eFailure;
             }
-            auto& ub = mBufferMap[hub];
+            auto &ub = mBufferMap[hub];
             dbi_vec.emplace_back();
             dbi_vec.back().buffer = ub.mBuffer.value();
             dbi_vec.back().offset = 0;
             dbi_vec.back().range = VK_WHOLE_SIZE;
         }
 
-        for (auto& hct : info.SRSet.combinedTexture)
+        for (auto &hct : info.SRSet.combinedTexture)
         {
             if (mImageMap.count(hct) <= 0)
             {
@@ -2734,13 +2710,12 @@ namespace Cutlass
                 return Result::eFailure;
             }
 
-            auto& ct = mImageMap[hct];
+            auto &ct = mImageMap[hct];
             dii_vec.emplace_back();
             dii_vec.back().imageView = ct.mView.value();
             dii_vec.back().sampler = ct.mSampler.value();
             dii_vec.back().imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         }
-
 
         std::vector<VkDescriptorSetLayout> layouts(mMaxFrameNum, rpo.mDescriptorSetLayout.value());
         std::vector<VkWriteDescriptorSet> writeDescriptors;
@@ -2760,11 +2735,11 @@ namespace Cutlass
 
             for (size_t i = 0; i < co.mDescriptorSets.size(); ++i)
             {
-                
+
                 writeDescriptors.reserve(static_cast<size_t>(rpo.layout.combinedTextureCount + rpo.layout.uniformBufferCount));
-                
+
                 uint32_t binding = 0;
-                for (auto& dbi : dbi_vec)
+                for (auto &dbi : dbi_vec)
                 {
                     writeDescriptors.emplace_back(VkWriteDescriptorSet{});
                     writeDescriptors.back().sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -2776,7 +2751,7 @@ namespace Cutlass
                     writeDescriptors.back().dstSet = co.mDescriptorSets[i];
                 }
 
-                for (auto& dii : dii_vec)
+                for (auto &dii : dii_vec)
                 {
                     writeDescriptors.emplace_back(VkWriteDescriptorSet{});
                     writeDescriptors.back().sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -2787,16 +2762,14 @@ namespace Cutlass
                     writeDescriptors.back().pImageInfo = &dii;
                     writeDescriptors.back().dstSet = co.mDescriptorSets[i];
                 }
-                
+
                 vkUpdateDescriptorSets(mDevice, static_cast<uint32_t>(writeDescriptors.size()), writeDescriptors.data(), 0, nullptr);
             }
-
         }
 
         for (size_t i = 0; i < co.mCommandBuffers.size(); ++i)
         {
-            vkCmdBindDescriptorSets
-            (
+            vkCmdBindDescriptorSets(
                 co.mCommandBuffers[i],
                 VK_PIPELINE_BIND_POINT_GRAPHICS,
                 rpo.mPipelineLayout.value(),
@@ -2804,89 +2777,39 @@ namespace Cutlass
                 1,
                 &co.mDescriptorSets[i],
                 0,
-                nullptr
-            );
+                nullptr);
         }
 
         return Result::eSuccess;
     }
 
-    Result Device::cmdRenderIndexed(CommandObject& co, const CmdRenderIndexed& info)
+    Result Device::cmdRenderIndexed(CommandObject &co, const CmdRenderIndexed &info)
     {
-        for (const auto& command : co.mCommandBuffers)
-            vkCmdDrawIndexed
-            (
+        for (const auto &command : co.mCommandBuffers)
+            vkCmdDrawIndexed(
                 command,
                 info.indexCount,
                 info.instanceCount,
                 info.firstIndex,
                 info.vertexOffset,
-                info.firstInstance
-            );
+                info.firstInstance);
 
         return Result::eSuccess;
     }
 
-    Result Device::cmdRender(CommandObject& co, const CmdRender& info)
+    Result Device::cmdRender(CommandObject &co, const CmdRender &info)
     {
 
-        for (const auto& command : co.mCommandBuffers)
-            vkCmdDraw
-            (
+        for (const auto &command : co.mCommandBuffers)
+            vkCmdDraw(
                 command,
                 info.vertexCount,
                 info.instanceCount,
                 info.vertexOffset,
-                info.firstInstance
-            );
+                info.firstInstance);
 
         return Result::eSuccess;
     }
 
-    // Result Device::writeCommand(const Command& command)//ボトルネック
-    // {
-    //     mWroteCommands.emplace_back(command);
-
-    //     switch (command.type) //RTTIｪ...
-    //     {
-    //     case CommandType::eCmdBeginRenderPipeline:
-    //         if (!std::holds_alternative<CmdBeginRenderPipeline>(command.info))
-    //             return Result::eFailure;
-
-    //         std::get<CmdBeginRenderPipeline>(command.info);
-
-    //         if (mRPMap.count(std::get<CmdBeginRenderPipeline>(command.info).RPHandle) <= 0)
-    //         {
-    //             std::cerr << "invalid RP handle!";
-    //             return Result::eFailure;
-    //         }
-
-    //         mRCState->mHRPO = std::get<CmdBeginRenderPipeline>(command.info).RPHandle;
-    //         break;
-
-    //     case CommandType::eCmdSetShaderResource:
-    //         if (!std::holds_alternative<CmdSetShaderResource>(command.info))
-    //             return Result::eFailure;
-
-    //         mRCState->maxSR +=
-    //             std::get<CmdSetShaderResource>(command.info).shaderResource.uniformBuffer.size() +
-    //             std::get<CmdSetShaderResource>(command.info).shaderResource.combinedTexture.size();
-    //         break;
-
-    //     case CommandType::eCmdEndRenderPipeline:
-    //         break;
-    //     case CommandType::eCmdSetVB:
-    //         break;
-    //     case CommandType::eCmdSetIB:
-    //         break;
-    //     case CommandType::eCmdRender:
-    //         break;
-    //     default:
-    //         std::cerr << "invalid command!\n";
-    //         return Result::eFailure;
-    //         break;
-    //     }
-
-    //     return Result::eSuccess;
-    // }
-};
+   
+}; // namespace Cutlass
