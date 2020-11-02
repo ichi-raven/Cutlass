@@ -50,11 +50,6 @@ namespace Cutlass
         return ret;
     }
 
-    Device::~Device()
-    {
-        if(!mIsDestroyed)
-            destroy();
-    }
 
     Result Device::initialize(const InitializeInfo &initializeInfo, std::vector<HSwapchain> &handlesRef)
     {
@@ -190,7 +185,6 @@ namespace Cutlass
         std::cerr << "created VkSemaphore\n";
 
         std::cerr << "all initialize processes succeeded\n";
-        mIsInitialized = true;
         
         return Result::eSuccess;
     }
@@ -983,9 +977,11 @@ namespace Cutlass
                 {
                 case TextureFormatType::eUNorm:
                     io.format = VK_FORMAT_R8G8B8_UNORM;
+                    io.mSizeOfChannel = 3;
                     break;
                 case TextureFormatType::eFloat:
                     io.format = VK_FORMAT_R16G16B16_SFLOAT;
+                    io.mSizeOfChannel = 6;
                     break;
                 default:
                     std::cerr << "invalid type of pixel!\n";
@@ -998,9 +994,11 @@ namespace Cutlass
                 {
                 case TextureFormatType::eUNorm:
                     io.format = VK_FORMAT_R8G8B8A8_UNORM;
+                    io.mSizeOfChannel = 4;
                     break;
                 case TextureFormatType::eFloat:
                     io.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+                    io.mSizeOfChannel = 8;
                     break;
                 default:
                     std::cerr << "invalid type of pixel!\n";
@@ -1193,6 +1191,7 @@ namespace Cutlass
         stbi_uc *pImage = nullptr;
         int width = 0, height = 0, channel = 0;
         io.format = VK_FORMAT_R8G8B8A8_SRGB; //fixed format
+        io.mSizeOfChannel = 4;
         io.usage = TextureUsage::eShaderResource;
 
         {
@@ -1292,7 +1291,7 @@ namespace Cutlass
             sci.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
             sci.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
             sci.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            sci.anisotropyEnable = VK_TRUE;
+            sci.anisotropyEnable = VK_FALSE;
             sci.maxAnisotropy = 16.f;
             sci.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
             sci.compareOp = VK_COMPARE_OP_ALWAYS;
@@ -1330,7 +1329,7 @@ namespace Cutlass
 
         BufferObject stagingBo;
         {
-            size_t imageSize = io.extent.width * io.extent.height * io.extent.depth;
+            size_t imageSize = io.extent.width * io.extent.height * io.extent.depth * io.mSizeOfChannel;
             VkBufferCreateInfo ci{};
             ci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
             ci.size = imageSize;
@@ -1526,6 +1525,7 @@ namespace Cutlass
             
             io.format = ci.format;
             io.extent = ci.extent;
+            io.mSizeOfChannel = 4;
             
             {
                 VkImage image;
@@ -1535,6 +1535,7 @@ namespace Cutlass
                     std::cerr << "failed to create depth buffer's image\n";
                     return result;
                 }
+
                 io.mImage = image;
             }
         }
@@ -1554,6 +1555,7 @@ namespace Cutlass
                 {
                     return result;
                 }
+
                 io.mMemory = memory;
             }
 
@@ -1755,7 +1757,6 @@ namespace Cutlass
             const auto &depth = mImageMap[swapchain.mHDepthBuffer];
             for (auto &h : swapchain.mHSwapchainImages)
             {
-
                 const auto &img = mImageMap[h];
                 std::array<VkImageView, 2> ivArr = {img.mView.value(), depth.mView.value()};
                 fbci.attachmentCount = 2;
@@ -2147,8 +2148,8 @@ namespace Cutlass
                 {
                 case RasterizerState::eDefault:
                     rci.polygonMode = VK_POLYGON_MODE_FILL;
-                    rci.cullMode = VK_CULL_MODE_BACK_BIT;
-                    rci.frontFace = VK_FRONT_FACE_CLOCKWISE;
+                    rci.cullMode = VK_CULL_MODE_NONE;
+                    rci.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
                     rci.lineWidth = 1.f;
                     break;
                 default:
@@ -2216,7 +2217,7 @@ namespace Cutlass
                     bindings.emplace_back();
                     auto &b = bindings.back();
 
-                    b.binding = i;
+                    b.binding = 0;
                     b.descriptorCount = 1;
                     b.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
                     b.pImmutableSamplers = nullptr;
@@ -2228,7 +2229,7 @@ namespace Cutlass
                     bindings.emplace_back();
                     auto &b = bindings.back();
 
-                    b.binding = i;
+                    b.binding = 1;
                     b.descriptorCount = 1;
                     b.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                     b.pImmutableSamplers = nullptr;
@@ -2254,23 +2255,27 @@ namespace Cutlass
 
             if (info.SRDesc.maxSetCount > 0)
             { //DescriptorPool
-                std::array<VkDescriptorPoolSize, 2> sizes;
-                sizes[0].descriptorCount = rpo.layout.uniformBufferCount;
-                sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                sizes[1].descriptorCount = rpo.layout.combinedTextureCount;
-                sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                std::vector<VkDescriptorPoolSize> sizes;
 
-                const uint32_t sumDescriptor = rpo.layout.uniformBufferCount + rpo.layout.combinedTextureCount;
+                for (size_t i = 0; i < rpo.layout.uniformBufferCount; ++i)
+                {
+                    sizes.emplace_back();
+                    sizes.back().descriptorCount = rpo.layout.uniformBufferCount;
+                    sizes.back().type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                }
+
+                for (size_t i = 0; i < rpo.layout.combinedTextureCount; ++i)
+                {
+                    sizes.emplace_back();
+                    sizes.back().descriptorCount = rpo.layout.combinedTextureCount;
+                    sizes.back().type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                }
 
                 VkDescriptorPoolCreateInfo dpci{};
                 dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
                 dpci.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-                if (info.SRDesc.maxSetCount < sumDescriptor)
-                {
-                    std::cerr << "invalid max SR count\n";
-                    return Result::eFailure;
-                }
-                dpci.maxSets = info.SRDesc.maxSetCount; //*sumDescriptor; //?G???[???o??????????
+
+                dpci.maxSets = info.SRDesc.maxSetCount;
                 dpci.poolSizeCount = sizes.size();
                 dpci.pPoolSizes = sizes.data();
                 {
@@ -2574,8 +2579,8 @@ namespace Cutlass
             const auto& swapchain = mSwapchainMap[rdsto.mHSwapchain.value()];
 
             VkClearValue clearValues[2];
-            clearValues[0] = {0.5, 0.5, 0.5, 1.0};
-            clearValues[1] = { 0, 0 };
+            clearValues[0].color = {0.5, 0.5, 0.5, 1.0};
+            clearValues[1].depthStencil = {1.f, 0};
 
             //VkClearValue clearValue = {0.5, 0.5, 0.5, 1.0};
 
@@ -2587,7 +2592,7 @@ namespace Cutlass
             // is this param OK?
             if (rdsto.mDepthTestEnable)
             {
-                //std::cerr << "this process does not implemented yet!";
+                std::cerr << "this process does not implemented yet!\n";
                 //exit(-1);
                 bi.clearValueCount = 2;
                 bi.pClearValues = clearValues;
@@ -2739,28 +2744,32 @@ namespace Cutlass
                 writeDescriptors.reserve(static_cast<size_t>(rpo.layout.combinedTextureCount + rpo.layout.uniformBufferCount));
 
                 uint32_t binding = 0;
-                for (auto &dbi : dbi_vec)
+                for (const auto &dbi : dbi_vec)
                 {
                     writeDescriptors.emplace_back(VkWriteDescriptorSet{});
                     writeDescriptors.back().sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                    writeDescriptors.back().dstBinding = binding++;
+                    writeDescriptors.back().dstBinding = binding;
                     writeDescriptors.back().dstArrayElement = 0;
                     writeDescriptors.back().descriptorCount = 1;
                     writeDescriptors.back().descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
                     writeDescriptors.back().pBufferInfo = &dbi;
                     writeDescriptors.back().dstSet = co.mDescriptorSets[i];
+
+                    ++binding;
                 }
 
-                for (auto &dii : dii_vec)
+                for (const auto &dii : dii_vec)
                 {
                     writeDescriptors.emplace_back(VkWriteDescriptorSet{});
                     writeDescriptors.back().sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                    writeDescriptors.back().dstBinding = binding++;
+                    writeDescriptors.back().dstBinding = binding;
                     writeDescriptors.back().dstArrayElement = 0;
                     writeDescriptors.back().descriptorCount = 1;
                     writeDescriptors.back().descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                     writeDescriptors.back().pImageInfo = &dii;
                     writeDescriptors.back().dstSet = co.mDescriptorSets[i];
+
+                    ++binding;
                 }
 
                 vkUpdateDescriptorSets(mDevice, static_cast<uint32_t>(writeDescriptors.size()), writeDescriptors.data(), 0, nullptr);

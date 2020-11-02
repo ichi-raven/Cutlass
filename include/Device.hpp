@@ -89,7 +89,7 @@ namespace Cutlass
         //Result writeCommand(CommandType, CommandInfo, const HCommandList& handle);
 
         //コマンド実行, バックバッファ表示
-        Result execute(const HCommandBuffer& handle, const HSwapchain& swapchain);
+        Result execute(const HCommandBuffer& handle);
 
         //無
         //Result present();
@@ -126,6 +126,7 @@ namespace Cutlass
             std::optional<VkImageView> mView;
             std::optional<VkSampler> mSampler;
             bool mIsHostVisible;
+            uint32_t mSizeOfChannel;
             VkFormat format;
             TextureUsage usage;
             VkExtent3D extent;
