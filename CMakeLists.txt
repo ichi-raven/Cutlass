@@ -8,7 +8,6 @@ add_definitions("-g -O0 -std=c++17")
 INCLUDE_DIRECTORIES(
    vulkan
    glfw
-   glm
    stb
    ${PROJECT_SOURCE_DIR}/include
 )
