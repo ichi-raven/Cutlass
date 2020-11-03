@@ -89,18 +89,18 @@ CMakeFiles/cutlass.dir/src/Command.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/cutlass.dir/src/Command.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ichi/C++/Cutlass/src/Command.cpp -o CMakeFiles/cutlass.dir/src/Command.cpp.s
 
-CMakeFiles/cutlass.dir/src/Device.cpp.o: CMakeFiles/cutlass.dir/flags.make
-CMakeFiles/cutlass.dir/src/Device.cpp.o: src/Device.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/ichi/C++/Cutlass/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/cutlass.dir/src/Device.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/cutlass.dir/src/Device.cpp.o -c /home/ichi/C++/Cutlass/src/Device.cpp
+CMakeFiles/cutlass.dir/src/Context.cpp.o: CMakeFiles/cutlass.dir/flags.make
+CMakeFiles/cutlass.dir/src/Context.cpp.o: src/Context.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/ichi/C++/Cutlass/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/cutlass.dir/src/Context.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/cutlass.dir/src/Context.cpp.o -c /home/ichi/C++/Cutlass/src/Context.cpp
 
-CMakeFiles/cutlass.dir/src/Device.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/cutlass.dir/src/Device.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ichi/C++/Cutlass/src/Device.cpp > CMakeFiles/cutlass.dir/src/Device.cpp.i
+CMakeFiles/cutlass.dir/src/Context.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/cutlass.dir/src/Context.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ichi/C++/Cutlass/src/Context.cpp > CMakeFiles/cutlass.dir/src/Context.cpp.i
 
-CMakeFiles/cutlass.dir/src/Device.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/cutlass.dir/src/Device.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ichi/C++/Cutlass/src/Device.cpp -o CMakeFiles/cutlass.dir/src/Device.cpp.s
+CMakeFiles/cutlass.dir/src/Context.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/cutlass.dir/src/Context.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ichi/C++/Cutlass/src/Context.cpp -o CMakeFiles/cutlass.dir/src/Context.cpp.s
 
 CMakeFiles/cutlass.dir/src/Shader.cpp.o: CMakeFiles/cutlass.dir/flags.make
 CMakeFiles/cutlass.dir/src/Shader.cpp.o: src/Shader.cpp
@@ -118,14 +118,14 @@ CMakeFiles/cutlass.dir/src/Shader.cpp.s: cmake_force
 # Object files for target cutlass
 cutlass_OBJECTS = \
 "CMakeFiles/cutlass.dir/src/Command.cpp.o" \
-"CMakeFiles/cutlass.dir/src/Device.cpp.o" \
+"CMakeFiles/cutlass.dir/src/Context.cpp.o" \
 "CMakeFiles/cutlass.dir/src/Shader.cpp.o"
 
 # External object files for target cutlass
 cutlass_EXTERNAL_OBJECTS =
 
 libcutlass.a: CMakeFiles/cutlass.dir/src/Command.cpp.o
-libcutlass.a: CMakeFiles/cutlass.dir/src/Device.cpp.o
+libcutlass.a: CMakeFiles/cutlass.dir/src/Context.cpp.o
 libcutlass.a: CMakeFiles/cutlass.dir/src/Shader.cpp.o
 libcutlass.a: CMakeFiles/cutlass.dir/build.make
 libcutlass.a: CMakeFiles/cutlass.dir/link.txt

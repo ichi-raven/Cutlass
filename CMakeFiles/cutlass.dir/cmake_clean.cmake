@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
   "CMakeFiles/cutlass.dir/src/Command.cpp.o"
-  "CMakeFiles/cutlass.dir/src/Device.cpp.o"
+  "CMakeFiles/cutlass.dir/src/Context.cpp.o"
   "CMakeFiles/cutlass.dir/src/Shader.cpp.o"
   "libcutlass.a"
   "libcutlass.pdb"

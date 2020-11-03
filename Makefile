@@ -215,32 +215,32 @@ src/Command.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/cutlass.dir/build.make CMakeFiles/cutlass.dir/src/Command.cpp.s
 .PHONY : src/Command.cpp.s
 
-src/Device.o: src/Device.cpp.o
+src/Context.o: src/Context.cpp.o
 
-.PHONY : src/Device.o
+.PHONY : src/Context.o
 
 # target to build an object file
-src/Device.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cutlass.dir/build.make CMakeFiles/cutlass.dir/src/Device.cpp.o
-.PHONY : src/Device.cpp.o
+src/Context.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cutlass.dir/build.make CMakeFiles/cutlass.dir/src/Context.cpp.o
+.PHONY : src/Context.cpp.o
 
-src/Device.i: src/Device.cpp.i
+src/Context.i: src/Context.cpp.i
 
-.PHONY : src/Device.i
+.PHONY : src/Context.i
 
 # target to preprocess a source file
-src/Device.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cutlass.dir/build.make CMakeFiles/cutlass.dir/src/Device.cpp.i
-.PHONY : src/Device.cpp.i
+src/Context.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cutlass.dir/build.make CMakeFiles/cutlass.dir/src/Context.cpp.i
+.PHONY : src/Context.cpp.i
 
-src/Device.s: src/Device.cpp.s
+src/Context.s: src/Context.cpp.s
 
-.PHONY : src/Device.s
+.PHONY : src/Context.s
 
 # target to generate assembly for a file
-src/Device.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cutlass.dir/build.make CMakeFiles/cutlass.dir/src/Device.cpp.s
-.PHONY : src/Device.cpp.s
+src/Context.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cutlass.dir/build.make CMakeFiles/cutlass.dir/src/Context.cpp.s
+.PHONY : src/Context.cpp.s
 
 src/Shader.o: src/Shader.cpp.o
 
@@ -285,9 +285,9 @@ help:
 	@echo "... src/Command.o"
 	@echo "... src/Command.i"
 	@echo "... src/Command.s"
-	@echo "... src/Device.o"
-	@echo "... src/Device.i"
-	@echo "... src/Device.s"
+	@echo "... src/Context.o"
+	@echo "... src/Context.i"
+	@echo "... src/Context.s"
 	@echo "... src/Shader.o"
 	@echo "... src/Shader.i"
 	@echo "... src/Shader.s"

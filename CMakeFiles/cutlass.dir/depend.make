@@ -7,15 +7,15 @@ CMakeFiles/cutlass.dir/src/Command.cpp.o: include/RenderPipeline.hpp
 CMakeFiles/cutlass.dir/src/Command.cpp.o: include/Shader.hpp
 CMakeFiles/cutlass.dir/src/Command.cpp.o: include/Utility.hpp
 
-CMakeFiles/cutlass.dir/src/Device.cpp.o: include/Buffer.hpp
-CMakeFiles/cutlass.dir/src/Device.cpp.o: include/Command.hpp
-CMakeFiles/cutlass.dir/src/Device.cpp.o: include/Device.hpp
-CMakeFiles/cutlass.dir/src/Device.cpp.o: include/RenderDST.hpp
-CMakeFiles/cutlass.dir/src/Device.cpp.o: include/RenderPipeline.hpp
-CMakeFiles/cutlass.dir/src/Device.cpp.o: include/Shader.hpp
-CMakeFiles/cutlass.dir/src/Device.cpp.o: include/Texture.hpp
-CMakeFiles/cutlass.dir/src/Device.cpp.o: include/Utility.hpp
-CMakeFiles/cutlass.dir/src/Device.cpp.o: src/Device.cpp
+CMakeFiles/cutlass.dir/src/Context.cpp.o: include/Buffer.hpp
+CMakeFiles/cutlass.dir/src/Context.cpp.o: include/Command.hpp
+CMakeFiles/cutlass.dir/src/Context.cpp.o: include/Context.hpp
+CMakeFiles/cutlass.dir/src/Context.cpp.o: include/RenderDST.hpp
+CMakeFiles/cutlass.dir/src/Context.cpp.o: include/RenderPipeline.hpp
+CMakeFiles/cutlass.dir/src/Context.cpp.o: include/Shader.hpp
+CMakeFiles/cutlass.dir/src/Context.cpp.o: include/Texture.hpp
+CMakeFiles/cutlass.dir/src/Context.cpp.o: include/Utility.hpp
+CMakeFiles/cutlass.dir/src/Context.cpp.o: src/Context.cpp
 
 CMakeFiles/cutlass.dir/src/Shader.cpp.o: src/Shader.cpp
 CMakeFiles/cutlass.dir/src/Shader.cpp.o: include/Shader.hpp

@@ -1,0 +1,10 @@
+/usr/local/lib/libcutlass.a
+/usr/local/include/Cutlass/Buffer.hpp
+/usr/local/include/Cutlass/Command.hpp
+/usr/local/include/Cutlass/Context.hpp
+/usr/local/include/Cutlass/Cutlass.hpp
+/usr/local/include/Cutlass/RenderDST.hpp
+/usr/local/include/Cutlass/RenderPipeline.hpp
+/usr/local/include/Cutlass/Shader.hpp
+/usr/local/include/Cutlass/Texture.hpp
+/usr/local/include/Cutlass/Utility.hpp

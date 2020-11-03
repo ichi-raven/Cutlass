@@ -22,4 +22,4 @@
 #include "Buffer.hpp"
 #include "Texture.hpp"
 #include "Utility.hpp"
-#include "Device.hpp"
+#include "Context.hpp"
