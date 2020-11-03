@@ -1,2 +1,9 @@
 build/*
 winbuild/*
+CMakeCache.txt
+.vs/*
+Makefile
+CutlassEngine.code-workspace
+cmake_install.cmake
+install_manifest.txt
+libcutlass.a
