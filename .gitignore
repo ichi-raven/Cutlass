@@ -7,3 +7,5 @@ CutlassEngine.code-workspace
 cmake_install.cmake
 install_manifest.txt
 libcutlass.a
+src/.vscode/*
+include/.vscode/*
