@@ -242,6 +242,33 @@ src/Context.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/cutlass.dir/build.make CMakeFiles/cutlass.dir/src/Context.cpp.s
 .PHONY : src/Context.cpp.s
 
+src/Event.o: src/Event.cpp.o
+
+.PHONY : src/Event.o
+
+# target to build an object file
+src/Event.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cutlass.dir/build.make CMakeFiles/cutlass.dir/src/Event.cpp.o
+.PHONY : src/Event.cpp.o
+
+src/Event.i: src/Event.cpp.i
+
+.PHONY : src/Event.i
+
+# target to preprocess a source file
+src/Event.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cutlass.dir/build.make CMakeFiles/cutlass.dir/src/Event.cpp.i
+.PHONY : src/Event.cpp.i
+
+src/Event.s: src/Event.cpp.s
+
+.PHONY : src/Event.s
+
+# target to generate assembly for a file
+src/Event.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cutlass.dir/build.make CMakeFiles/cutlass.dir/src/Event.cpp.s
+.PHONY : src/Event.cpp.s
+
 src/Shader.o: src/Shader.cpp.o
 
 .PHONY : src/Shader.o
@@ -288,6 +315,9 @@ help:
 	@echo "... src/Context.o"
 	@echo "... src/Context.i"
 	@echo "... src/Context.s"
+	@echo "... src/Event.o"
+	@echo "... src/Event.i"
+	@echo "... src/Event.s"
 	@echo "... src/Shader.o"
 	@echo "... src/Shader.i"
 	@echo "... src/Shader.s"

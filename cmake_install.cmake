@@ -52,6 +52,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     "/home/ichi/C++/Cutlass/include/Command.hpp"
     "/home/ichi/C++/Cutlass/include/Context.hpp"
     "/home/ichi/C++/Cutlass/include/Cutlass.hpp"
+    "/home/ichi/C++/Cutlass/include/Event.hpp"
     "/home/ichi/C++/Cutlass/include/RenderDST.hpp"
     "/home/ichi/C++/Cutlass/include/RenderPipeline.hpp"
     "/home/ichi/C++/Cutlass/include/Shader.hpp"

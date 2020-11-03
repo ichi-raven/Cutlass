@@ -12,7 +12,7 @@
 #include "RenderDST.hpp"
 #include "RenderPipeline.hpp"
 #include "Command.hpp"
-
+#include "Event.hpp"
 
 #include <vector>
 #include <string>
@@ -55,6 +55,7 @@ namespace Cutlass
 
         ~Context();
 
+        //Noncopyable
         Context(const Context&) = delete;
         Context &operator=(const Context&) = delete;
         Context(Context&&) = delete;
@@ -93,20 +94,17 @@ namespace Cutlass
         //描画パイプライン構築
         Result createRenderPipeline(const RenderPipelineInfo &info, HRenderPipeline& handle_out);
 
+        //描画コマンドバッファを作成
         Result createCommandBuffer(const CommandList& commandList, HCommandBuffer& handle_out);
 
-        //コマンド記述
-        //Result writeCommand(CommandType, CommandInfo, const HCommandList& handle);
+        //ウィンドウイベントをハンドリング
+        Result handleEvent(const HWindow& window, Event& event_out);
 
         //コマンド実行, バックバッファ表示
         Result execute(const HCommandBuffer& handle);
 
-        //無
-        //Result present();
-
-        //全部破棄
+        //破棄
         Result destroy();
-        //TODO:フラグによる未セット時のデストラクタに置けるDestroy
 
     private:
         struct WindowObject

@@ -102,9 +102,22 @@ CMakeFiles/cutlass.dir/src/Context.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/cutlass.dir/src/Context.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ichi/C++/Cutlass/src/Context.cpp -o CMakeFiles/cutlass.dir/src/Context.cpp.s
 
+CMakeFiles/cutlass.dir/src/Event.cpp.o: CMakeFiles/cutlass.dir/flags.make
+CMakeFiles/cutlass.dir/src/Event.cpp.o: src/Event.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/ichi/C++/Cutlass/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/cutlass.dir/src/Event.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/cutlass.dir/src/Event.cpp.o -c /home/ichi/C++/Cutlass/src/Event.cpp
+
+CMakeFiles/cutlass.dir/src/Event.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/cutlass.dir/src/Event.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ichi/C++/Cutlass/src/Event.cpp > CMakeFiles/cutlass.dir/src/Event.cpp.i
+
+CMakeFiles/cutlass.dir/src/Event.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/cutlass.dir/src/Event.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ichi/C++/Cutlass/src/Event.cpp -o CMakeFiles/cutlass.dir/src/Event.cpp.s
+
 CMakeFiles/cutlass.dir/src/Shader.cpp.o: CMakeFiles/cutlass.dir/flags.make
 CMakeFiles/cutlass.dir/src/Shader.cpp.o: src/Shader.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/ichi/C++/Cutlass/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/cutlass.dir/src/Shader.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/ichi/C++/Cutlass/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/cutlass.dir/src/Shader.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/cutlass.dir/src/Shader.cpp.o -c /home/ichi/C++/Cutlass/src/Shader.cpp
 
 CMakeFiles/cutlass.dir/src/Shader.cpp.i: cmake_force
@@ -119,6 +132,7 @@ CMakeFiles/cutlass.dir/src/Shader.cpp.s: cmake_force
 cutlass_OBJECTS = \
 "CMakeFiles/cutlass.dir/src/Command.cpp.o" \
 "CMakeFiles/cutlass.dir/src/Context.cpp.o" \
+"CMakeFiles/cutlass.dir/src/Event.cpp.o" \
 "CMakeFiles/cutlass.dir/src/Shader.cpp.o"
 
 # External object files for target cutlass
@@ -126,10 +140,11 @@ cutlass_EXTERNAL_OBJECTS =
 
 libcutlass.a: CMakeFiles/cutlass.dir/src/Command.cpp.o
 libcutlass.a: CMakeFiles/cutlass.dir/src/Context.cpp.o
+libcutlass.a: CMakeFiles/cutlass.dir/src/Event.cpp.o
 libcutlass.a: CMakeFiles/cutlass.dir/src/Shader.cpp.o
 libcutlass.a: CMakeFiles/cutlass.dir/build.make
 libcutlass.a: CMakeFiles/cutlass.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/ichi/C++/Cutlass/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Linking CXX static library libcutlass.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/ichi/C++/Cutlass/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Linking CXX static library libcutlass.a"
 	$(CMAKE_COMMAND) -P CMakeFiles/cutlass.dir/cmake_clean_target.cmake
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/cutlass.dir/link.txt --verbose=$(VERBOSE)
 

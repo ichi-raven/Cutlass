@@ -2459,125 +2459,6 @@ namespace Cutlass
         return result;
     }
 
-    Result Context::execute(const HCommandBuffer &handle)
-    {
-        Result result = Result::eSuccess;
-
-        glfwPollEvents();
-
-        if(mInitializeInfo.debugFlag)
-        {
-            if (mCommandBufferMap.count(handle) <= 0)
-            {
-                std::cerr << "invalid commandbuffer handle!\n";
-                return Result::eFailure;
-            }
-
-            if (mWindowMap.count(handle) <= 0)
-            {
-                std::cerr << "invalid swapchain handle!\n";
-                return Result::eFailure;
-            }
-        }
-        
-        auto &co = mCommandBufferMap[handle];
-        if(!co.mHRenderDST)
-        {
-            std::cerr << "renderDST of this command is invalid!\n";
-            return Result::eFailure;
-        }
-
-        auto &rdsto = mRDSTMap[co.mHRenderDST.value()];
-
-
-        result = checkVkResult(vkWaitForFences(mDevice, 1, &co.mFences[mCurrentFrame], VK_TRUE, UINT64_MAX));
-        if (result != Result::eSuccess)
-        {
-            std::cerr << "Failed to wait fence!\n";
-            return result;
-        }
-
-
-        if(rdsto.mHWindow)
-        {
-            auto &so = mWindowMap[rdsto.mHWindow.value()];
-            uint32_t swapchainImageIndex = 0;
-
-            result = checkVkResult(
-                vkAcquireNextImageKHR(
-                    mDevice,
-                    so.mSwapchain.value(),
-                    UINT64_MAX,
-                    co.mPresentCompletedSems[mCurrentFrame],
-                    VK_NULL_HANDLE,
-                    &swapchainImageIndex));
-
-            //std::cout << swapchainImageIndex << " : swapchain image index\n";
-
-            if (result != Result::eSuccess)
-            {
-                std::cerr << "failed to acquire next swapchain image!\n";
-                return result;
-            }
-
-            if (co.imagesInFlight[swapchainImageIndex] != VK_NULL_HANDLE)
-                vkWaitForFences(mDevice, 1, &co.imagesInFlight[swapchainImageIndex], VK_TRUE, UINT64_MAX);
-            co.imagesInFlight[swapchainImageIndex] = co.mFences[mCurrentFrame];
-
-            //submit command
-            VkSubmitInfo submitInfo{};
-            VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &(co.mCommandBuffers[swapchainImageIndex]);
-            submitInfo.pWaitDstStageMask = &waitStageMask;
-            submitInfo.waitSemaphoreCount = 1;
-            submitInfo.pWaitSemaphores = &co.mPresentCompletedSems[mCurrentFrame];
-            submitInfo.signalSemaphoreCount = 1;
-            submitInfo.pSignalSemaphores = &co.mRenderCompletedSems[mCurrentFrame];
-            result = checkVkResult(vkResetFences(mDevice, 1, &co.mFences[mCurrentFrame]));
-            if (result != Result::eSuccess)
-            {
-                std::cerr << "failed to reset fence!\n";
-                return result;
-            }
-
-            result = checkVkResult(vkQueueSubmit(mDeviceQueue, 1, &submitInfo, co.mFences[mCurrentFrame]));
-            if (result != Result::eSuccess)
-            {
-                std::cerr << "failed to submit cmd to queue!\n";
-                return result;
-            }
-
-            //present
-            VkPresentInfoKHR presentInfo{};
-            presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-            presentInfo.swapchainCount = 1;
-            presentInfo.pSwapchains = &so.mSwapchain.value();
-            presentInfo.pImageIndices = &swapchainImageIndex;
-            presentInfo.waitSemaphoreCount = 1;
-            presentInfo.pWaitSemaphores = &co.mRenderCompletedSems[mCurrentFrame];
-
-            result = checkVkResult(vkQueuePresentKHR(mDeviceQueue, &presentInfo));
-            if (Result::eSuccess != result)
-            {
-                std::cerr << "Failed to present queue!\n";
-                return result;
-            }
-        }
-        else
-        {
-            std::cerr << "this process does not implemented yet!";
-            exit(-1);
-        }
-        //baddest sync process
-        //vkQueueWaitIdle(mDeviceQueue);
-
-        mCurrentFrame = (mCurrentFrame + 1) % mMaxFrameInFlight;
-
-        return Result::eSuccess;
-    }
-
     Result Context::cmdBeginRenderPipeline(CommandObject &co, const CmdBeginRenderPipeline &info)
     {
         Result result = Result::eSuccess;
@@ -2613,7 +2494,7 @@ namespace Cutlass
             // is this param OK?
             if (rdsto.mDepthTestEnable)
             {
-                std::cerr << "this process does not implemented yet!\n";
+                //std::cerr << "this process does not implemented yet!\n";
                 //exit(-1);
                 bi.clearValueCount = 2;
                 bi.pClearValues = clearValues;
@@ -2713,35 +2594,6 @@ namespace Cutlass
         co.mDescriptorSets.resize(mMaxFrameNum);
         std::vector<VkDescriptorBufferInfo> dbi_vec;
         std::vector<VkDescriptorImageInfo> dii_vec;
-
-        // for (const auto &hub : rpo.layout.)
-        // {
-        //     if (mBufferMap.count(hub) <= 0)
-        //     {
-        //         std::cerr << "invalid uniform buffer handle!\n";
-        //         return Result::eFailure;
-        //     }
-        //     auto &ub = mBufferMap[hub];
-        //     dbi_vec.emplace_back();
-        //     dbi_vec.back().buffer = ub.mBuffer.value();
-        //     dbi_vec.back().offset = 0;
-        //     dbi_vec.back().range = VK_WHOLE_SIZE;
-        // }
-
-        // for (auto &hct : info.SRSet.combinedTexture)
-        // {
-        //     if (mImageMap.count(hct) <= 0)
-        //     {
-        //         std::cerr << "invalid combined texture handle!\n";
-        //         return Result::eFailure;
-        //     }
-
-        //     auto &ct = mImageMap[hct];
-        //     dii_vec.emplace_back();
-        //     dii_vec.back().imageView = ct.mView.value();
-        //     dii_vec.back().sampler = ct.mSampler.value();
-        //     dii_vec.back().imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        // }
 
         std::vector<VkDescriptorSetLayout> layouts(mMaxFrameNum, rpo.mDescriptorSetLayout.value());
         std::vector<VkWriteDescriptorSet> writeDescriptors;
@@ -2853,5 +2705,155 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-   
+    Result Context::handleEvent(const HWindow &handle, Event &event_out)
+    {
+        
+        if(mInitializeInfo.debugFlag)
+            if(mWindowMap.count(handle) <= 0)
+            {
+                std::cerr << "invalid window handle!\n";
+                return Result::eFailure;
+            }
+
+        auto &wo = mWindowMap[handle];
+        glfwPollEvents();
+
+        double x, y;
+        glfwGetCursorPos(wo.mpWindow.value(), &x, &y);
+
+        for (uint32_t i = 0; i < sizeof(keyIndex) / sizeof(decltype(keyIndex[0])); ++i)
+        {
+            switch (glfwGetKey(wo.mpWindow.value(), keyIndex[i]))
+            {
+            case GLFW_PRESS:
+                ++(event_out.getKeyRefInternal().at(static_cast<KeyCode>(keyIndex[i])));
+                break;
+            case GLFW_RELEASE:
+                event_out.getKeyRefInternal().at(static_cast<KeyCode>(keyIndex[i])) = UINT32_MAX;
+                break;
+            }
+        }
+
+        event_out.updateInternal(x, y, static_cast<bool>(glfwWindowShouldClose(wo.mpWindow.value())));
+
+        return Result::eSuccess;
+    }
+
+    Result Context::execute(const HCommandBuffer &handle)
+    {
+        Result result = Result::eSuccess;
+
+        if (mInitializeInfo.debugFlag)
+        {
+            if (mCommandBufferMap.count(handle) <= 0)
+            {
+                std::cerr << "invalid commandbuffer handle!\n";
+                return Result::eFailure;
+            }
+
+            if (mWindowMap.count(handle) <= 0)
+            {
+                std::cerr << "invalid swapchain handle!\n";
+                return Result::eFailure;
+            }
+        }
+
+        auto &co = mCommandBufferMap[handle];
+        if (!co.mHRenderDST)
+        {
+            std::cerr << "renderDST of this command is invalid!\n";
+            return Result::eFailure;
+        }
+
+        auto &rdsto = mRDSTMap[co.mHRenderDST.value()];
+
+        result = checkVkResult(vkWaitForFences(mDevice, 1, &co.mFences[mCurrentFrame], VK_TRUE, UINT64_MAX));
+        if (result != Result::eSuccess)
+        {
+            std::cerr << "Failed to wait fence!\n";
+            return result;
+        }
+
+        if (rdsto.mHWindow)
+        {
+            auto &so = mWindowMap[rdsto.mHWindow.value()];
+            uint32_t swapchainImageIndex = 0;
+
+            result = checkVkResult(
+                vkAcquireNextImageKHR(
+                    mDevice,
+                    so.mSwapchain.value(),
+                    UINT64_MAX,
+                    co.mPresentCompletedSems[mCurrentFrame],
+                    VK_NULL_HANDLE,
+                    &swapchainImageIndex));
+
+            //std::cout << swapchainImageIndex << " : swapchain image index\n";
+
+            if (result != Result::eSuccess)
+            {
+                std::cerr << "failed to acquire next swapchain image!\n";
+                return result;
+            }
+
+            if (co.imagesInFlight[swapchainImageIndex] != VK_NULL_HANDLE)
+                vkWaitForFences(mDevice, 1, &co.imagesInFlight[swapchainImageIndex], VK_TRUE, UINT64_MAX);
+            co.imagesInFlight[swapchainImageIndex] = co.mFences[mCurrentFrame];
+
+            //submit command
+            VkSubmitInfo submitInfo{};
+            VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+            submitInfo.commandBufferCount = 1;
+            submitInfo.pCommandBuffers = &(co.mCommandBuffers[swapchainImageIndex]);
+            submitInfo.pWaitDstStageMask = &waitStageMask;
+            submitInfo.waitSemaphoreCount = 1;
+            submitInfo.pWaitSemaphores = &co.mPresentCompletedSems[mCurrentFrame];
+            submitInfo.signalSemaphoreCount = 1;
+            submitInfo.pSignalSemaphores = &co.mRenderCompletedSems[mCurrentFrame];
+            result = checkVkResult(vkResetFences(mDevice, 1, &co.mFences[mCurrentFrame]));
+            if (result != Result::eSuccess)
+            {
+                std::cerr << "failed to reset fence!\n";
+                return result;
+            }
+
+            result = checkVkResult(vkQueueSubmit(mDeviceQueue, 1, &submitInfo, co.mFences[mCurrentFrame]));
+            if (result != Result::eSuccess)
+            {
+                std::cerr << "failed to submit cmd to queue!\n";
+                return result;
+            }
+
+            //present
+            VkPresentInfoKHR presentInfo{};
+            presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+            presentInfo.swapchainCount = 1;
+            presentInfo.pSwapchains = &so.mSwapchain.value();
+            presentInfo.pImageIndices = &swapchainImageIndex;
+            presentInfo.waitSemaphoreCount = 1;
+            presentInfo.pWaitSemaphores = &co.mRenderCompletedSems[mCurrentFrame];
+
+            result = checkVkResult(vkQueuePresentKHR(mDeviceQueue, &presentInfo));
+            if (Result::eSuccess != result)
+            {
+                std::cerr << "Failed to present queue!\n";
+                return result;
+            }
+        }
+        else
+        {
+            std::cerr << "this process does not implemented yet!\n";
+            exit(-1);
+        }
+
+        //baddest sync process
+        //vkQueueWaitIdle(mDeviceQueue);
+
+        mCurrentFrame = (mCurrentFrame + 1) % mMaxFrameInFlight;
+
+        return Result::eSuccess;
+    }
+
+
 }; // namespace Cutlass
