@@ -2,7 +2,10 @@
 
 #include "Utility.hpp"
 
+#include "Shader.hpp"
+
 #include <vector>
+#include <queue>
 #include <array>
 #include <string>
 #include <cstdint>
@@ -61,30 +64,6 @@ namespace Cutlass
         {
             layouts.emplace_back(std::pair(type, name));
         }
-    };
-
-    struct ShaderResourceSetLayout
-    {
-        uint32_t uniformBufferCount;
-        uint32_t combinedTextureCount;
-    };
-
-    struct ShaderResourceDesc
-    {
-        ShaderResourceSetLayout layout;
-        uint32_t maxSetCount;
-    };
-
-    struct ShaderResourceSet
-    {
-        std::vector<HBuffer> uniformBuffer;
-        std::vector<HTexture> combinedTexture;
-    };
-
-    struct Shader
-    {
-        std::string path;
-        std::string entryPoint;
     };
 
     struct RenderPipelineInfo

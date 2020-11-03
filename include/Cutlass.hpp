@@ -16,6 +16,7 @@
 // #include <glm/gtx/hash.hpp>
 
 #include "Command.hpp"
+#include "Shader.hpp"
 #include "RenderDST.hpp"
 #include "RenderPipeline.hpp"
 #include "Buffer.hpp"

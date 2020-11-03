@@ -1518,7 +1518,7 @@ namespace Cutlass
             ci.extent.height = pSO->mSwapchainExtent.height;
             ci.extent.depth = 1;
             ci.mipLevels = 1;
-            ci.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+            ci.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
             ci.samples = VK_SAMPLE_COUNT_1_BIT;
             ci.arrayLayers = 1;
 
@@ -1714,7 +1714,7 @@ namespace Cutlass
                 adVec.back().format = depthBuffer.format;
                 adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
                 adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-                adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
                 adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
                 adVec.back().finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
                 depthAr.attachment = 1;
@@ -1755,11 +1755,11 @@ namespace Cutlass
         if (depthTestEnable)
         {
             const auto &depth = mImageMap[swapchain.mHDepthBuffer];
+            fbci.attachmentCount = 2;
             for (auto &h : swapchain.mHSwapchainImages)
             {
                 const auto &img = mImageMap[h];
                 std::array<VkImageView, 2> ivArr = {img.mView.value(), depth.mView.value()};
-                fbci.attachmentCount = 2;
                 fbci.pAttachments = ivArr.data();
 
                 VkFramebuffer framebuffer;
@@ -1777,9 +1777,6 @@ namespace Cutlass
             fbci.attachmentCount = 1;
             for (auto &h : swapchain.mHSwapchainImages)
             {
-
-                //const auto& img = mImageMap[h];
-                //VkImageView iv = img.mView.value();
                 fbci.pAttachments = &mImageMap[h].mView.value();
 
                 VkFramebuffer frameBuffer;
@@ -1791,7 +1788,6 @@ namespace Cutlass
                 }
 
                 rdsto.mFramebuffers.emplace_back(frameBuffer);
-                //rdsto.mFramebuffers.back() = frameBuffer;
             }
         }
 
@@ -2148,8 +2144,8 @@ namespace Cutlass
                 {
                 case RasterizerState::eDefault:
                     rci.polygonMode = VK_POLYGON_MODE_FILL;
-                    rci.cullMode = VK_CULL_MODE_NONE;
-                    rci.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+                    rci.cullMode = VK_CULL_MODE_BACK_BIT;
+                    rci.frontFace = VK_FRONT_FACE_CLOCKWISE;
                     rci.lineWidth = 1.f;
                     break;
                 default:
@@ -2183,17 +2179,25 @@ namespace Cutlass
                 {
                 case DepthStencilState::eNone:
                     dsci.depthTestEnable = dsci.stencilTestEnable = VK_FALSE;
+                    dsci.depthWriteEnable = VK_FALSE;
                     break;
                 case DepthStencilState::eDepth:
                     dsci.depthTestEnable = VK_TRUE;
+                    dsci.depthWriteEnable = VK_TRUE;
                     dsci.stencilTestEnable = VK_FALSE;
+                    dsci.depthCompareOp = VK_COMPARE_OP_LESS;
+                    dsci.depthBoundsTestEnable = VK_FALSE;
                     break;
                 case DepthStencilState::eStencil:
                     dsci.depthTestEnable = VK_FALSE;
+                    dsci.depthWriteEnable = VK_FALSE;
                     dsci.stencilTestEnable = VK_TRUE;
+                    dsci.depthCompareOp = VK_COMPARE_OP_LESS;
+                    dsci.depthBoundsTestEnable = VK_FALSE;
                     break;
                 case DepthStencilState::eBoth:
                     dsci.depthTestEnable = dsci.stencilTestEnable = VK_TRUE;
+                    dsci.depthWriteEnable = VK_TRUE;
                     break;
                 default:
                     std::cerr << "depth stencil state is not described\n";
@@ -2204,7 +2208,18 @@ namespace Cutlass
 
             std::array<VkPipelineShaderStageCreateInfo, 2> ssciArr{};
             result = createShaderModule(info.VS, VK_SHADER_STAGE_VERTEX_BIT, &ssciArr[0]);
+            if(Result::eSuccess != result)
+            {
+                std::cerr << "Failed to create vertex shader module!\n";
+                return Result::eFailure;
+            }
             result = createShaderModule(info.FS, VK_SHADER_STAGE_FRAGMENT_BIT, &ssciArr[1]);
+            if (Result::eSuccess != result)
+            {
+                std::cerr << "Failed to create fragment shader module!\n";
+                return Result::eFailure;
+            }
+
             { //DescriptorSetLayout
 
                 VkDescriptorSetLayoutCreateInfo descLayoutci{};
@@ -2212,24 +2227,24 @@ namespace Cutlass
 
                 rpo.layout = info.SRDesc.layout;
 
-                for (int i = 0; i < info.SRDesc.layout.uniformBufferCount; ++i)
+                for (const auto &ubBinding : info.SRDesc.layout.getUniformBufferBindings())
                 {
                     bindings.emplace_back();
                     auto &b = bindings.back();
 
-                    b.binding = 0;
+                    b.binding = ubBinding;
                     b.descriptorCount = 1;
                     b.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
                     b.pImmutableSamplers = nullptr;
                     b.stageFlags = VK_SHADER_STAGE_ALL;
                 }
 
-                for (int i = info.SRDesc.layout.uniformBufferCount; i < info.SRDesc.layout.uniformBufferCount + info.SRDesc.layout.combinedTextureCount; ++i)
+                for (const auto &ctBinding : info.SRDesc.layout.getCombinedTextureBindings())
                 {
                     bindings.emplace_back();
                     auto &b = bindings.back();
 
-                    b.binding = 1;
+                    b.binding = ctBinding;
                     b.descriptorCount = 1;
                     b.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                     b.pImmutableSamplers = nullptr;
@@ -2257,17 +2272,17 @@ namespace Cutlass
             { //DescriptorPool
                 std::vector<VkDescriptorPoolSize> sizes;
 
-                for (size_t i = 0; i < rpo.layout.uniformBufferCount; ++i)
+                if(info.SRDesc.layout.getUniformBufferBindings().size() > 0)
                 {
                     sizes.emplace_back();
-                    sizes.back().descriptorCount = rpo.layout.uniformBufferCount;
+                    sizes.back().descriptorCount = info.SRDesc.layout.getUniformBufferBindings().size() * mMaxFrameNum;
                     sizes.back().type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
                 }
 
-                for (size_t i = 0; i < rpo.layout.combinedTextureCount; ++i)
+                if(info.SRDesc.layout.getCombinedTextureBindings().size() > 0)
                 {
                     sizes.emplace_back();
-                    sizes.back().descriptorCount = rpo.layout.combinedTextureCount;
+                    sizes.back().descriptorCount = info.SRDesc.layout.getCombinedTextureBindings().size() * mMaxFrameNum;
                     sizes.back().type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                 }
 
@@ -2275,7 +2290,7 @@ namespace Cutlass
                 dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
                 dpci.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
-                dpci.maxSets = info.SRDesc.maxSetCount;
+                dpci.maxSets = info.SRDesc.maxSetCount * mMaxFrameNum;
                 dpci.poolSizeCount = sizes.size();
                 dpci.pPoolSizes = sizes.data();
                 {
@@ -2443,6 +2458,8 @@ namespace Cutlass
     Result Device::execute(const HCommandBuffer &handle)
     {
         Result result = Result::eSuccess;
+
+        glfwPollEvents();
 
         if(mInitializeInfo.debugFlag)
         {
@@ -2693,34 +2710,34 @@ namespace Cutlass
         std::vector<VkDescriptorBufferInfo> dbi_vec;
         std::vector<VkDescriptorImageInfo> dii_vec;
 
-        for (auto &hub : info.SRSet.uniformBuffer)
-        {
-            if (mBufferMap.count(hub) <= 0)
-            {
-                std::cerr << "invalid uniform buffer handle!\n";
-                return Result::eFailure;
-            }
-            auto &ub = mBufferMap[hub];
-            dbi_vec.emplace_back();
-            dbi_vec.back().buffer = ub.mBuffer.value();
-            dbi_vec.back().offset = 0;
-            dbi_vec.back().range = VK_WHOLE_SIZE;
-        }
+        // for (const auto &hub : rpo.layout.)
+        // {
+        //     if (mBufferMap.count(hub) <= 0)
+        //     {
+        //         std::cerr << "invalid uniform buffer handle!\n";
+        //         return Result::eFailure;
+        //     }
+        //     auto &ub = mBufferMap[hub];
+        //     dbi_vec.emplace_back();
+        //     dbi_vec.back().buffer = ub.mBuffer.value();
+        //     dbi_vec.back().offset = 0;
+        //     dbi_vec.back().range = VK_WHOLE_SIZE;
+        // }
 
-        for (auto &hct : info.SRSet.combinedTexture)
-        {
-            if (mImageMap.count(hct) <= 0)
-            {
-                std::cerr << "invalid combined texture handle!\n";
-                return Result::eFailure;
-            }
+        // for (auto &hct : info.SRSet.combinedTexture)
+        // {
+        //     if (mImageMap.count(hct) <= 0)
+        //     {
+        //         std::cerr << "invalid combined texture handle!\n";
+        //         return Result::eFailure;
+        //     }
 
-            auto &ct = mImageMap[hct];
-            dii_vec.emplace_back();
-            dii_vec.back().imageView = ct.mView.value();
-            dii_vec.back().sampler = ct.mSampler.value();
-            dii_vec.back().imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        }
+        //     auto &ct = mImageMap[hct];
+        //     dii_vec.emplace_back();
+        //     dii_vec.back().imageView = ct.mView.value();
+        //     dii_vec.back().sampler = ct.mSampler.value();
+        //     dii_vec.back().imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        // }
 
         std::vector<VkDescriptorSetLayout> layouts(mMaxFrameNum, rpo.mDescriptorSetLayout.value());
         std::vector<VkWriteDescriptorSet> writeDescriptors;
@@ -2740,36 +2757,48 @@ namespace Cutlass
 
             for (size_t i = 0; i < co.mDescriptorSets.size(); ++i)
             {
+                writeDescriptors.clear();
+                writeDescriptors.reserve
+                (
+                    rpo.layout.getUniformBufferBindings().size() +
+                    rpo.layout.getCombinedTextureBindings().size()
+                );
 
-                writeDescriptors.reserve(static_cast<size_t>(rpo.layout.combinedTextureCount + rpo.layout.uniformBufferCount));
-
-                uint32_t binding = 0;
-                for (const auto &dbi : dbi_vec)
+                for (const auto &dub: info.SRSet.getUniformBuffers())
                 {
+                    auto &ubo = mBufferMap[dub.second];
+                    dbi_vec.emplace_back();
+                    dbi_vec.back().buffer = ubo.mBuffer.value();
+                    dbi_vec.back().offset = 0;
+                    dbi_vec.back().range = VK_WHOLE_SIZE;
+
                     writeDescriptors.emplace_back(VkWriteDescriptorSet{});
                     writeDescriptors.back().sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                    writeDescriptors.back().dstBinding = binding;
+                    writeDescriptors.back().dstBinding = dub.first;
                     writeDescriptors.back().dstArrayElement = 0;
                     writeDescriptors.back().descriptorCount = 1;
                     writeDescriptors.back().descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                    writeDescriptors.back().pBufferInfo = &dbi;
+                    writeDescriptors.back().pBufferInfo = &dbi_vec.back();
                     writeDescriptors.back().dstSet = co.mDescriptorSets[i];
-
-                    ++binding;
                 }
 
-                for (const auto &dii : dii_vec)
+                for (const auto &dct : info.SRSet.getCombinedTextures())
                 {
+                    auto &cto = mImageMap[dct.second];
+                    dii_vec.emplace_back();
+                    dii_vec.back().imageView = cto.mView.value();
+                    dii_vec.back().sampler = cto.mSampler.value();
+                    dii_vec.back().imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
                     writeDescriptors.emplace_back(VkWriteDescriptorSet{});
                     writeDescriptors.back().sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                    writeDescriptors.back().dstBinding = binding;
+                    writeDescriptors.back().dstBinding = dct.first;
                     writeDescriptors.back().dstArrayElement = 0;
                     writeDescriptors.back().descriptorCount = 1;
                     writeDescriptors.back().descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                    writeDescriptors.back().pImageInfo = &dii;
+                    writeDescriptors.back().pImageInfo = &dii_vec.back();
                     writeDescriptors.back().dstSet = co.mDescriptorSets[i];
 
-                    ++binding;
                 }
 
                 vkUpdateDescriptorSets(mDevice, static_cast<uint32_t>(writeDescriptors.size()), writeDescriptors.data(), 0, nullptr);
