@@ -200,8 +200,8 @@ namespace Cutlass
         Result createShaderModule(const Shader &shader, const VkShaderStageFlagBits &stage, VkPipelineShaderStageCreateInfo *pSSCI);
 
         //各コマンド関数
-        inline Result cmdBeginRenderPipeline(CommandObject& co, const CmdBeginRenderPipeline& info);
-        inline Result cmdEndRenderPipeline(CommandObject& co, const CmdEndRenderPipeline &info);
+        inline Result cmdBindRenderPipeline(CommandObject& co, const CmdBindRenderPipeline& info);
+        //inline Result cmdEndRenderPipeline(CommandObject& co, const CmdEndRenderPipeline &info);
         inline Result cmdBindVB(CommandObject& co,const CmdBindVB& info);
         inline Result cmdBindIB(CommandObject& co, const CmdBindIB &info);
         inline Result cmdBindSRSet(CommandObject& co, const CmdBindSRSet &info);

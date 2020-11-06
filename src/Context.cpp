@@ -1045,15 +1045,12 @@ namespace Cutlass
             {
             case TextureUsage::eShaderResource:
                 ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-                ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
                 break;
             case TextureUsage::eColorTarget:
-                ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-                ci.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                ci.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
                 break;
             case TextureUsage::eDepthStencilTarget:
                 ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-                //ci.initialLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL_KHR;
                 break;
                 // case TextureUsage::eUnordered: 
                 //     ci.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
@@ -1781,7 +1778,7 @@ namespace Cutlass
         VkRenderPassCreateInfo ci{};
         std::vector<VkAttachmentDescription> adVec;
         std::vector<VkAttachmentReference> arVec;
-        std::optional<HTexture> hDepthBuffer;
+        std::optional<HTexture> hDepthBuffer = std::nullopt;
 
         if (mInitializeInfo.debugFlag) //for debug mode
         {
@@ -1826,7 +1823,7 @@ namespace Cutlass
             adVec.back().format = io.format;
             adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
             adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-            adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
             adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
             arVec.back().attachment = 0;
 
@@ -1877,12 +1874,14 @@ namespace Cutlass
         ci.pSubpasses = &subpassDesc;
 
         {
-            auto renderPass = rdsto.mRenderPass.value();
+            VkRenderPass renderPass;
             result = checkVkResult(vkCreateRenderPass(mDevice, &ci, nullptr, &renderPass));
             if (Result::eSuccess != result)
             {
                 return result;
             }
+
+            rdsto.mRenderPass = renderPass;
         }
 
         VkFramebufferCreateInfo fbci{};
@@ -1901,12 +1900,16 @@ namespace Cutlass
         }
 
         fbci.pAttachments = ivVec.data();
-        rdsto.mFramebuffers.emplace_back();
-        result = checkVkResult(vkCreateFramebuffer(mDevice, &fbci, nullptr, &rdsto.mFramebuffers.back().value()));
-        if (Result::eSuccess != result)
         {
-            return result;
+            VkFramebuffer frameBuffer;
+            result = checkVkResult(vkCreateFramebuffer(mDevice, &fbci, nullptr, &frameBuffer));
+            if (Result::eSuccess != result)
+            {
+                return result;
+            }
+            rdsto.mFramebuffers.emplace_back(frameBuffer);
         }
+
 
         handle_out = mNextRenderDSTHandle++;
         mRDSTMap.emplace(handle_out, rdsto);
@@ -1999,7 +2002,6 @@ namespace Cutlass
             }
             else //vertex input state
             {
-
                 visci.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
                 visci.pNext = nullptr;
                 visci.vertexBindingDescriptionCount = 0;
@@ -2114,19 +2116,53 @@ namespace Cutlass
             VkPipelineRasterizationStateCreateInfo rci{};
             {
                 rci.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-                switch (info.rasterizerState)
+                switch (info.rasterizerState.polygonMode)
                 {
-                case RasterizerState::eDefault:
+                case PolygonMode::eFill:
                     rci.polygonMode = VK_POLYGON_MODE_FILL;
-                    rci.cullMode = VK_CULL_MODE_BACK_BIT;
-                    rci.frontFace = VK_FRONT_FACE_CLOCKWISE;
-                    rci.lineWidth = 1.f;
+                    break;
+                case PolygonMode::eLine:
+                    rci.polygonMode = VK_POLYGON_MODE_LINE;
+                    break;
+                case PolygonMode::ePoint:
+                    rci.polygonMode = VK_POLYGON_MODE_POINT;
                     break;
                 default:
-                    std::cerr << "rasterizer state is not described\n";
+                    std::cerr << "invalid polygon mode!\n";
                     return Result::eFailure;
-                    break;
                 }
+
+                switch (info.rasterizerState.cullMode)
+                {
+                case CullMode::eNone:
+                    rci.cullMode = VK_CULL_MODE_NONE;
+                    break;
+                case CullMode::eBack:
+                    rci.cullMode = VK_CULL_MODE_BACK_BIT;
+                    break;
+                case CullMode::eFront:
+                    rci.cullMode = VK_CULL_MODE_FRONT_BIT;
+                    break;
+                default:
+                    std::cerr << "invalid culling mode!\n";
+                    return Result::eFailure;
+                }
+
+                switch (info.rasterizerState.frontFace)
+                {
+                case FrontFace::eClockwise:
+                    rci.frontFace = VK_FRONT_FACE_CLOCKWISE;
+                    break;
+                case FrontFace::eCounterClockwise:
+                    rci.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+                    break;
+                default:
+                    std::cerr << "invalid front face mode!\n";
+                    return Result::eFailure;
+                }
+
+                rci.lineWidth = info.rasterizerState.lineWidth;
+
             }
 
             //multi sampling
@@ -2407,20 +2443,38 @@ namespace Cutlass
         //get internal(public) command info vector
         const auto &cmdList = commandList.getInternalCommandData();
 
+        {//begin command buffer
+            VkCommandBufferBeginInfo commandBI{};
+            commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+            commandBI.flags = 0;
+            commandBI.pInheritanceInfo = nullptr;
+
+            for (const auto& command : co.mCommandBuffers)
+            {
+                result = checkVkResult(vkBeginCommandBuffer(command, &commandBI));
+                if (result != Result::eSuccess)
+                {
+                    std::cerr << "Failed to begin command buffer!\n";
+                    return result;
+                }
+            }
+        }
+
         for (const auto &command : cmdList)
         {
+
             switch (command.first) //RTTI...
             {
-            case CommandType::eBeginRenderPipeline:
-                if (!std::holds_alternative<CmdBeginRenderPipeline>(command.second))
+            case CommandType::eBindRenderPipeline:
+                if (!std::holds_alternative<CmdBindRenderPipeline>(command.second))
                     return Result::eFailure;
-                result = cmdBeginRenderPipeline(co, std::get<CmdBeginRenderPipeline>(command.second));
+                result = cmdBindRenderPipeline(co, std::get<CmdBindRenderPipeline>(command.second));
                 break;
-            case CommandType::eEndRenderPipeline:
-                if (!std::holds_alternative<CmdEndRenderPipeline>(command.second))
-                    return Result::eFailure;
-                result = cmdEndRenderPipeline(co, std::get<CmdEndRenderPipeline>(command.second));
-                break;
+            //case CommandType::eEndRenderPipeline:
+            //    if (!std::holds_alternative<CmdEndRenderPipeline>(command.second))
+            //        return Result::eFailure;
+            //    result = cmdEndRenderPipeline(co, std::get<CmdEndRenderPipeline>(command.second));
+            //    break;
             case CommandType::eBindVB:
                 if (!std::holds_alternative<CmdBindVB>(command.second))
                     return Result::eFailure;
@@ -2453,13 +2507,26 @@ namespace Cutlass
             }
         }
 
+        {//end command buffer
+            for (const auto& command : co.mCommandBuffers)
+            {
+                vkCmdEndRenderPass(command);
+                result = checkVkResult(vkEndCommandBuffer(command));
+                if (result != Result::eSuccess)
+                {
+                    std::cerr << "Failed to end command buffer!\n";
+                    return result;
+                }
+            }
+        }
+
         handle_out = mNextCBHandle++;
         mCommandBufferMap.emplace(handle_out, co);
 
         return result;
     }
 
-    Result Context::cmdBeginRenderPipeline(CommandObject &co, const CmdBeginRenderPipeline &info)
+    Result Context::cmdBindRenderPipeline(CommandObject &co, const CmdBindRenderPipeline &info)
     {
         Result result = Result::eSuccess;
 
@@ -2469,59 +2536,31 @@ namespace Cutlass
         co.mHRPO = info.RPHandle;
         co.mHRenderDST = rpo.mHRenderDST;
 
-        VkCommandBufferBeginInfo commandBI{};
-        commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        commandBI.flags = 0;
-        commandBI.pInheritanceInfo = nullptr;
-
         VkRenderPassBeginInfo bi{};
 
-        if (rdsto.mHWindow)
+        
+        VkClearValue clearValues[2];
+        clearValues[0].color = { 0, 0, 0, 1.0 };
+        clearValues[1].depthStencil = { 1.f, 0 };
+        if (rdsto.mDepthTestEnable)
         {
-            const auto& swapchain = mWindowMap[rdsto.mHWindow.value()];
-
-            VkClearValue clearValues[2];
-            clearValues[0].color = {0.5, 0.5, 0.5, 1.0};
-            clearValues[1].depthStencil = {1.f, 0};
-
-            //VkClearValue clearValue = {0.5, 0.5, 0.5, 1.0};
-
-            bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-            bi.renderPass = rdsto.mRenderPass.value();
-            bi.renderArea.offset = {0, 0};
-            bi.renderArea.extent = swapchain.mSwapchainExtent;
-
-            // is this param OK?
-            if (rdsto.mDepthTestEnable)
-            {
-                //std::cerr << "this process does not implemented yet!\n";
-                //exit(-1);
-                bi.clearValueCount = 2;
-                bi.pClearValues = clearValues;
-            }
-            else
-            {
-                bi.clearValueCount = 1;
-                bi.pClearValues = clearValues;
-            }
+            bi.clearValueCount = 2;
+            bi.pClearValues = clearValues;
         }
         else
         {
-            //TODO: impl of this
-            std::cerr << "this process does not implemented yet!\n";
-            return Result::eFailure;
+            bi.clearValueCount = 1;
+            bi.pClearValues = clearValues;
         }
+
+        bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        bi.renderPass = rdsto.mRenderPass.value();
+        bi.renderArea.offset = { 0, 0 };
+        bi.renderArea.extent = { rdsto.mExtent.value().width, rdsto.mExtent.value().height };
 
         for (size_t i = 0; i < co.mCommandBuffers.size(); ++i)
         {
-            auto &command = co.mCommandBuffers[i];
-            result = checkVkResult(vkBeginCommandBuffer(command, &commandBI));
-            if (result != Result::eSuccess)
-            {
-                std::cerr << "Failed to begin command buffer!\n";
-                return result;
-            }
-
+            auto& command = co.mCommandBuffers[i];
             bi.framebuffer = rdsto.mFramebuffers[i].value();
 
             vkCmdBeginRenderPass(command, &bi, VK_SUBPASS_CONTENTS_INLINE);
@@ -2531,7 +2570,7 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Context::cmdEndRenderPipeline(CommandObject &co, const CmdEndRenderPipeline &info)
+   /* Result Context::cmdEndRenderPipeline(CommandObject &co, const CmdEndRenderPipeline &info)
     {
         Result result;
         for (const auto &command : co.mCommandBuffers)
@@ -2546,7 +2585,7 @@ namespace Cutlass
         }
 
         return Result::eSuccess;
-    }
+    }*/
 
     Result Context::cmdBindVB(CommandObject &co, const CmdBindVB &info)
     {
@@ -2726,10 +2765,10 @@ namespace Cutlass
             switch (glfwGetKey(wo.mpWindow.value(), keyIndex[i]))
             {
             case GLFW_PRESS:
-                ++(event_out.getKeyRefInternal().at(static_cast<KeyCode>(keyIndex[i])));
+                ++(event_out.getKeyRefInternal().at(static_cast<Key>(keyIndex[i])));
                 break;
             case GLFW_RELEASE:
-                event_out.getKeyRefInternal().at(static_cast<KeyCode>(keyIndex[i])) = UINT32_MAX;
+                event_out.getKeyRefInternal().at(static_cast<Key>(keyIndex[i])) = UINT32_MAX;
                 break;
             }
         }

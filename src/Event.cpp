@@ -7,14 +7,14 @@ namespace Cutlass
     Event::Event()
     {
         for (uint32_t i = 0; i < sizeof(keyIndex) / sizeof(uint32_t); ++i)
-            mKeys.emplace(static_cast<KeyCode>(keyIndex[i]), 0);
+            mKeys.emplace(static_cast<Key>(keyIndex[i]), 0);
 
         mMouseX = mMouseY = 0;
 
         mWindowShouldClose = false;
     }
 
-    KeyState Event::getKeyState(KeyCode key)
+    KeyState Event::getKeyState(Key key)
     {
         if(mKeys[key] == 1)
             return KeyState::ePressed;
@@ -29,7 +29,7 @@ namespace Cutlass
         return KeyState::eNone;
     }
 
-    uint32_t Event::getKeyFrame(KeyCode key)
+    uint32_t Event::getKeyFrame(Key key)
     {
         return mKeys[key] == UINT32_MAX ? 0 : mKeys[key];
     }
@@ -45,7 +45,7 @@ namespace Cutlass
         return mWindowShouldClose;
     }
 
-    std::unordered_map<KeyCode, uint32_t> & Event::getKeyRefInternal()
+    std::unordered_map<Key, uint32_t> & Event::getKeyRefInternal()
     {
         return mKeys;
     }

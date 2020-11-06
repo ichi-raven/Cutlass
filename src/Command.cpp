@@ -3,15 +3,15 @@
 namespace Cutlass
 {
 
-    void CommandList::beginRenderPipeline(const HRenderPipeline &RPHandle)
+    void CommandList::bindRenderPipeline(const HRenderPipeline &RPHandle)
     {
-        mCommands.emplace_back(CommandType::eBeginRenderPipeline, CmdBeginRenderPipeline{RPHandle});
+        mCommands.emplace_back(CommandType::eBindRenderPipeline, CmdBindRenderPipeline{RPHandle});
     }
 
-    void CommandList::endRenderPipeline()
-    {
-        mCommands.emplace_back(CommandType::eEndRenderPipeline, CmdEndRenderPipeline{});
-    }
+    //void CommandList::endRenderPipeline()
+    //{
+    //    mCommands.emplace_back(CommandType::eEndRenderPipeline, CmdEndRenderPipeline{});
+    //}
 
     void CommandList::bindVB(const HBuffer& VBHandle)
     {

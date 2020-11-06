@@ -10,16 +10,16 @@ namespace Cutlass
 {
     using ClearValue = std::vector<std::vector<float>>;
 
-    struct CmdBeginRenderPipeline
+    struct CmdBindRenderPipeline
     {
         HRenderPipeline RPHandle;
     };
 
-    struct CmdEndRenderPipeline
-    {
-        uint32_t sync;//なんとなく作ってみた
-        //指定するものがあれば
-    };
+    //struct CmdEndRenderPipeline
+    //{
+    //    uint32_t sync;//なんとなく作ってみた
+    //    //指定するものがあれば
+    //};
 
     struct CmdBindVB
     {
@@ -56,8 +56,8 @@ namespace Cutlass
     //コマンド追加時はここ
     enum class CommandType
     {
-        eBeginRenderPipeline,
-        eEndRenderPipeline,
+        eBindRenderPipeline,
+        //eEndRenderPipeline,
         eBindVB,
         eBindIB,
         eBindSRSet,
@@ -67,8 +67,8 @@ namespace Cutlass
 
     //とここ
     using CommandInfoVariant = std::variant<
-        CmdBeginRenderPipeline,
-        CmdEndRenderPipeline,
+        CmdBindRenderPipeline,
+        //CmdEndRenderPipeline,
         CmdBindVB,
         CmdBindIB,
         CmdBindSRSet,
@@ -81,8 +81,8 @@ namespace Cutlass
     class CommandList
     {
     public:
-        void beginRenderPipeline(const HRenderPipeline& RPHandle);
-        void endRenderPipeline();
+        void bindRenderPipeline(const HRenderPipeline& RPHandle);
+        //void endRenderPipeline();
         void bindVB(const HBuffer& VBHandle);
         void bindIB(const HBuffer &IBHandle);
         void bindSRSet(const ShaderResourceSet &shaderResourceSet);

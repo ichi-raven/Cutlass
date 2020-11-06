@@ -34,9 +34,39 @@ namespace Cutlass
         eTriangleStrip,
     };
 
-    enum class RasterizerState
+    enum class PolygonMode
     {
-        eDefault,
+        eFill,
+        eLine,
+        ePoint
+    };
+
+    enum class CullMode
+    {
+        eNone,
+        eBack,
+        eFront
+    };
+
+    enum class FrontFace
+    {
+        eClockwise,
+        eCounterClockwise,
+    };
+
+    struct RasterizerState
+    {
+        RasterizerState()
+            : polygonMode(PolygonMode::eFill)
+            , cullMode(CullMode::eBack)
+            , frontFace(FrontFace::eClockwise)
+            , lineWidth(1.f)
+        {}
+
+        PolygonMode polygonMode;
+        CullMode cullMode;
+        FrontFace frontFace;
+        float lineWidth;
     };
 
     enum class MultiSampleState
@@ -56,7 +86,6 @@ namespace Cutlass
 
     struct VertexLayout
     {
-        
         size_t sizeOfType; //全体としての型のサイズ
         std::vector<VertexElement> layouts;
 
