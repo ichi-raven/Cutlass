@@ -86,10 +86,9 @@ namespace Cutlass
 
     struct VertexLayout
     {
-        size_t sizeOfType; //全体としての型のサイズ
         std::vector<VertexElement> layouts;
 
-        void add(const ResourceType &type, const std::string &name)
+        void set(const ResourceType &type, const std::string &name)
         {
             layouts.emplace_back(std::pair(type, name));
         }

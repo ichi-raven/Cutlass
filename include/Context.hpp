@@ -176,32 +176,31 @@ namespace Cutlass
         };
 
         static inline Result checkVkResult(VkResult);
-        Result createInstance();
-        Result selectPhysicalDevice();
-        Result createDevice();
-        Result createCommandPool();
-        Result createCommandBuffers();
+        inline Result createInstance();
+        inline Result selectPhysicalDevice();
+        inline Result createDevice();
+        inline Result createCommandPool();
+        inline Result createCommandBuffers();
 
-        Result createSurface(WindowObject &wo);
-        Result selectSurfaceFormat(WindowObject &wo, VkFormat format);
-        Result createSwapchain(WindowObject &wo);
-        Result createSwapchainImages(WindowObject &wo);
-        Result createDepthBuffer(WindowObject &wo);
+        inline Result createSurface(WindowObject &wo);
+        inline Result selectSurfaceFormat(WindowObject &wo, VkFormat format);
+        inline Result createSwapchain(WindowObject &wo);
+        inline Result createSwapchainImages(WindowObject &wo);
+        inline Result createDepthBuffer(WindowObject &wo);
 
-        Result createSemaphores();
+        inline Result createSemaphores();
 
-        Result searchGraphicsQueueIndex();
-        uint32_t getMemoryTypeIndex(uint32_t requestBits, VkMemoryPropertyFlags requestProps) const;
+        inline Result searchGraphicsQueueIndex();
+        inline uint32_t getMemoryTypeIndex(uint32_t requestBits, VkMemoryPropertyFlags requestProps) const;
 
-        Result enableDebugReport();
-        Result disableDebugReport();
-        Result setImageMemoryBarrier(VkCommandBuffer command, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
+        inline Result enableDebugReport();
+        inline Result disableDebugReport();
+        inline Result setImageMemoryBarrier(VkCommandBuffer command, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
 
-        Result createShaderModule(const Shader &shader, const VkShaderStageFlagBits &stage, VkPipelineShaderStageCreateInfo *pSSCI);
+        inline Result createShaderModule(const Shader &shader, const VkShaderStageFlagBits &stage, VkPipelineShaderStageCreateInfo *pSSCI);
 
         //各コマンド関数
         inline Result cmdBindRenderPipeline(CommandObject& co, const CmdBindRenderPipeline& info);
-        //inline Result cmdEndRenderPipeline(CommandObject& co, const CmdEndRenderPipeline &info);
         inline Result cmdBindVB(CommandObject& co,const CmdBindVB& info);
         inline Result cmdBindIB(CommandObject& co, const CmdBindIB &info);
         inline Result cmdBindSRSet(CommandObject& co, const CmdBindSRSet &info);

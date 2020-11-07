@@ -1943,7 +1943,6 @@ namespace Cutlass
             {
                 {
                     ib.binding = 0;
-                    ib.stride = info.vertexLayout.value().sizeOfType;
                     ib.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
                 }
 
@@ -1989,6 +1988,8 @@ namespace Cutlass
                             break;
                         }
                     }
+
+                    ib.stride = offset;
                 }
 
                 {
