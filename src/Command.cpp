@@ -1,4 +1,4 @@
-#include "Command.hpp"
+#include "../include/Command.hpp"
 
 namespace Cutlass
 {
