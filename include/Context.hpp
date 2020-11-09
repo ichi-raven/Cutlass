@@ -40,18 +40,9 @@ namespace Cutlass
 
     class Context
     {
-    public:
-        Context() : mMaxFrameNum(0),
-                    mIsInitialized(false),
-                    mNextWindowHandle(1),
-                    mNextBufferHandle(1),
-                    mNextTextureHandle(1),
-                    mNextRenderDSTHandle(1),
-                    mNextRPHandle(1),
-                    mNextCBHandle(1)
-        {
-        }
-
+    private:
+        //Singleton
+        Context();
 
         ~Context();
 
@@ -60,6 +51,9 @@ namespace Cutlass
         Context &operator=(const Context&) = delete;
         Context(Context&&) = delete;
         Context &operator=(Context&&) = delete;
+
+    public:
+        static Context& getInstance();
 
         //初期化
         Result initialize(const InitializeInfo &info);
@@ -100,6 +94,8 @@ namespace Cutlass
         //ウィンドウイベントをハンドリング
         Result handleEvent(const HWindow& window, Event& event_out);
 
+        uint32_t getFrameBufferIndex() const;//現在処理中のフレームバッファのインデックスを取得(0~frameCount)
+
         //コマンド実行, バックバッファ表示
         Result execute(const HCommandBuffer& handle);
 
@@ -118,6 +114,13 @@ namespace Cutlass
             VkExtent2D mSwapchainExtent;
             std::vector<HTexture> mHSwapchainImages;
             HTexture mHDepthBuffer;
+
+            //同期オブジェクト
+            std::vector<VkFence> mFences;
+            //フレーム同時処理用一時的格納場所
+            std::vector<VkFence> imagesInFlight;
+            std::vector<VkSemaphore> mRenderCompletedSems;
+            std::vector<VkSemaphore> mPresentCompletedSems;
         };
 
         struct BufferObject
@@ -173,7 +176,17 @@ namespace Cutlass
             std::optional<HRenderDST> mHRenderDST;
             std::optional<HRenderPipeline> mHRPO;
             std::vector<VkDescriptorSet> mDescriptorSets;
+            bool mPresentFlag;
         };
+
+        // struct CommandObject
+        // {//バッファリングは自動で行う
+        //     std::optional<VkCommandBuffer> mCommandBuffer;
+        //     std::optional<HRenderDST> mHRenderDST;
+        //     std::optional<HRenderPipeline> mHRPO;
+        //     std::vector<VkDescriptorSet> mDescriptorSets;
+        //     bool mPresentFlag;
+        // };
 
         static inline Result checkVkResult(VkResult);
         inline Result createInstance();
@@ -187,8 +200,7 @@ namespace Cutlass
         inline Result createSwapchain(WindowObject &wo);
         inline Result createSwapchainImages(WindowObject &wo);
         inline Result createDepthBuffer(WindowObject &wo);
-
-        inline Result createSemaphores();
+        inline Result createSyncObjects(WindowObject &wo);
 
         inline Result searchGraphicsQueueIndex();
         inline uint32_t getMemoryTypeIndex(uint32_t requestBits, VkMemoryPropertyFlags requestProps) const;
@@ -200,8 +212,9 @@ namespace Cutlass
         inline Result createShaderModule(const Shader &shader, const VkShaderStageFlagBits &stage, VkPipelineShaderStageCreateInfo *pSSCI);
 
         //各コマンド関数
-        inline Result cmdBindRenderPipeline(CommandObject& co, const CmdBindRenderPipeline& info);
-        inline Result cmdBindVB(CommandObject& co,const CmdBindVB& info);
+        inline Result cmdBeginRenderPipeline(CommandObject& co, const CmdBeginRenderPipeline& info);
+        inline Result cmdEndRenderPipeline(CommandObject &co, const CmdEndRenderPipeline& info);
+        inline Result cmdBindVB(CommandObject &co, const CmdBindVB &info);
         inline Result cmdBindIB(CommandObject& co, const CmdBindIB &info);
         inline Result cmdBindSRSet(CommandObject& co, const CmdBindSRSet &info);
         inline Result cmdRenderIndexed(CommandObject& co, const CmdRenderIndexed &info);
@@ -224,8 +237,6 @@ namespace Cutlass
 		std::unordered_map<HRenderDST, RenderDSTObject>				mRDSTMap;
         std::unordered_map<HCommandBuffer, CommandObject>           mCommandBufferMap;
 
-        //std::vector<Command> mWroteCommands;
-
         //Vulkan API
         VkInstance mInstance;
         VkDevice mDevice;
@@ -234,8 +245,6 @@ namespace Cutlass
         uint32_t mGraphicsQueueIndex;
         VkQueue mDeviceQueue;
         VkCommandPool mCommandPool;
-        //std::vector<VkFence> mFences;
-        //std::vector<VkCommandBuffer> mCommands;
 
         // デバッグレポート関連
         PFN_vkCreateDebugReportCallbackEXT mvkCreateDebugReportCallbackEXT;
@@ -243,7 +252,9 @@ namespace Cutlass
         PFN_vkDestroyDebugReportCallbackEXT mvkDestroyDebugReportCallbackEXT;
         VkDebugReportCallbackEXT mDebugReport;
 
-        //現在のフレーム(処理用、Swapchainのインデックスとは関係ない)
+        uint32_t mFrameBufferIndex;
+
+        //現在のフレーム(注意 : 処理中のフレームバッファのインデックスとは関係ない)
         uint32_t mCurrentFrame;
         //フレームの個数
         uint32_t mMaxFrameNum;

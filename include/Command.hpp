@@ -3,23 +3,31 @@
 #include <optional>
 #include <variant>
 #include <queue>
+#include <tuple>
 #include "Utility.hpp"
 #include "RenderPipeline.hpp"
 
 namespace Cutlass
 {
-    using ClearValue = std::vector<std::vector<float>>;
+    using ColorClearValue = std::array<float, 4>;
+    using DepthClearValue = std::tuple<float, uint32_t>;
 
-    struct CmdBindRenderPipeline
+    struct CmdBeginRenderPipeline
     {
         HRenderPipeline RPHandle;
+        ColorClearValue ccv;
+        DepthClearValue dcv;
     };
 
-    //struct CmdEndRenderPipeline
-    //{
-    //    uint32_t sync;//なんとなく作ってみた
-    //    //指定するものがあれば
-    //};
+    struct CmdEndRenderPipeline
+    {
+
+    };
+
+    struct CmdPresent
+    {
+        
+    };
 
     struct CmdBindVB
     {
@@ -33,7 +41,7 @@ namespace Cutlass
 
     struct CmdBindSRSet
     {
-        ShaderResourceSet SRSet;
+        std::vector<ShaderResourceSet> SRSet;
     };
 
     struct CmdRenderIndexed
@@ -56,8 +64,9 @@ namespace Cutlass
     //コマンド追加時はここ
     enum class CommandType
     {
-        eBindRenderPipeline,
-        //eEndRenderPipeline,
+        eBeginRenderPipeline,
+        eEndRenderPipeline,
+        ePresent,
         eBindVB,
         eBindIB,
         eBindSRSet,
@@ -66,14 +75,17 @@ namespace Cutlass
     };
 
     //とここ
-    using CommandInfoVariant = std::variant<
-        CmdBindRenderPipeline,
-        //CmdEndRenderPipeline,
+    using CommandInfoVariant = std::variant
+    <
+        CmdBeginRenderPipeline,
+        CmdEndRenderPipeline,
+        CmdPresent,
         CmdBindVB,
         CmdBindIB,
         CmdBindSRSet,
         CmdRenderIndexed,
-        CmdRender>;
+        CmdRender
+    >;
 
     using InternalCommandList = std::vector<std::pair<CommandType, CommandInfoVariant>>;
 
@@ -81,11 +93,12 @@ namespace Cutlass
     class CommandList
     {
     public:
-        void bindRenderPipeline(const HRenderPipeline& RPHandle);
-        //void endRenderPipeline();
-        void bindVB(const HBuffer& VBHandle);
+        void beginRenderPipeline(const HRenderPipeline& RPHandle, const ColorClearValue& ccv, const DepthClearValue& dcv);
+        void endRenderPipeline();
+        void present();
+        void bindVB(const HBuffer &VBHandle);
         void bindIB(const HBuffer &IBHandle);
-        void bindSRSet(const ShaderResourceSet &shaderResourceSet);
+        void bindSRSet(const std::vector<ShaderResourceSet> &shaderResourceSets);
         void renderIndexed
         (
             uint32_t indexCount,    //いくつインデックスを描画するか
@@ -94,7 +107,6 @@ namespace Cutlass
             uint32_t vertexOffset,  //描画し終わった頂点だけずらす、普通は0
             uint32_t firstInstance  //インスタシング描画しないなら0
         );
-
         void render
         (
             uint32_t vertexCount,   //描画する頂点の個数
@@ -108,19 +120,4 @@ namespace Cutlass
     private:
         InternalCommandList mCommands;
     };
-
-
-    // struct Command
-    // {
-    //     CommandType type;//型に対応するenumを代入してください
-    //     std::variant
-    //     <
-    //         CmdBeginRenderPipeline, 
-    //         CmdEndRenderPipeline,
-    //         CmdSetVB, 
-    //         CmdSetIB, 
-    //         CmdSetShaderResource, 
-    //         CmdRender
-    //     > info;//実際の構造体を代入してください
-    // };
 }            

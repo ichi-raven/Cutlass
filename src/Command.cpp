@@ -3,15 +3,20 @@
 namespace Cutlass
 {
 
-    void CommandList::bindRenderPipeline(const HRenderPipeline &RPHandle)
+    void CommandList::beginRenderPipeline(const HRenderPipeline &RPHandle, const ColorClearValue& ccv, const DepthClearValue& dcv)
     {
-        mCommands.emplace_back(CommandType::eBindRenderPipeline, CmdBindRenderPipeline{RPHandle});
+        mCommands.emplace_back(CommandType::eBeginRenderPipeline, CmdBeginRenderPipeline{RPHandle, ccv, dcv});
     }
 
-    //void CommandList::endRenderPipeline()
-    //{
-    //    mCommands.emplace_back(CommandType::eEndRenderPipeline, CmdEndRenderPipeline{});
-    //}
+    void CommandList::endRenderPipeline()
+    {
+        mCommands.emplace_back(CommandType::eEndRenderPipeline, CmdEndRenderPipeline{});
+    }
+
+    void CommandList::present()
+    {
+        mCommands.emplace_back(CommandType::ePresent, CmdPresent{});
+    }
 
     void CommandList::bindVB(const HBuffer& VBHandle)
     {
@@ -23,9 +28,9 @@ namespace Cutlass
         mCommands.emplace_back(CommandType::eBindIB, CmdBindIB{IBHandle});
     }
 
-    void CommandList::bindSRSet(const ShaderResourceSet &SRSet)
+    void CommandList::bindSRSet(const std::vector<ShaderResourceSet> &shaderResourceSets)
     {
-        mCommands.emplace_back(CommandType::eBindSRSet, CmdBindSRSet{SRSet});
+        mCommands.emplace_back(CommandType::eBindSRSet, CmdBindSRSet{shaderResourceSets});
     }
 
     void CommandList::renderIndexed
