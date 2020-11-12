@@ -82,11 +82,11 @@ namespace Cutlass
         //描画対象オブジェクトをスワップチェインから構築
         Result createRenderDST(const HWindow &handle, bool depthTestEnable, HRenderDST &handle_out);
 
-        //描画対象オブジェクトをテクスチャから構築
-        Result createRenderDST(const HTexture& color, HRenderDST& handle_out);
-        Result createRenderDST(const HTexture& color, const HTexture& depth, HRenderDST& handle_out);
+        ////描画対象オブジェクトをテクスチャから構築
+        //Result createRenderDST(const HTexture& color, HRenderDST& handle_out);
+        //Result createRenderDST(const HTexture& color, const HTexture& depth, HRenderDST& handle_out);
         Result createRenderDST(const std::vector<HTexture>& colors, HRenderDST& handle_out);
-        Result createRenderDST(const std::vector<HTexture>& colors, const HTexture& depth, HRenderDST& handle_out);
+        //Result createRenderDST(const std::vector<HTexture>& colors, const HTexture& depth, HRenderDST& handle_out);
 
         //描画パイプライン構築
         Result createRenderPipeline(const RenderPipelineInfo &info, HRenderPipeline& handle_out);

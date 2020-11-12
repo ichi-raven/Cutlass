@@ -1857,6 +1857,20 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
+    //Result Context::createRenderDST(const HTexture& color, HRenderDST& handle_out)
+    //{
+
+    //}
+    //Result Context::createRenderDST(const HTexture& color, const HTexture& depth, HRenderDST& handle_out)
+    //{
+
+    //}
+    //Result Context::createRenderDST(const std::vector<HTexture>& colors, HRenderDST& handle_out)
+    //{
+
+    //}
+
+    //Result Context::createRenderDST(const std::vector<HTexture>& colorTargets, const HTexture& depthTarget, HRenderDST& handle_out)
     Result Context::createRenderDST(const std::vector<HTexture> &textures, HRenderDST &handle_out)
     {
 
@@ -1888,7 +1902,7 @@ namespace Cutlass
                 auto &io = mImageMap[tex];
 
                 //usage check
-                if (io.usage != TextureUsage::eColorTarget || io.usage != TextureUsage::eDepthStencilTarget)
+                if (io.usage != TextureUsage::eColorTarget && io.usage != TextureUsage::eDepthStencilTarget)
                 {
                     std::cerr << "invalid texture usage\n";
                     return Result::eFailure;
