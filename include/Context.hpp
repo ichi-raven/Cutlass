@@ -35,6 +35,7 @@ namespace Cutlass
         std::string appName;
         uint32_t frameCount;
         bool debugFlag;
+        //usage
     };
 
     class Context
@@ -82,12 +83,16 @@ namespace Cutlass
         Result createRenderDST(const HWindow &handle, bool depthTestEnable, HRenderDST &handle_out);
 
         //描画対象オブジェクトをテクスチャから構築
-        Result createRenderDST(const std::vector<HTexture> &textures, HRenderDST& handle_out);
+        Result createRenderDST(const HTexture& color, HRenderDST& handle_out);
+        Result createRenderDST(const HTexture& color, const HTexture& depth, HRenderDST& handle_out);
+        Result createRenderDST(const std::vector<HTexture>& colors, HRenderDST& handle_out);
+        Result createRenderDST(const std::vector<HTexture>& colors, const HTexture& depth, HRenderDST& handle_out);
 
         //描画パイプライン構築
         Result createRenderPipeline(const RenderPipelineInfo &info, HRenderPipeline& handle_out);
 
         //描画コマンドバッファを作成
+        Result createCommandBuffer(const std::vector<CommandList>& commandLists, HCommandBuffer& handle_out);
         Result createCommandBuffer(const CommandList& commandList, HCommandBuffer& handle_out);
 
         //ウィンドウイベントをハンドリング
@@ -165,34 +170,19 @@ namespace Cutlass
         };
 
         struct CommandObject
-        {//バッファリングは自動で行う
+        {
             std::vector<VkCommandBuffer> mCommandBuffers;
-            std::vector<VkFence> mFences;
-            //フレーム同時処理用一時的格納場所
-            std::vector<VkFence> imagesInFlight;
-            std::vector<VkSemaphore> mRenderCompletedSems;
-            std::vector<VkSemaphore> mPresentCompletedSems;
             std::optional<HRenderDST> mHRenderDST;
             std::optional<HRenderPipeline> mHRPO;
             std::vector<VkDescriptorSet> mDescriptorSets;
             bool mPresentFlag;
         };
 
-        // struct CommandObject
-        // {//バッファリングは自動で行う
-        //     std::optional<VkCommandBuffer> mCommandBuffer;
-        //     std::optional<HRenderDST> mHRenderDST;
-        //     std::optional<HRenderPipeline> mHRPO;
-        //     std::vector<VkDescriptorSet> mDescriptorSets;
-        //     bool mPresentFlag;
-        // };
-
         static inline Result checkVkResult(VkResult);
         inline Result createInstance();
         inline Result selectPhysicalDevice();
         inline Result createDevice();
         inline Result createCommandPool();
-        inline Result createCommandBuffers();
 
         inline Result createSurface(WindowObject &wo);
         inline Result selectSurfaceFormat(WindowObject &wo, VkFormat format);
@@ -211,13 +201,14 @@ namespace Cutlass
         inline Result createShaderModule(const Shader &shader, const VkShaderStageFlagBits &stage, VkPipelineShaderStageCreateInfo *pSSCI);
 
         //各コマンド関数
-        inline Result cmdBeginRenderPipeline(CommandObject& co, const CmdBeginRenderPipeline& info);
+        inline Result cmdBeginRenderPipeline(CommandObject& co, size_t frameBufferIndex, const CmdBeginRenderPipeline& info);
         inline Result cmdEndRenderPipeline(CommandObject &co, const CmdEndRenderPipeline& info);
         inline Result cmdBindVB(CommandObject &co, const CmdBindVB &info);
         inline Result cmdBindIB(CommandObject& co, const CmdBindIB &info);
         inline Result cmdBindSRSet(CommandObject& co, const CmdBindSRSet &info);
         inline Result cmdRenderIndexed(CommandObject& co, const CmdRenderIndexed &info);
         inline Result cmdRender(CommandObject& co, const CmdRender &info);
+        inline Result cmdSyncTexture(CommandObject& co, const CmdSyncTexture& info);
 
         //ユーザ指定
         InitializeInfo mInitializeInfo;
@@ -251,6 +242,7 @@ namespace Cutlass
         PFN_vkDestroyDebugReportCallbackEXT mvkDestroyDebugReportCallbackEXT;
         VkDebugReportCallbackEXT mDebugReport;
 
+        //取得されたスワップチェーンイメージのインデックス、テクスチャレンダリングなどしているときは関係ない
         uint32_t mFrameBufferIndex;
 
         //現在のフレーム(注意 : 処理中のフレームバッファのインデックスとは関係ない)

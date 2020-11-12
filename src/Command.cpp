@@ -3,7 +3,7 @@
 namespace Cutlass
 {
 
-    void CommandList::beginRenderPipeline(const HRenderPipeline &RPHandle, const ColorClearValue& ccv, const DepthClearValue& dcv)
+    void CommandList::beginRenderPipeline(const HRenderPipeline &RPHandle, const ColorClearValue ccv, const DepthClearValue dcv)
     {
         mCommands.emplace_back(CommandType::eBeginRenderPipeline, CmdBeginRenderPipeline{RPHandle, ccv, dcv});
     }
@@ -28,9 +28,9 @@ namespace Cutlass
         mCommands.emplace_back(CommandType::eBindIB, CmdBindIB{IBHandle});
     }
 
-    void CommandList::bindSRSet(const std::vector<ShaderResourceSet> &shaderResourceSets)
+    void CommandList::bindSRSet(const ShaderResourceSet& shaderResourceSet)
     {
-        mCommands.emplace_back(CommandType::eBindSRSet, CmdBindSRSet{shaderResourceSets});
+        mCommands.emplace_back(CommandType::eBindSRSet, CmdBindSRSet{shaderResourceSet});
     }
 
     void CommandList::renderIndexed
@@ -54,6 +54,11 @@ namespace Cutlass
     )
     {
         mCommands.emplace_back(CommandType::eRender, CmdRender{vertexCount, instanceCount, vertexOffset, firstInstance});
+    }
+
+    void CommandList::syncTexture(const HTexture& target)
+    {
+        mCommands.emplace_back(CommandType::eSyncTexture, CmdSyncTexture{target});
     }
 
     const std::vector<std::pair<CommandType, CommandInfoVariant>>& CommandList::getInternalCommandData() const

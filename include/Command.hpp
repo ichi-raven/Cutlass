@@ -41,7 +41,7 @@ namespace Cutlass
 
     struct CmdBindSRSet
     {
-        std::vector<ShaderResourceSet> SRSet;
+        ShaderResourceSet SRSet;
     };
 
     struct CmdRenderIndexed
@@ -61,6 +61,16 @@ namespace Cutlass
         uint32_t firstInstance; //インスタシング描画しないなら0
     };
 
+    struct CmdSyncTexture
+    {
+        HTexture target;
+    };
+
+    //struct CmdSyncBuffer
+    //{
+
+    //};
+
     //コマンド追加時はここ
     enum class CommandType
     {
@@ -72,6 +82,8 @@ namespace Cutlass
         eBindSRSet,
         eRenderIndexed,
         eRender,
+        eSyncTexture,
+        //eSyncBuffer,
     };
 
     //とここ
@@ -84,7 +96,8 @@ namespace Cutlass
         CmdBindIB,
         CmdBindSRSet,
         CmdRenderIndexed,
-        CmdRender
+        CmdRender,
+        CmdSyncTexture
     >;
 
     using InternalCommandList = std::vector<std::pair<CommandType, CommandInfoVariant>>;
@@ -93,12 +106,12 @@ namespace Cutlass
     class CommandList
     {
     public:
-        void beginRenderPipeline(const HRenderPipeline& RPHandle, const ColorClearValue& ccv, const DepthClearValue& dcv);
+        void beginRenderPipeline(const HRenderPipeline& RPHandle, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f }, const DepthClearValue dcv = { 1.f, 0 });
         void endRenderPipeline();
         void present();
         void bindVB(const HBuffer &VBHandle);
         void bindIB(const HBuffer &IBHandle);
-        void bindSRSet(const std::vector<ShaderResourceSet> &shaderResourceSets);
+        void bindSRSet(const ShaderResourceSet &shaderResourceSet);
         void renderIndexed
         (
             uint32_t indexCount,    //いくつインデックスを描画するか
@@ -114,6 +127,7 @@ namespace Cutlass
             uint32_t vertexOffset,  //描画し終わった頂点だけずらす、普通は0
             uint32_t firstInstance //インスタシング描画しないなら0
         );
+        void syncTexture(const HTexture& target);
 
         const InternalCommandList& getInternalCommandData() const;
 
