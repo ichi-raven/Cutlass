@@ -61,9 +61,9 @@ namespace Cutlass
         uint32_t firstInstance; //インスタシング描画しないなら0
     };
 
-    struct CmdSyncTexture
+    struct CmdSync
     {
-        HTexture target;
+        //HRender target;
     };
 
     //struct CmdSyncBuffer
@@ -82,7 +82,7 @@ namespace Cutlass
         eBindSRSet,
         eRenderIndexed,
         eRender,
-        eSyncTexture,
+        eSync,
         //eSyncBuffer,
     };
 
@@ -97,7 +97,7 @@ namespace Cutlass
         CmdBindSRSet,
         CmdRenderIndexed,
         CmdRender,
-        CmdSyncTexture
+        CmdSync
     >;
 
     using InternalCommandList = std::vector<std::pair<CommandType, CommandInfoVariant>>;
@@ -127,7 +127,7 @@ namespace Cutlass
             uint32_t vertexOffset,  //描画し終わった頂点だけずらす、普通は0
             uint32_t firstInstance //インスタシング描画しないなら0
         );
-        void syncTexture(const HTexture& target);
+        void sync();
 
         const InternalCommandList& getInternalCommandData() const;
 

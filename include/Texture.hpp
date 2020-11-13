@@ -16,17 +16,17 @@ namespace Cutlass
         //eUnordered,
     };
 
-    enum class TextureDimention
+    enum class Dimention
     {
         e2D,
         //e3D, //現段階ではまだ未定
     };
 
-    enum class TextureFormatType
-    {
-        eUNorm,
-        eFloat,
-    };
+    // enum class FormatType
+    // {
+    //     eUNorm,
+    //     eFloat,
+    // };
 
 	enum class SamplerType
 	{
@@ -36,8 +36,8 @@ namespace Cutlass
     struct TextureInfo
     {
         TextureUsage usage;
-        TextureDimention dimention;
-        std::pair<ResourceType, TextureFormatType> format;
+        Dimention dimention;
+        ResourceType format;
 		SamplerType samplerType;
         bool isHostVisible;
         uint32_t width;

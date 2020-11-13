@@ -604,21 +604,23 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Context::createSwapchain(WindowObject &wo)
+    Result Context::createSwapchain(WindowObject &wo, bool vsync)
     {
         Result result;
 
         if (mMaxFrameNum < wo.mSurfaceCaps.minImageCount)
         {
             std::cerr << "required frame count is lower than minimum surface frame count!\n";
+            std::cerr << "minimum frame count : " << wo.mSurfaceCaps.minImageCount << "\n";
             return Result::eFailure;
         }
 
-        // if (mMaxFrameNum > wo.mSurfaceCaps.maxImageCount)
-        // {
-        //     std::cerr << "required frame count is upper than maximum surface frame count!\n";
-        //     return Result::eFailure;
-        // }
+        if (wo.mSurfaceCaps.maxImageCount && mMaxFrameNum > wo.mSurfaceCaps.maxImageCount)
+        {
+            std::cerr << "required frame count is upper than maximum surface frame count!\n";
+            std::cerr << "maximum frame count : " << wo.mSurfaceCaps.maxImageCount << "\n";
+            return Result::eFailure;
+        }
 
         auto &extent = wo.mSurfaceCaps.currentExtent;
         if (extent.width <= 0u || extent.height <= 0u)
@@ -645,7 +647,7 @@ namespace Cutlass
         ci.imageArrayLayers = 1;
         ci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
         ci.queueFamilyIndexCount = 0;
-        ci.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+        ci.presentMode = vsync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR;
         ci.oldSwapchain = VK_NULL_HANDLE;
         ci.clipped = VK_TRUE;
         ci.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
@@ -864,7 +866,7 @@ namespace Cutlass
         }
         std::cerr << "created VkSurfaceKHR\n";
 
-        result = createSwapchain(wo);
+        result = createSwapchain(wo, info.vsync);
         if (Result::eSuccess != result)
         {
             return result;
@@ -1040,41 +1042,71 @@ namespace Cutlass
             ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
             ci.pNext = nullptr;
 
-            switch (info.format.first)
+            switch (info.format)
             {
-            case ResourceType::eFVec3:
-                switch (info.format.second)
-                {
-                case TextureFormatType::eUNorm:
-                    io.format = VK_FORMAT_R8G8B8_UNORM;
-                    io.mSizeOfChannel = 3;
-                    break;
-                case TextureFormatType::eFloat:
-                    io.format = VK_FORMAT_R16G16B16_SFLOAT;
-                    io.mSizeOfChannel = 6;
-                    break;
-                default:
-                    std::cerr << "invalid type of pixel!\n";
-                    return Result::eFailure;
-                    break;
-                }
+            case ResourceType::eUnorm:
+                io.format = VK_FORMAT_R8_UNORM;
+                io.mSizeOfChannel = 1;
                 break;
-            case ResourceType::eFVec4:
-                switch (info.format.second)
-                {
-                case TextureFormatType::eUNorm:
-                    io.format = VK_FORMAT_R8G8B8A8_UNORM;
-                    io.mSizeOfChannel = 4;
-                    break;
-                case TextureFormatType::eFloat:
-                    io.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-                    io.mSizeOfChannel = 8;
-                    break;
-                default:
-                    std::cerr << "invalid type of pixel!\n";
-                    return Result::eFailure;
-                    break;
-                }
+            case ResourceType::eFloat32:
+                io.format = VK_FORMAT_R32_SFLOAT;
+                io.mSizeOfChannel = 4;
+                break;
+            case ResourceType::eUint32:
+                io.format = VK_FORMAT_R32_UINT;
+                io.mSizeOfChannel = 4;
+                break;
+            case ResourceType::eInt32:
+                io.format = VK_FORMAT_R32_SINT;
+                io.mSizeOfChannel = 4;
+                break;
+
+            case ResourceType::eUNormVec2:
+                io.format = VK_FORMAT_R8G8_UNORM;
+                io.mSizeOfChannel = 2;
+            case ResourceType::eF32Vec2:
+                io.format = VK_FORMAT_R32G32_SFLOAT;
+                io.mSizeOfChannel = 8;
+                break;
+            case ResourceType::eU32Vec2:
+                io.format = VK_FORMAT_R32G32_UINT;
+                io.mSizeOfChannel = 8;
+                break;
+            case ResourceType::eS32Vec2:
+                io.format = VK_FORMAT_R32G32_SINT;
+                io.mSizeOfChannel = 8;
+                break;
+
+            case ResourceType::eUNormVec3:
+                io.format = VK_FORMAT_R8G8B8_UNORM;
+                io.mSizeOfChannel = 3;
+            case ResourceType::eF32Vec3:
+                io.format = VK_FORMAT_R32G32B32_SFLOAT;
+                io.mSizeOfChannel = 12;
+                break;
+            case ResourceType::eU32Vec3:
+                io.format = VK_FORMAT_R32G32B32_UINT;
+                io.mSizeOfChannel = 12;
+                break;
+            case ResourceType::eS32Vec3:
+                io.format = VK_FORMAT_R32G32B32_SINT;
+                io.mSizeOfChannel = 12;
+                break;
+
+            case ResourceType::eUNormVec4:
+                io.format = VK_FORMAT_R8G8B8A8_UNORM;
+                io.mSizeOfChannel = 4;
+            case ResourceType::eF32Vec4:
+                io.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+                io.mSizeOfChannel = 16;
+                break;
+            case ResourceType::eU32Vec4:
+                io.format = VK_FORMAT_R32G32B32A32_UINT;
+                io.mSizeOfChannel = 16;
+                break;
+            case ResourceType::eS32Vec4:
+                io.format = VK_FORMAT_R32G32B32A32_SINT;
+                io.mSizeOfChannel = 16;
                 break;
             default:
                 std::cerr << "invalid type of pixel!\n";
@@ -1086,7 +1118,7 @@ namespace Cutlass
 
             switch (info.dimention)
             {
-            case TextureDimention::e2D:
+            case Dimention::e2D:
                 ci.imageType = VK_IMAGE_TYPE_2D;
                 ci.extent = {uint32_t(info.width), uint32_t(info.height), 1};
                 if (info.depth != 1)
@@ -1180,7 +1212,7 @@ namespace Cutlass
 
             switch (info.dimention)
             {
-            case TextureDimention::e2D:
+            case Dimention::e2D:
                 ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
                 break;
                 // case TextureDimention::e3D:
@@ -1727,6 +1759,7 @@ namespace Cutlass
 
         {
             VkRenderPassCreateInfo ci{};
+            ci.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
             std::vector<VkAttachmentDescription> adVec;
             VkAttachmentReference ar;
             VkAttachmentReference depthAr;
@@ -1883,13 +1916,6 @@ namespace Cutlass
         Result result;
         RenderDSTObject rdsto;
 
-        rdsto.mHWindow = std::nullopt;
-
-        VkRenderPassCreateInfo ci{};
-        std::vector<VkAttachmentDescription> adVec;
-        std::vector<VkAttachmentReference> arVec;
-        std::optional<HTexture> hDepthBuffer = std::nullopt;
-
         if (mInitializeInfo.debugFlag) //for debug mode
         {
             for (auto &tex : textures)
@@ -1918,6 +1944,15 @@ namespace Cutlass
                 }
             }
         }
+
+        rdsto.mHWindow = std::nullopt;
+        rdsto.colorTargets = textures;
+
+        VkRenderPassCreateInfo ci{};
+        ci.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        std::vector<VkAttachmentDescription> adVec;
+        std::vector<VkAttachmentReference> arVec;
+        std::optional<HTexture> hDepthBuffer = std::nullopt;
 
         //Renderpass, Framebuffer
         for (auto &tex : textures)
@@ -1951,13 +1986,17 @@ namespace Cutlass
             default: //did not expected
                 return Result::eFailure;
                 break;
-            }
+            }        
+
         }
 
         VkSubpassDescription subpassDesc{};
         subpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpassDesc.colorAttachmentCount = arVec.size();
         subpassDesc.pColorAttachments = arVec.data();
+        rdsto.mHWindow = std::nullopt;
+        rdsto.colorTargets = textures;
+
 
         //if use depthBuffer, create attachment
         if (hDepthBuffer)
@@ -2079,24 +2118,68 @@ namespace Cutlass
                         ia_vec.back().offset = offset;
                         switch (info.vertexLayout.value().layouts[i].first)
                         {
-                        case ResourceType::eInt32:
-                            ia_vec.back().format = VK_FORMAT_R32_SINT;
+                        case ResourceType::eUnorm:
+                            ia_vec.back().format = VK_FORMAT_R8_UNORM;
+                            offset += 1;
+                            break;
+                        case ResourceType::eFloat32:
+                            ia_vec.back().format = VK_FORMAT_R32_SFLOAT;
                             offset += 4;
                             break;
                         case ResourceType::eUint32:
                             ia_vec.back().format = VK_FORMAT_R32_UINT;
                             offset += 4;
                             break;
-                        case ResourceType::eFVec2:
+                        case ResourceType::eInt32:
+                            ia_vec.back().format = VK_FORMAT_R32_SINT;
+                            offset += 4;
+                            break;
+
+                        case ResourceType::eUNormVec2:
+                            ia_vec.back().format = VK_FORMAT_R8G8_UNORM;
+                            offset += 2;
+                        case ResourceType::eF32Vec2:
                             ia_vec.back().format = VK_FORMAT_R32G32_SFLOAT;
                             offset += 8;
                             break;
-                        case ResourceType::eFVec3:
+                        case ResourceType::eU32Vec2:
+                            ia_vec.back().format = VK_FORMAT_R32G32_UINT;
+                            offset += 8;
+                            break;
+                        case ResourceType::eS32Vec2:
+                            ia_vec.back().format = VK_FORMAT_R32G32_SINT;
+                            offset += 8;
+                            break;
+
+                        case ResourceType::eUNormVec3:
+                            ia_vec.back().format = VK_FORMAT_R8G8B8_UNORM;
+                            offset += 3;
+                        case ResourceType::eF32Vec3:
                             ia_vec.back().format = VK_FORMAT_R32G32B32_SFLOAT;
                             offset += 12;
                             break;
-                        case ResourceType::eFVec4:
+                        case ResourceType::eU32Vec3:
+                            ia_vec.back().format = VK_FORMAT_R32G32B32_UINT;
+                            offset += 12;
+                            break;
+                        case ResourceType::eS32Vec3:
+                            ia_vec.back().format = VK_FORMAT_R32G32B32_SINT;
+                            offset += 12;
+                            break;
+
+                        case ResourceType::eUNormVec4:
+                            ia_vec.back().format = VK_FORMAT_R8G8B8A8_UNORM;
+                            offset += 4;
+                        case ResourceType::eF32Vec4:
                             ia_vec.back().format = VK_FORMAT_R32G32B32A32_SFLOAT;
+                            offset += 16;
+                            break;
+                        case ResourceType::eU32Vec4:
+                            ia_vec.back().format = VK_FORMAT_R32G32B32A32_UINT;
+                            offset += 16;
+                            break;
+                        case ResourceType::eS32Vec4:
+                            ia_vec.back().format = VK_FORMAT_R32G32B32A32_SINT;
                             offset += 16;
                             break;
                         default:
@@ -2589,10 +2672,10 @@ namespace Cutlass
                         return Result::eFailure;
                     result = cmdRenderIndexed(co, std::get<CmdRenderIndexed>(command.second));
                     break;
-                case CommandType::eSyncTexture:
-                    if (!std::holds_alternative<CmdSyncTexture>(command.second))
+                case CommandType::eSync:
+                    if (!std::holds_alternative<CmdSync>(command.second))
                         return Result::eFailure;
-                    result = cmdSyncTexture(co, std::get<CmdSyncTexture>(command.second));
+                    result = cmdSync(co, std::get<CmdSync>(command.second));
                     break;
                 default:
                     std::cerr << "invalid command!\n";
@@ -2610,7 +2693,7 @@ namespace Cutlass
                 }
             }
 
-            ++index;//次のコマンドへ
+            ++index;//next command
         }
 
         handle_out = mNextCBHandle++;
@@ -2841,18 +2924,35 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Context::cmdSyncTexture(CommandObject& co, const CmdSyncTexture& info)
+    Result Context::cmdSync(CommandObject& co, const CmdSync& info)
     {
-        VkImageMemoryBarrier imb{};
-        imb.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        imb.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-        imb.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        imb.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        imb.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        imb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        imb.image = mImageMap[info.target].mImage.value();
-        imb.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };//ここやばめ
+        if(mInitializeInfo.debugFlag)
+        {
+            if(!co.mHRenderDST)
+            {
+                std::cerr << "render DST is not registered yet!\n";
+                return Result::eFailure;
+            }
+        }
+
+        auto &rdsto = mRDSTMap[co.mHRenderDST.value()];
+        auto &htexs = rdsto.colorTargets;
+
+        std::vector<VkImageMemoryBarrier> imbs;
+        imbs.reserve(htexs.size());
+        for (const auto &htex : htexs)
+        {
+            imbs.emplace_back();
+            imbs.back().sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            imbs.back().srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            imbs.back().dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            imbs.back().oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            imbs.back().newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            imbs.back().srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            imbs.back().dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            imbs.back().image = mImageMap[htex].mImage.value();
+            imbs.back().subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };//ここやばめ
+        }
 
         vkCmdPipelineBarrier
         (
@@ -2862,7 +2962,7 @@ namespace Cutlass
             VK_DEPENDENCY_BY_REGION_BIT,
             0, nullptr,
             0, nullptr,
-            1, &imb
+            htexs.size(), imbs.data()
         );
 
         return Result::eSuccess;

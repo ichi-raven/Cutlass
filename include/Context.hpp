@@ -28,6 +28,7 @@ namespace Cutlass
         uint32_t width;
         uint32_t height;
         std::string windowName;
+        bool vsync;
     };
 
     struct InitializeInfo
@@ -151,6 +152,8 @@ namespace Cutlass
         {
             std::optional<VkRenderPass> mRenderPass;
             std::vector<std::optional<VkFramebuffer>> mFramebuffers;
+            std::vector<HTexture> colorTargets;
+            std::optional<HTexture> depthTargets;
             std::optional<HWindow> mHWindow;
             DepthStencilState mDSs;
             std::optional<VkExtent3D> mExtent;
@@ -186,7 +189,7 @@ namespace Cutlass
 
         inline Result createSurface(WindowObject &wo);
         inline Result selectSurfaceFormat(WindowObject &wo, VkFormat format);
-        inline Result createSwapchain(WindowObject &wo);
+        inline Result createSwapchain(WindowObject &wo, bool vsync);
         inline Result createSwapchainImages(WindowObject &wo);
         inline Result createDepthBuffer(WindowObject &wo);
         inline Result createSyncObjects(WindowObject &wo);
@@ -208,7 +211,7 @@ namespace Cutlass
         inline Result cmdBindSRSet(CommandObject& co, const CmdBindSRSet &info);
         inline Result cmdRenderIndexed(CommandObject& co, const CmdRenderIndexed &info);
         inline Result cmdRender(CommandObject& co, const CmdRender &info);
-        inline Result cmdSyncTexture(CommandObject& co, const CmdSyncTexture& info);
+        inline Result cmdSync(CommandObject& co, const CmdSync& info);
 
         //ユーザ指定
         InitializeInfo mInitializeInfo;

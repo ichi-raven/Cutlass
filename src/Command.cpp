@@ -56,9 +56,9 @@ namespace Cutlass
         mCommands.emplace_back(CommandType::eRender, CmdRender{vertexCount, instanceCount, vertexOffset, firstInstance});
     }
 
-    void CommandList::syncTexture(const HTexture& target)
+    void CommandList::sync()
     {
-        mCommands.emplace_back(CommandType::eSyncTexture, CmdSyncTexture{target});
+        mCommands.emplace_back(CommandType::eSync, CmdSync{});
     }
 
     const std::vector<std::pair<CommandType, CommandInfoVariant>>& CommandList::getInternalCommandData() const
