@@ -54,7 +54,6 @@ namespace Cutlass
     {
         mMaxFrameNum = 0;
         mCurrentFrame = 0;
-        mFrameBufferIndex = 0;
         mIsInitialized = false;
         mNextWindowHandle = 1;
         mNextBufferHandle = 1;
@@ -1116,9 +1115,9 @@ namespace Cutlass
 
             ci.format = io.format;
 
-            switch (info.dimention)
+            switch (info.dimension)
             {
-            case Dimention::e2D:
+            case Dimension::e2D:
                 ci.imageType = VK_IMAGE_TYPE_2D;
                 ci.extent = {uint32_t(info.width), uint32_t(info.height), 1};
                 if (info.depth != 1)
@@ -1210,9 +1209,9 @@ namespace Cutlass
             VkImageViewCreateInfo ci{};
             ci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 
-            switch (info.dimention)
+            switch (info.dimension)
             {
-            case Dimention::e2D:
+            case Dimension::e2D:
                 ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
                 break;
                 // case TextureDimention::e3D:
@@ -1735,7 +1734,7 @@ namespace Cutlass
 
         Result result;
         RenderDSTObject rdsto;
-
+        rdsto.mFrameBufferIndex = 0;
         rdsto.mDepthTestEnable = depthTestEnable;
 
         //Renderpass, framebuffer
@@ -1890,21 +1889,182 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    //Result Context::createRenderDST(const HTexture& color, HRenderDST& handle_out)
-    //{
+    Result Context::createRenderDST(const HTexture& color, HRenderDST& handle_out)
+    {
+        return createRenderDST(std::vector(1, color), handle_out);
+    }
 
-    //}
-    //Result Context::createRenderDST(const HTexture& color, const HTexture& depth, HRenderDST& handle_out)
-    //{
+    Result Context::createRenderDST(const std::vector<HTexture>& colorTargets, const HTexture& depthTarget, HRenderDST& handle_out)
+    {
+        if (!mIsInitialized)
+        {
+            std::cerr << "context did not initialize yet!\n";
+            return Result::eFailure;
+        }
 
-    //}
-    //Result Context::createRenderDST(const std::vector<HTexture>& colors, HRenderDST& handle_out)
-    //{
+        Result result;
+        RenderDSTObject rdsto;
+        rdsto.mFrameBufferIndex = 0;
+        rdsto.mDepthTestEnable = true;
 
-    //}
+        if (mInitializeInfo.debugFlag) //for debug mode
+        {
+            for (auto& tex : colorTargets)
+            {
+                if (mImageMap.count(tex) <= 0)
+                {
+                    std::cerr << "invalid texture handle\n";
+                    return Result::eFailure;
+                }
+                auto& io = mImageMap[tex];
 
-    //Result Context::createRenderDST(const std::vector<HTexture>& colorTargets, const HTexture& depthTarget, HRenderDST& handle_out)
-    Result Context::createRenderDST(const std::vector<HTexture> &textures, HRenderDST &handle_out)
+                //usage check
+                if (io.usage != TextureUsage::eColorTarget)
+                {
+                    std::cerr << "invalid texture usage\n";
+                    return Result::eFailure;
+                }
+
+                //extent substitute and check
+                if (!rdsto.mExtent)
+                    rdsto.mExtent = io.extent;
+                if (rdsto.mExtent.value().width != io.extent.width || rdsto.mExtent.value().height != io.extent.height || rdsto.mExtent.value().depth != io.extent.depth)
+                {
+                    std::cerr << "invalid texture extent\n";
+                    return Result::eFailure;
+                }
+            }
+
+            if (mImageMap.count(depthTarget) <= 0)
+            {
+                std::cerr << "invalid texture handle\n";
+                return Result::eFailure;
+            }
+
+            auto& io = mImageMap[depthTarget];
+            if (io.usage != TextureUsage::eDepthStencilTarget)
+            {
+                std::cerr << "invalid texture usage\n";
+                return Result::eFailure;
+            }
+
+            //extent substitute and check
+            if (!rdsto.mExtent)
+                rdsto.mExtent = io.extent;
+            if (rdsto.mExtent.value().width != io.extent.width || rdsto.mExtent.value().height != io.extent.height || rdsto.mExtent.value().depth != io.extent.depth)
+            {
+                std::cerr << "invalid texture extent\n";
+                return Result::eFailure;
+            }
+        }
+
+        rdsto.mHWindow = std::nullopt;
+        rdsto.colorTargets = colorTargets;
+
+        VkRenderPassCreateInfo ci{};
+        ci.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        std::vector<VkAttachmentDescription> adVec;
+        std::vector<VkAttachmentReference> arVec;
+
+        //Renderpass, Framebuffer
+        for (auto& tex : colorTargets)
+        {
+
+            auto& io = mImageMap[tex];
+            adVec.emplace_back();
+            arVec.emplace_back();
+
+            if (!rdsto.mExtent)
+                rdsto.mExtent = io.extent;
+
+            adVec.back().format = io.format;
+            adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
+            adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            arVec.back().attachment = 0;
+
+            adVec.back().finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            arVec.back().layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        }
+
+        VkSubpassDescription subpassDesc{};
+        subpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpassDesc.colorAttachmentCount = arVec.size();
+        subpassDesc.pColorAttachments = arVec.data();
+        rdsto.mHWindow = std::nullopt;
+        rdsto.colorTargets = colorTargets;
+
+
+        VkAttachmentReference depthAr;
+        adVec.emplace_back();
+        auto& depthBuffer = mImageMap[depthTarget];
+
+        adVec.back().format = depthBuffer.format;
+        adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
+        adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        adVec.back().finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        depthAr.attachment = 1;
+        depthAr.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        subpassDesc.pDepthStencilAttachment = &depthAr;
+        
+        ci.attachmentCount = adVec.size();
+        ci.pAttachments = adVec.data();
+        ci.subpassCount = 1;
+        ci.pSubpasses = &subpassDesc;
+        {
+            VkRenderPass renderPass;
+            result = checkVkResult(vkCreateRenderPass(mDevice, &ci, nullptr, &renderPass));
+            if (Result::eSuccess != result)
+            {
+                return result;
+            }
+
+            rdsto.mRenderPass = renderPass;
+        }
+
+        VkFramebufferCreateInfo fbci{};
+        fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        fbci.renderPass = rdsto.mRenderPass.value();
+        fbci.width = rdsto.mExtent.value().width;
+        fbci.height = rdsto.mExtent.value().height;
+        fbci.layers = 1;
+
+        fbci.attachmentCount = rdsto.mTargetNum = adVec.size();
+        std::vector<VkImageView> ivVec;
+        for (auto& tex : colorTargets)
+        {
+            const auto& img = mImageMap[tex];
+            ivVec.emplace_back(img.mView.value());
+        }
+
+        fbci.pAttachments = ivVec.data();
+        {
+            VkFramebuffer frameBuffer;
+            result = checkVkResult(vkCreateFramebuffer(mDevice, &fbci, nullptr, &frameBuffer));
+            if (Result::eSuccess != result)
+            {
+                return result;
+            }
+            rdsto.mFramebuffers.emplace_back(frameBuffer);
+        }
+
+
+        handle_out = mNextRenderDSTHandle++;
+        mRDSTMap.emplace(handle_out, rdsto);
+
+        return Result::eSuccess;
+    }
+
+    Result Context::createRenderDST(const HTexture& colorTarget, const HTexture& depthTarget, HRenderDST& handle_out)
+    {
+        return createRenderDST(std::vector(1, colorTarget), depthTarget, handle_out);
+    }
+
+    Result Context::createRenderDST(const std::vector<HTexture> &colorTargets, HRenderDST &handle_out)
     {
 
         if (!mIsInitialized)
@@ -1915,10 +2075,12 @@ namespace Cutlass
 
         Result result;
         RenderDSTObject rdsto;
+        rdsto.mFrameBufferIndex = 0;
+        rdsto.mDepthTestEnable = false;
 
         if (mInitializeInfo.debugFlag) //for debug mode
         {
-            for (auto &tex : textures)
+            for (auto &tex : colorTargets)
             {
                 if (mImageMap.count(tex) <= 0)
                 {
@@ -1946,7 +2108,7 @@ namespace Cutlass
         }
 
         rdsto.mHWindow = std::nullopt;
-        rdsto.colorTargets = textures;
+        rdsto.colorTargets = colorTargets;
 
         VkRenderPassCreateInfo ci{};
         ci.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -1955,7 +2117,7 @@ namespace Cutlass
         std::optional<HTexture> hDepthBuffer = std::nullopt;
 
         //Renderpass, Framebuffer
-        for (auto &tex : textures)
+        for (auto &tex : colorTargets)
         {
 
             auto &io = mImageMap[tex];
@@ -1972,22 +2134,8 @@ namespace Cutlass
             adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
             arVec.back().attachment = 0;
 
-            switch (io.usage)
-            {
-            case TextureUsage::eColorTarget:
-                adVec.back().finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                arVec.back().layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                break;
-            case TextureUsage::eDepthStencilTarget:
-                hDepthBuffer = tex;
-                adVec.pop_back();
-                arVec.pop_back();
-                break;
-            default: //did not expected
-                return Result::eFailure;
-                break;
-            }        
-
+            adVec.back().finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            arVec.back().layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         }
 
         VkSubpassDescription subpassDesc{};
@@ -1995,27 +2143,7 @@ namespace Cutlass
         subpassDesc.colorAttachmentCount = arVec.size();
         subpassDesc.pColorAttachments = arVec.data();
         rdsto.mHWindow = std::nullopt;
-        rdsto.colorTargets = textures;
-
-
-        //if use depthBuffer, create attachment
-        if (hDepthBuffer)
-        {
-            VkAttachmentReference depthAr;
-            adVec.emplace_back();
-            auto &depthBuffer = mImageMap[hDepthBuffer.value()];
-
-            adVec.back().format = depthBuffer.format;
-            adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
-            adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-            adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-            adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            adVec.back().finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-            depthAr.attachment = 1;
-            depthAr.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-            subpassDesc.pDepthStencilAttachment = &depthAr;
-        }
+        rdsto.colorTargets = colorTargets;
 
         ci.attachmentCount = adVec.size();
         ci.pAttachments = adVec.data();
@@ -2042,7 +2170,7 @@ namespace Cutlass
 
         fbci.attachmentCount = rdsto.mTargetNum = adVec.size();
         std::vector<VkImageView> ivVec;
-        for (auto &tex : textures)
+        for (auto &tex : colorTargets)
         {
             const auto &img = mImageMap[tex];
             ivVec.emplace_back(img.mView.value());
@@ -3004,7 +3132,7 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    uint32_t Context::getFrameBufferIndex() const
+    uint32_t Context::getFrameBufferIndex(const HRenderDST& handle) const
     {
         if (!mIsInitialized)
         {
@@ -3012,7 +3140,12 @@ namespace Cutlass
             return 0;
         }
 
-        return mFrameBufferIndex;
+        if (!mRDSTMap.contains(handle))
+        {
+            std::cerr << "invalid handle!\n";
+        }
+
+        return mRDSTMap.at(handle).mFrameBufferIndex;
     }
 
     Result Context::execute(const HCommandBuffer &handle)
@@ -3070,7 +3203,7 @@ namespace Cutlass
                     UINT64_MAX,
                     wo.mPresentCompletedSems[mCurrentFrame],
                     VK_NULL_HANDLE,
-                    &mFrameBufferIndex
+                    &rdsto.mFrameBufferIndex
                 )
             );
 
@@ -3080,16 +3213,16 @@ namespace Cutlass
                 return result;
             }
 
-            if (wo.imagesInFlight[mFrameBufferIndex] != VK_NULL_HANDLE)
-                vkWaitForFences(mDevice, 1, &wo.imagesInFlight[mFrameBufferIndex], VK_TRUE, UINT64_MAX);
-            wo.imagesInFlight[mFrameBufferIndex] = wo.mFences[mCurrentFrame];
+            if (wo.imagesInFlight[rdsto.mFrameBufferIndex] != VK_NULL_HANDLE)
+                vkWaitForFences(mDevice, 1, &wo.imagesInFlight[rdsto.mFrameBufferIndex], VK_TRUE, UINT64_MAX);
+            wo.imagesInFlight[rdsto.mFrameBufferIndex] = wo.mFences[mCurrentFrame];
 
             //submit command
             VkSubmitInfo submitInfo{};
             VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
             submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
             submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &(co.mCommandBuffers[mFrameBufferIndex % co.mCommandBuffers.size()]);
+            submitInfo.pCommandBuffers = &(co.mCommandBuffers[rdsto.mFrameBufferIndex % co.mCommandBuffers.size()]);
             submitInfo.pWaitDstStageMask = &waitStageMask;
             submitInfo.waitSemaphoreCount = 1;
             submitInfo.pWaitSemaphores = &wo.mPresentCompletedSems[mCurrentFrame];
@@ -3114,7 +3247,7 @@ namespace Cutlass
             presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
             presentInfo.swapchainCount = 1;
             presentInfo.pSwapchains = &wo.mSwapchain.value();
-            presentInfo.pImageIndices = &mFrameBufferIndex;
+            presentInfo.pImageIndices = &rdsto.mFrameBufferIndex;
             presentInfo.waitSemaphoreCount = 1;
             presentInfo.pWaitSemaphores = &wo.mRenderCompletedSems[mCurrentFrame];
 
@@ -3132,7 +3265,7 @@ namespace Cutlass
             VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
             submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
             submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &(co.mCommandBuffers[mFrameBufferIndex % co.mCommandBuffers.size()]);
+            submitInfo.pCommandBuffers = &(co.mCommandBuffers[rdsto.mFrameBufferIndex % co.mCommandBuffers.size()]);
             submitInfo.pWaitDstStageMask = &waitStageMask;
             submitInfo.waitSemaphoreCount = 0;
             submitInfo.pWaitSemaphores = nullptr;

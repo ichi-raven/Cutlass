@@ -2,6 +2,7 @@
 
 #include <vulkan/vk_layer.h>
 #include <vulkan/vulkan.hpp>
+
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -84,10 +85,10 @@ namespace Cutlass
         Result createRenderDST(const HWindow &handle, bool depthTestEnable, HRenderDST &handle_out);
 
         ////描画対象オブジェクトをテクスチャから構築
-        //Result createRenderDST(const HTexture& color, HRenderDST& handle_out);
-        //Result createRenderDST(const HTexture& color, const HTexture& depth, HRenderDST& handle_out);
+        Result createRenderDST(const HTexture& color, HRenderDST& handle_out);
+        Result createRenderDST(const HTexture& color, const HTexture& depth, HRenderDST& handle_out);
         Result createRenderDST(const std::vector<HTexture>& colors, HRenderDST& handle_out);
-        //Result createRenderDST(const std::vector<HTexture>& colors, const HTexture& depth, HRenderDST& handle_out);
+        Result createRenderDST(const std::vector<HTexture>& colors, const HTexture& depth, HRenderDST& handle_out);
 
         //描画パイプライン構築
         Result createRenderPipeline(const RenderPipelineInfo &info, HRenderPipeline& handle_out);
@@ -99,7 +100,7 @@ namespace Cutlass
         //ウィンドウイベントをハンドリング
         Result handleEvent(const HWindow& window, Event& event_out);
 
-        uint32_t getFrameBufferIndex() const;//現在処理中のフレームバッファのインデックスを取得(0~frameCount)
+        uint32_t getFrameBufferIndex(const HRenderDST& handle) const;//現在処理中のフレームバッファのインデックスを取得(0~frameCount)
 
         //コマンド実行, バックバッファ表示
         Result execute(const HCommandBuffer& handle);
@@ -159,6 +160,8 @@ namespace Cutlass
             std::optional<VkExtent3D> mExtent;
             uint32_t mTargetNum;
             bool mDepthTestEnable;
+            //取得されたスワップチェーンイメージのインデックス、テクスチャレンダリングなどしているときは関係ない
+            uint32_t mFrameBufferIndex;
         };
 
         struct RenderPipelineObject
@@ -245,8 +248,6 @@ namespace Cutlass
         PFN_vkDestroyDebugReportCallbackEXT mvkDestroyDebugReportCallbackEXT;
         VkDebugReportCallbackEXT mDebugReport;
 
-        //取得されたスワップチェーンイメージのインデックス、テクスチャレンダリングなどしているときは関係ない
-        uint32_t mFrameBufferIndex;
 
         //現在のフレーム(注意 : 処理中のフレームバッファのインデックスとは関係ない)
         uint32_t mCurrentFrame;

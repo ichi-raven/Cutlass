@@ -16,7 +16,7 @@ namespace Cutlass
         //eUnordered,
     };
 
-    enum class Dimention
+    enum class Dimension
     {
         e2D,
         //e3D, //現段階ではまだ未定
@@ -36,7 +36,7 @@ namespace Cutlass
     struct TextureInfo
     {
         TextureUsage usage;
-        Dimention dimention;
+        Dimension dimension;
         ResourceType format;
 		SamplerType samplerType;
         bool isHostVisible;
