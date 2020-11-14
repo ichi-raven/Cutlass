@@ -275,6 +275,8 @@ namespace Cutlass
 
         bool windowShouldClose();
 
+        bool windowResized();
+
         std::unordered_map<Key, uint32_t> &getKeyRefInternal();
 
         void updateInternal(double mouseX, double mouseY, bool windowShouldClose = false);

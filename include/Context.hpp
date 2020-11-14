@@ -28,16 +28,16 @@ namespace Cutlass
     {
         uint32_t width;
         uint32_t height;
+        uint32_t frameCount;
         std::string windowName;
         bool vsync;
+        bool fullScreen;
     };
 
     struct InitializeInfo
     {
         std::string appName;
-        uint32_t frameCount;
         bool debugFlag;
-        //usage
     };
 
     class Context
@@ -78,13 +78,10 @@ namespace Cutlass
         //テクスチャにデータ書き込み(使用注意, 書き込むデータのサイズはテクスチャのサイズに従うもの以外危険)
         Result writeTexture(const void *const pData, const HTexture &handle);
 
-        //用途変更
-        //Result changeTextureUsage(TextureUsage prev, TextureUsage next, const HTexture *pHandle);
-
         //描画対象オブジェクトをスワップチェインから構築
         Result createRenderDST(const HWindow &handle, bool depthTestEnable, HRenderDST &handle_out);
 
-        ////描画対象オブジェクトをテクスチャから構築
+        //描画対象オブジェクトをテクスチャから構築
         Result createRenderDST(const HTexture& color, HRenderDST& handle_out);
         Result createRenderDST(const HTexture& color, const HTexture& depth, HRenderDST& handle_out);
         Result createRenderDST(const std::vector<HTexture>& colors, HRenderDST& handle_out);
@@ -127,6 +124,13 @@ namespace Cutlass
             std::vector<VkFence> imagesInFlight;
             std::vector<VkSemaphore> mRenderCompletedSems;
             std::vector<VkSemaphore> mPresentCompletedSems;
+
+            //現在のフレーム(注意 : 処理中のフレームバッファのインデックスとは関係ない)
+            uint32_t mCurrentFrame;
+            //フレームの個数
+            uint32_t mMaxFrameNum;
+            //同時処理可能なフレーム数
+            uint32_t mMaxFrameInFlight;
         };
 
         struct BufferObject
@@ -249,13 +253,7 @@ namespace Cutlass
         VkDebugReportCallbackEXT mDebugReport;
 
 
-        //現在のフレーム(注意 : 処理中のフレームバッファのインデックスとは関係ない)
-        uint32_t mCurrentFrame;
-        //フレームの個数
-        uint32_t mMaxFrameNum;
-        //同時処理可能なフレーム数
-        uint32_t mMaxFrameInFlight;
-
+        uint32_t mMaxFrame;
         //初期化確認
         bool mIsInitialized;
     };

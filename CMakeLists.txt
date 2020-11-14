@@ -17,10 +17,11 @@ FILE(GLOB HDRS include/*.hpp)
 
 add_library(cutlass STATIC ${SRCS})
 
-TARGET_LINK_LIBRARIES(cutlass
+TARGET_LINK_LIBRARIES(
+   cutlass
    vulkan
-)
    glfw
+)
 
 install(TARGETS cutlass ARCHIVE DESTINATION lib LIBRARY DESTINATION lib)
 install(FILES ${HDRS} DESTINATION include/Cutlass)

@@ -9,10 +9,8 @@ namespace Cutlass
 {
     struct ShaderResourceSetLayout
     {
-        //ShaderResourceSetLayout();
-
-        void addUniformBuffer(uint8_t binding);
-        void addCombinedTexture(uint8_t binding);
+        void allocForUniformBuffer(uint8_t binding);
+        void allocForCombinedTexture(uint8_t binding);
 
         const std::vector<uint8_t>& getUniformBufferBindings() const;
         const std::vector<uint8_t>& getCombinedTextureBindings() const;
@@ -28,15 +26,8 @@ namespace Cutlass
         uint32_t maxSetCount;
     };
 
-    // struct ShaderResourceSet
-    // {
-    //     std::vector<HBuffer> uniformBuffer;
-    //     std::vector<HTexture> combinedTexture;
-    // };
-
     struct ShaderResourceSet
     {
-
         void setUniformBuffer(uint8_t binding, HBuffer& handle);
         void setCombinedTexture(uint8_t binding, HBuffer &handle);
 

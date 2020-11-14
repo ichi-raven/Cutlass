@@ -22,12 +22,6 @@ namespace Cutlass
         //e3D, //現段階ではまだ未定
     };
 
-    // enum class FormatType
-    // {
-    //     eUNorm,
-    //     eFloat,
-    // };
-
 	enum class SamplerType
 	{
 		eDefault,

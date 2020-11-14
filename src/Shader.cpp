@@ -4,23 +4,14 @@
 
 namespace Cutlass
 {
-    // ShaderResourceSetLayout::ShaderResourceSetLayout()
-    // {
-    //     cursor = 0;
-    // }
-
-    void ShaderResourceSetLayout::addUniformBuffer(uint8_t binding)
+    void ShaderResourceSetLayout::allocForUniformBuffer(uint8_t binding)
     {
         uniformBuffer.emplace_back(binding);
-        // if(cursor == 0)
-        //     std::cerr << "warning : shader resource binding cursor overflowed\n";
     }
 
-    void ShaderResourceSetLayout::addCombinedTexture(uint8_t binding)
+    void ShaderResourceSetLayout::allocForCombinedTexture(uint8_t binding)
     {
         combinedTexture.emplace_back(binding);
-        // if (cursor == 0)
-        //     std::cerr << "warning : shader resource binding cursor overflowed\n";
     }
 
     const std::vector<uint8_t>& ShaderResourceSetLayout::getUniformBufferBindings() const
@@ -32,10 +23,6 @@ namespace Cutlass
     {
         return combinedTexture;
     }
-
-
-
-
 
 
     void ShaderResourceSet::setUniformBuffer(uint8_t binding, HBuffer &handle)

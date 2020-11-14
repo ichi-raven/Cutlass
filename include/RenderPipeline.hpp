@@ -14,12 +14,6 @@
 
 namespace Cutlass
 {
-    // enum class RenderDSTType
-    // {
-    //     eColor,
-    //     eDepth,
-    // };
-
     using Viewport = std::array<std::array<float, 3>, 2>;
     using Scissor = std::array<std::array<float, 2>, 2>;
 
