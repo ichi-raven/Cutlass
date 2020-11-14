@@ -3140,7 +3140,7 @@ namespace Cutlass
             return 0;
         }
 
-        if (!mRDSTMap.contains(handle))
+        if (!mRDSTMap.count(handle) <= 0)
         {
             std::cerr << "invalid handle!\n";
         }

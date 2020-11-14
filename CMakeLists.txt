@@ -19,8 +19,8 @@ add_library(cutlass STATIC ${SRCS})
 
 TARGET_LINK_LIBRARIES(cutlass
    vulkan
-   glfw
 )
+   glfw
 
 install(TARGETS cutlass ARCHIVE DESTINATION lib LIBRARY DESTINATION lib)
 install(FILES ${HDRS} DESTINATION include/Cutlass)
