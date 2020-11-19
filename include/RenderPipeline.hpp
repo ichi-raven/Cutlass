@@ -90,6 +90,58 @@ namespace Cutlass
 
     struct RenderPipelineInfo
     {
+        RenderPipelineInfo() {}
+
+        RenderPipelineInfo
+        (
+            const ColorBlend& colorBlend,
+            const Topology& topology,
+            const RasterizerState& rasterizerState,
+            const MultiSampleState& multiSampleState,
+            const DepthStencilState& depthStencilState,
+            const Shader& VS, const Shader& FS,
+            const ShaderResourceDesc& SRDesc,
+            const HRenderDST& renderDST
+        )
+            : colorBlend(colorBlend)
+            , topology(topology)
+            , rasterizerState(rasterizerState)
+            , multiSampleState(multiSampleState)
+            , depthStencilState(depthStencilState)
+            , VS(VS)
+            , FS(FS)
+            , SRDesc(SRDesc)
+            , renderDST(renderDST)
+        {
+
+        }
+
+        RenderPipelineInfo
+        (
+            const VertexLayout& vertecLayout,
+            const ColorBlend& colorBlend,
+            const Topology& topology,
+            const RasterizerState& rasterizerState,
+            const MultiSampleState& multiSampleState,
+            const DepthStencilState& depthStencilState,
+            const Shader& VS, const Shader& FS,
+            const ShaderResourceDesc& SRDesc,
+            const HRenderDST& renderDST
+        )
+            : vertexLayout(vertecLayout)
+            , colorBlend(colorBlend)
+            , topology(topology)
+            , rasterizerState(rasterizerState)
+            , multiSampleState(multiSampleState)
+            , depthStencilState(depthStencilState)
+            , VS(VS)
+            , FS(FS)
+            , SRDesc(SRDesc)
+            , renderDST(renderDST)
+        {
+
+        }
+
         std::optional<VertexLayout> vertexLayout;
         ColorBlend colorBlend;
         Topology topology;

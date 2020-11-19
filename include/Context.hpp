@@ -26,6 +26,30 @@ namespace Cutlass
 
     struct WindowInfo
     {
+        WindowInfo() {}
+
+        WindowInfo(const uint32_t width, const uint32_t height, const uint32_t frameCount, const std::string& windowName, bool fullScreen = false, bool vsync = true)
+            : width(width)
+            , height(height)
+            , frameCount(frameCount)
+            , windowName(windowName)
+            , vsync(vsync)
+            , fullScreen(fullScreen)
+        {
+
+        }
+
+        WindowInfo(const uint32_t width, const uint32_t height, const uint32_t frameCount, const char* windowName, bool fullScreen = false, bool vsync = true)
+            : width(width)
+            , height(height)
+            , frameCount(frameCount)
+            , windowName(std::string(windowName))
+            , vsync(vsync)
+            , fullScreen(fullScreen)
+        {
+
+        }
+
         uint32_t width;
         uint32_t height;
         uint32_t frameCount;
@@ -36,6 +60,22 @@ namespace Cutlass
 
     struct InitializeInfo
     {
+        InitializeInfo() {}
+
+        InitializeInfo(const std::string& appName, bool debugFlag)
+            : appName(appName)
+            , debugFlag(debugFlag)
+        {
+
+        }
+
+        InitializeInfo(const char* appName, bool debugFlag)
+            : appName(std::string(appName))
+            , debugFlag(debugFlag)
+        {
+
+        }
+
         std::string appName;
         bool debugFlag;
     };

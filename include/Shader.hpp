@@ -23,7 +23,7 @@ namespace Cutlass
     struct ShaderResourceDesc
     {
         ShaderResourceSetLayout layout;
-        uint32_t maxSetCount;
+        uint32_t setCount;
     };
 
     struct ShaderResourceSet
@@ -41,6 +41,23 @@ namespace Cutlass
 
     struct Shader
     {
+        Shader() {}
+
+        Shader(const std::string& path, const std::string& entryPoint)
+            : path(path)
+            , entryPoint(entryPoint)
+
+        {
+
+        }
+
+        Shader(const char* path, const char* entryPoint)
+            : path(std::string(path))
+            , entryPoint(std::string(entryPoint))
+        {
+
+        }
+
         std::string path;
         std::string entryPoint;
     };

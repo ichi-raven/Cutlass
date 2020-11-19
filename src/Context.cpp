@@ -593,6 +593,8 @@ namespace Cutlass
     {
         Result result;
 
+        mMaxFrame = std::max(wo.mMaxFrameNum, mMaxFrame);
+
         if (wo.mMaxFrameNum < wo.mSurfaceCaps.minImageCount)
         {
             std::cerr << "required frame count is lower than minimum surface frame count!\n";
@@ -2603,21 +2605,21 @@ namespace Cutlass
                 }
             }
 
-            if (info.SRDesc.maxSetCount > 0)
+            if (info.SRDesc.setCount > 0)
             { //DescriptorPool
                 std::vector<VkDescriptorPoolSize> sizes;
 
                 if(info.SRDesc.layout.getUniformBufferBindings().size() > 0)
                 {
                     sizes.emplace_back();
-                    sizes.back().descriptorCount = info.SRDesc.layout.getUniformBufferBindings().size() * info.SRDesc.maxSetCount;
+                    sizes.back().descriptorCount = info.SRDesc.layout.getUniformBufferBindings().size() * info.SRDesc.setCount;
                     sizes.back().type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
                 }
 
                 if(info.SRDesc.layout.getCombinedTextureBindings().size() > 0)
                 {
                     sizes.emplace_back();
-                    sizes.back().descriptorCount = info.SRDesc.layout.getCombinedTextureBindings().size() * info.SRDesc.maxSetCount;
+                    sizes.back().descriptorCount = info.SRDesc.layout.getCombinedTextureBindings().size() * info.SRDesc.setCount;
                     sizes.back().type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                 }
 
@@ -2625,7 +2627,7 @@ namespace Cutlass
                 dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
                 dpci.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
-                dpci.maxSets = info.SRDesc.maxSetCount;
+                dpci.maxSets = info.SRDesc.setCount;
                 dpci.poolSizeCount = sizes.size();
                 dpci.pPoolSizes = sizes.data();
                 {
