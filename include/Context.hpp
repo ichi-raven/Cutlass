@@ -100,17 +100,20 @@ namespace Cutlass
         //初期化
         Result initialize(const InitializeInfo &info);
 
-        //ウィンドウ作成
+        //ウィンドウ作成・破棄
         Result createWindow(const WindowInfo &info, HWindow& handle_out);
+        Result destroyWindow(const HWindow& handle);
 
-        //バッファ作成
+        //バッファ作成・破棄
         Result createBuffer(const BufferInfo &info, HBuffer& handle_out);
+        Result destroyBuffer(const HBuffer& handle);
 
         //バッファ書き込み
         Result writeBuffer(const size_t size, const void *const pData, const HBuffer &handle);
 
-        //テクスチャ作成
+        //テクスチャ作成・破棄
         Result createTexture(const TextureInfo &info, HTexture& handle_out);
+        Result destroyTexture(const HTexture& handle);
 
         //ファイルからテクスチャ作成
         Result createTextureFromFile(const char *fileName, HTexture &handle_out);
@@ -119,7 +122,7 @@ namespace Cutlass
         Result writeTexture(const void *const pData, const HTexture &handle);
 
         //描画対象オブジェクトをスワップチェインから構築
-        Result createRenderDST(const HWindow &handle, bool depthTestEnable, HRenderDST &handle_out);
+        Result createRenderDST(const HWindow& handle, bool depthTestEnable, HRenderDST& handle_out);
 
         //描画対象オブジェクトをテクスチャから構築
         Result createRenderDST(const HTexture& color, HRenderDST& handle_out);
@@ -127,12 +130,16 @@ namespace Cutlass
         Result createRenderDST(const std::vector<HTexture>& colors, HRenderDST& handle_out);
         Result createRenderDST(const std::vector<HTexture>& colors, const HTexture& depth, HRenderDST& handle_out);
 
+        Result destroyRenderDST(const HRenderDST& handle);
+
         //描画パイプライン構築
         Result createRenderPipeline(const RenderPipelineInfo &info, HRenderPipeline& handle_out);
+        Result destroyRenderPipeline(const HRenderPipeline& handle);
 
         //描画コマンドバッファを作成
         Result createCommandBuffer(const std::vector<CommandList>& commandLists, HCommandBuffer& handle_out);
         Result createCommandBuffer(const CommandList& commandList, HCommandBuffer& handle_out);
+        Result destroyCommandBuffer(const HCommandBuffer& handle);
 
         //ウィンドウイベントをハンドリング
         Result handleEvent(const HWindow& window, Event& event_out);
