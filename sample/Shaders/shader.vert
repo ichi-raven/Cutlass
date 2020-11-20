@@ -27,8 +27,7 @@ void main()
     fragColor = inColor;
     fragUV = inUV;
     fragNormal = inNormal;
-    vec4 pos = proj * view * model * vec4(inPosition, 1.0);
+    vec4 pos = proj * view * model * inPos;
     debugPos = inPosition;
     gl_Position = pos;
-    //gl_Position = vec4(inPosition, 1.0);
 }
