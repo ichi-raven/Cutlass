@@ -5,6 +5,8 @@
 #include <vector>
 #include <variant>
 #include <memory>
+#include <mutex>
+#include <thread>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
@@ -3246,24 +3248,28 @@ namespace Cutlass
             }
         }
 
-        auto &wo = mWindowMap[handle];
+        auto& wo = mWindowMap[handle];
         glfwPollEvents();
 
         double x, y;
         glfwGetCursorPos(wo.mpWindow.value(), &x, &y);
 
-        for (uint32_t i = 0; i < sizeof(keyIndex) / sizeof(decltype(keyIndex[0])); ++i)
+        auto& keysRef = event_out.getKeyRefInternal();
+
+        for (const auto& key : event_out.getKeyQueries())
         {
-            switch (glfwGetKey(wo.mpWindow.value(), keyIndex[i]))
+            switch (glfwGetKey(wo.mpWindow.value(), static_cast<int>(key)))
             {
             case GLFW_PRESS:
-                ++(event_out.getKeyRefInternal().at(static_cast<Key>(keyIndex[i])));
+                ++keysRef.at(key);
                 break;
             case GLFW_RELEASE:
-                event_out.getKeyRefInternal().at(static_cast<Key>(keyIndex[i])) = UINT32_MAX;
+                keysRef.at(key) = UINT32_MAX;
                 break;
             }
         }
+
+        event_out.getKeyQueries().clear();
 
         event_out.updateInternal(x, y, static_cast<bool>(glfwWindowShouldClose(wo.mpWindow.value())));
 

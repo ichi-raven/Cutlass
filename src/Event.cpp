@@ -12,10 +12,13 @@ namespace Cutlass
         mMouseX = mMouseY = 0;
 
         mWindowShouldClose = false;
+        mQueries.reserve(50);
     }
 
     KeyState Event::getKeyState(Key key)
     {
+        mQueries.emplace_back(key);
+
         if(mKeys[key] == 1)
             return KeyState::ePressed;
         if (mKeys[key] > 1)
@@ -31,6 +34,7 @@ namespace Cutlass
 
     uint32_t Event::getKeyFrame(Key key)
     {
+        mQueries.emplace_back(key);
         return mKeys[key] == UINT32_MAX ? 0 : mKeys[key];
     }
 
@@ -45,6 +49,11 @@ namespace Cutlass
         return mWindowShouldClose;
     }
 
+    std::vector<Key>& Event::getKeyQueries()
+    {
+        return mQueries;
+    }
+
     std::unordered_map<Key, uint32_t> & Event::getKeyRefInternal()
     {
         return mKeys;
@@ -52,6 +61,7 @@ namespace Cutlass
 
     void Event::updateInternal(double mouseX, double mouseY, bool windowShouldClose)
     {
+
         mMouseX = mouseX;
         mMouseY = mouseY;
         mWindowShouldClose = windowShouldClose;
