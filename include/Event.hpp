@@ -1,7 +1,7 @@
 #pragma once
 
 #include <unordered_map>
-#include <mutex>
+#include <vector>
 #include <cstdint>
 
 namespace Cutlass
