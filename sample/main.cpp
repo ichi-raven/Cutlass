@@ -240,17 +240,16 @@ int main()
         DepthClearValue dcv(1.f, 0);
         for (size_t i = 0; i < commandLists.size(); ++i)
         {
-            commandLists[i].beginRenderPipeline(renderPipeline1, ccv, dcv);
             commandLists[i].bindVB(vertexBuffer);
             commandLists[i].bindIB(indexBuffer);
+            
+            commandLists[i].beginRenderPipeline(renderPipeline1, ccv, dcv);
             commandLists[i].bindSRSet(Sets1[i]);
             commandLists[i].renderIndexed(indices.size(), 1, 0, 0, 0);
             commandLists[i].endRenderPipeline();
             commandLists[i].sync();
 
             commandLists[i].beginRenderPipeline(renderPipeline2);
-            commandLists[i].bindVB(vertexBuffer);
-            commandLists[i].bindIB(indexBuffer);
             commandLists[i].bindSRSet(Sets2[i]);
             commandLists[i].renderIndexed(indices.size(), 1, 0, 0, 0);
             commandLists[i].endRenderPipeline();
