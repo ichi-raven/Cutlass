@@ -8,10 +8,10 @@ namespace Cutlass
 {
     enum class KeyState
     {
+        eNone = 0,
         ePressed,
-        eReleased,
         eHeld,
-        eNone,
+        eReleased,
     };
 
     enum class Key
@@ -263,7 +263,7 @@ namespace Cutlass
             static_cast<uint16_t>(Key::Menu)
             };
 
-    //“ü—Í‚Ì‚‘¬‰»‚Ì‚½‚ßA•K‚¸1F’x‰„‚ª”­¶‚µ‚Ä‚µ‚Ü‚¤
+    //ï¿½ï¿½ï¿½Í‚Ìï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì‚ï¿½ï¿½ßAï¿½Kï¿½ï¿½1Fï¿½xï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä‚ï¿½ï¿½Ü‚ï¿½
     class Event
     {
     public:

@@ -6,8 +6,9 @@ namespace Cutlass
 {
     Event::Event()
     {
-        for (uint32_t i = 0; i < sizeof(keyIndex) / sizeof(uint32_t); ++i)
-            mKeys.emplace(static_cast<Key>(keyIndex[i]), 0);
+        int i = 0;
+        while(keyIndex[i] == static_cast<uint16_t>(Key::LAST))
+            mKeys.emplace(static_cast<Key>(keyIndex[i++]), 0);
 
         mMouseX = mMouseY = 0;
 

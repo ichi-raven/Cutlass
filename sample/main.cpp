@@ -34,7 +34,6 @@ int main()
     constexpr uint32_t frameCount = 3;
     constexpr uint32_t width = 800, height = 600;
     
-
     //-----------------------------------------ジオメトリ定義
     const float k = 1.0f;
     const glm::vec3 red(1.0f, 0.0f, 0.0f);
@@ -105,8 +104,7 @@ int main()
 
     //-----------------------------------------------------
 
-
-        //コンテキスト取得
+    //コンテキスト取得
     Context& context = Context::getInstance();
 
     {//初期化
@@ -121,7 +119,6 @@ int main()
         if (Result::eSuccess != context.createWindow(wi, window))
             std::cout << "Failed to create window!";
     }
-
 
     HBuffer vertexBuffer;
     {//頂点バッファ作成, 書き込み
@@ -284,8 +281,8 @@ int main()
         {
             {//各種情報表示
                 now = std::chrono::high_resolution_clock::now();
-                times[frame % 10] = std::chrono::duration_cast<std::chrono::microseconds>((now - prev)).count() / 1000000.;
-                std::cout << "now frame : " << frame++ << "\n";
+                times[frame % 10] = std::chrono::duration_cast<std::chrono::microseconds>(now - prev).count() / 1000000.;
+                std::cout << "now frame : " << frame << "\n";
                 std::cout << "fps : " << 1. / (std::accumulate(times.begin(), times.end(), 0.) / 10.) << "\n";
             }
 
@@ -316,13 +313,18 @@ int main()
                     std::cout << "Failed to write uniform buffer!\n";
             }
 
+            //イベント取得
             if (Result::eSuccess != context.handleEvent(window, event))
-                std::cerr << "event handling failed!\n";
+                std::cerr << "Failed to handle event!\n";
 
+            //コマンド実行
             if (Result::eSuccess != context.execute(commandBuffer))
                 std::cerr << "Failed to execute command!\n";
 
-            prev = now;
+            {//更新
+                ++frame;
+                prev = now;
+            }
         }
     }
 
