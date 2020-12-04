@@ -83,10 +83,6 @@ namespace Cutlass
     class Context
     {
     private:
-        //Singleton
-        Context();
-
-        ~Context();
 
         //Noncopyable
         Context(const Context&) = delete;
@@ -95,9 +91,12 @@ namespace Cutlass
         Context &operator=(Context&&) = delete;
 
     public:
-        static Context& getInstance();
+        Context();
+        Context(const InitializeInfo &info);
 
-        //初期化
+        ~Context();
+
+        //明示的に初期化
         Result initialize(const InitializeInfo &info);
 
         //ウィンドウ作成・破棄

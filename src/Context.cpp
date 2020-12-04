@@ -46,7 +46,7 @@ namespace Cutlass
         return ret;
     }
 
-    Context::Context()
+    Context::Context(const InitializeInfo &info)
     {
         mIsInitialized = false;
         mNextWindowHandle = 1;
@@ -55,6 +55,8 @@ namespace Cutlass
         mNextRenderDSTHandle = 1;
         mNextRPHandle = 1;
         mNextCBHandle = 1;
+
+        initialize(info);
     }
 
     Context::~Context()
@@ -66,11 +68,11 @@ namespace Cutlass
         }
     }
 
-    Context& Context::getInstance()
-    {
-        static Context context;
-        return context;
-    }
+    // Context& Context::getInstance()
+    // {
+    //     static Context context;
+    //     return context;
+    // }
 
     Result Context::initialize(const InitializeInfo &initializeInfo)
     {

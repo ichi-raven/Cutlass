@@ -105,17 +105,17 @@ int main()
     //-----------------------------------------------------
 
     //コンテキスト取得
-    Context& context = Context::getInstance();
+    InitializeInfo ii("test", true);
+    Context context(ii);
 
-    {//初期化
-        InitializeInfo ii("test", true);
-        if (Result::eSuccess != context.initialize(ii))
-            std::cout << "Failed to Initialize!\n";
-    }
+    // {//明示的に初期化する場合
+    //     if (Result::eSuccess != context.initialize(ii))
+    //         std::cout << "Failed to Initialize!\n";
+    // }
 
     HWindow window;
     {//ウィンドウ作成
-        WindowInfo wi(width, height, frameCount, "CutlassTest");
+        WindowInfo wi(width, height, frameCount, "CutlassTest", false, true);
         if (Result::eSuccess != context.createWindow(wi, window))
             std::cout << "Failed to create window!";
     }
@@ -302,7 +302,7 @@ int main()
 
             {//UBO書き込み
                 Uniform ubo;
-                ubo.world = glm::rotate(glm::identity<glm::mat4>(), glm::radians(2.f * frame), glm::vec3(0, 1.f, 0));
+                ubo.world = glm::rotate(glm::identity<glm::mat4>(), glm::radians(3.f * frame), glm::vec3(0, 1.f, 0));
                 ubo.view = glm::lookAtRH(pos, pos + glm::vec3(0, 0, -10.f), glm::vec3(0, 1.f, 0));
                 ubo.proj = glm::perspective(glm::radians(45.f), 1.f * width / height, 1.f, 100.f);
                 ubo.proj[1][1] *= -1;

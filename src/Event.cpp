@@ -55,16 +55,16 @@ namespace Cutlass
         return mQueries;
     }
 
-    std::unordered_map<Key, uint32_t> & Event::getKeyRefInternal()
+    std::unordered_map<Key, uint32_t>& Event::getKeyRefInternal()
     {
         return mKeys;
     }
 
     void Event::updateInternal(double mouseX, double mouseY, bool windowShouldClose)
     {
-
         mMouseX = mouseX;
         mMouseY = mouseY;
         mWindowShouldClose = windowShouldClose;
     }
-}; // namespace Cutlass
+
+};// namespace Cutlass
