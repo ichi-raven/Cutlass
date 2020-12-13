@@ -1,3 +1,5 @@
+//不要、現在凍結中
+
 // #include "../include/Event.hpp"
 
 // #include <iostream>

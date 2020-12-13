@@ -162,7 +162,7 @@ namespace Cutlass
         Result getMouse(double& x, double& y) const;
         Result getMouse(const HWindow& handle, double& x, double& y) const;
 
-        //ウィンドウ終了判定(指定なしで全てのウィンドウの論理積)
+        //ウィンドウ終了通知(指定なしで全てのウィンドウの論理和)
         bool shouldClose() const;
         bool shouldClose(const HWindow& handle) const;
 
@@ -271,7 +271,6 @@ namespace Cutlass
 
         inline Result searchGraphicsQueueIndex();
         inline uint32_t getMemoryTypeIndex(uint32_t requestBits, VkMemoryPropertyFlags requestProps) const;
-
 
         inline Result enableDebugReport();
         inline Result disableDebugReport();

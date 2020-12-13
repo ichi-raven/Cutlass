@@ -1,4 +1,5 @@
 #include "../include/Context.hpp"
+#include "../include/Event.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -228,7 +229,6 @@ namespace Cutlass
         for (auto &e : mCommandBufferMap)
         {
             vkFreeCommandBuffers(mDevice, mCommandPool, uint32_t(e.second.mCommandBuffers.size()), e.second.mCommandBuffers.data());
-
         }
 
         std::cerr << "destroyed command buffers\n";
@@ -3280,12 +3280,6 @@ namespace Cutlass
                 std::cerr << "invalid commandbuffer handle!\n";
                 return Result::eFailure;
             }
-
-            if (mWindowMap.count(handle) <= 0)
-            {
-                std::cerr << "invalid swapchain handle!\n";
-                return Result::eFailure;
-            }
         }
 
         auto &co = mCommandBufferMap[handle];
@@ -3394,12 +3388,14 @@ namespace Cutlass
                 std::cerr << "failed to submit cmd to queue!\n";
                 return result;
             }
+
+            vkQueueWaitIdle(mDeviceQueue);
         }
 
         return Result::eSuccess;
     }
 
-    //I/O------------------------------
+    //I/O-----------------------------------
 
     Result Context::updateInput() const
     {
@@ -3485,44 +3481,5 @@ namespace Cutlass
         const auto& wo = mWindowMap.at(handle);
         return glfwWindowShouldClose(wo.mpWindow.value()) == GL_TRUE;
     }
-
-    // Result Context::handleEvent(const HWindow &handle, Event &event_out)
-    // {
-    //     if (mInitializeInfo.debugFlag)
-    //     {
-    //         if (mWindowMap.count(handle) <= 0)
-    //         {
-    //             std::cerr << "invalid window handle!\n";
-    //             return Result::eFailure;
-    //         }
-    //     }
-
-    //     auto& wo = mWindowMap[handle];
-    //     glfwPollEvents();
-
-    //     double x, y;
-    //     glfwGetCursorPos(wo.mpWindow.value(), &x, &y);
-
-    //     auto& keysRef = event_out.getKeyRefInternal();
-
-    //     for (const auto& key : event_out.getKeyQueries())
-    //     {
-    //         switch (glfwGetKey(wo.mpWindow.value(), static_cast<int>(key)))
-    //         {
-    //         case GLFW_PRESS:
-    //             ++keysRef.at(key);
-    //             break;
-    //         case GLFW_RELEASE:
-    //             keysRef.at(key) = UINT32_MAX;
-    //             break;
-    //         }
-    //     }
-
-    //     event_out.getKeyQueries().clear();
-
-    //     event_out.updateInternal(x, y, static_cast<bool>(glfwWindowShouldClose(wo.mpWindow.value())));
-
-    //     return Result::eSuccess;
-    // }
 
 }; // namespace Cutlass
