@@ -2,6 +2,7 @@ build/*
 winbuild/*
 CMakeCache.txt
 .vs/*
+CMakeFiles/*
 Makefile
 CutlassEngine.code-workspace
 cmake_install.cmake

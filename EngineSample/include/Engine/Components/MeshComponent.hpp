@@ -1,0 +1,48 @@
+#pragma once
+
+#include <Cutlass/Cutlass.hpp>
+#include <glm/glm.hpp>
+
+#include "IComponent.hpp"
+#include "Material.hpp"
+#include "Light.hpp"
+
+class MeshComponent : public IComponent
+{
+public:
+    MeshComponent();
+    MeshComponent(const char* path);
+
+    void loadCube(const double& edgeLength);
+
+    void load(const char* path);
+
+    void setVisible(bool flag);
+
+    const Cutlass::HBuffer& getVB() const;
+
+    const Cutlass::HBuffer& getIB() const;
+
+    const Cutlass::VertexLayout& getVL() const;
+
+    virtual void update() override;
+
+private:
+    struct Vertex
+    {
+        glm::vec3 pos;
+        glm::vec3 color;
+        glm::vec3 normal;
+        glm::vec2 UV;
+    };
+
+    bool mVisible;
+
+    std::vector<Vertex> mVertices;
+    std::vector<uint32_t> mIndices;
+
+    Cutlass::HBuffer mVB;
+    Cutlass::HBuffer mIB;
+
+    Cutlass::VertexLayout mVertexLayout;
+};
