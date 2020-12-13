@@ -46,7 +46,7 @@ namespace Cutlass
         return ret;
     }
 
-    Context::Context(const InitializeInfo &info)
+    Context::Context()
     {
         mIsInitialized = false;
         mNextWindowHandle = 1;
@@ -55,24 +55,35 @@ namespace Cutlass
         mNextRenderDSTHandle = 1;
         mNextRPHandle = 1;
         mNextCBHandle = 1;
-
-        initialize(info);
     }
+
+    // Context::Context(const InitializeInfo &info)
+    // {
+    //     mIsInitialized = false;
+    //     mNextWindowHandle = 1;
+    //     mNextBufferHandle = 1;
+    //     mNextTextureHandle = 1;
+    //     mNextRenderDSTHandle = 1;
+    //     mNextRPHandle = 1;
+    //     mNextCBHandle = 1;
+
+    //     initialize(info);
+    // }
 
     Context::~Context()
     {
         if(mIsInitialized)
         {
-            //std::cerr << "You forgot destroy context explicitly!\n";
+            std::cerr << "You forgot destroy context explicitly!\n";
             destroy();
         }
     }
 
-    // Context& Context::getInstance()
-    // {
-    //     static Context context;
-    //     return context;
-    // }
+    Context& Context::getInstance()
+    {
+        static Context context;
+        return context;
+    }
 
     Result Context::initialize(const InitializeInfo &initializeInfo)
     {
@@ -405,12 +416,12 @@ namespace Cutlass
 
         auto& wo = mWindowMap[handle];
 
-        for (auto& f : wo.mFences)
-            vkDestroyFence(mDevice, f, nullptr);
-        for (const auto& pcSem : wo.mPresentCompletedSems)
-            vkDestroySemaphore(mDevice, pcSem, nullptr);
-        for (const auto& rcSem : wo.mRenderCompletedSems)
-            vkDestroySemaphore(mDevice, rcSem, nullptr);
+        // for (auto& f : wo.mFences)
+        //     vkDestroyFence(mDevice, f, nullptr);
+        // for (const auto& pcSem : wo.mPresentCompletedSems)
+        //     vkDestroySemaphore(mDevice, pcSem, nullptr);
+        // for (const auto& rcSem : wo.mRenderCompletedSems)
+        //     vkDestroySemaphore(mDevice, rcSem, nullptr);
 
         if (wo.mSwapchain)
             vkDestroySwapchainKHR(mDevice, wo.mSwapchain.value(), nullptr);
@@ -862,58 +873,6 @@ namespace Cutlass
         }
 
         return Result::eSuccess;
-    }
-
-    Result Context::createSyncObjects(WindowObject& wo)
-    {
-        Result result = Result::eSuccess;
-
-        wo.mFences.resize(wo.mMaxFrameInFlight);
-        {
-            VkFenceCreateInfo ci{};
-            ci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-            ci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-            for (size_t i = 0; i < wo.mFences.size(); ++i)
-            {
-                result = checkVkResult(vkCreateFence(mDevice, &ci, nullptr, &wo.mFences[i]));
-                if (Result::eSuccess != result)
-                {
-                    std::cerr << "Failed to create fence!\n";
-                    return result;
-                }
-            }
-        }
-
-        wo.mPresentCompletedSems.resize(wo.mMaxFrameInFlight);
-        wo.mRenderCompletedSems.resize(wo.mMaxFrameInFlight);
-
-        {
-            VkSemaphoreCreateInfo ci{};
-            ci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-            for (size_t i = 0; i < wo.mMaxFrameInFlight; ++i)
-            {
-                result = checkVkResult(vkCreateSemaphore(mDevice, &ci, nullptr, &wo.mRenderCompletedSems[i]));
-                if (Result::eSuccess != result)
-                {
-                    std::cerr << "Failed to create render completed semaphore!\n";
-                    return result;
-                }
-            }
-
-            for (size_t i = 0; i < wo.mMaxFrameInFlight; ++i)
-            {
-                result = checkVkResult(vkCreateSemaphore(mDevice, &ci, nullptr, &wo.mPresentCompletedSems[i]));
-                if (Result::eSuccess != result)
-                {
-                    std::cerr << "Failed to create present completed semaphore!\n";
-                    return result;
-                }
-            }
-        }
-
-        wo.imagesInFlight.resize(wo.mMaxFrameNum, VK_NULL_HANDLE);
-
-        return result;
     }
 
     Result Context::enableDebugReport()
@@ -1831,6 +1790,58 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
+    Result Context::createSyncObjects(WindowObject& wo)
+    {
+        Result result = Result::eSuccess;
+
+        wo.mFences.resize(wo.mMaxFrameInFlight);
+        {
+            VkFenceCreateInfo ci{};
+            ci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+            ci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+            for (size_t i = 0; i < wo.mFences.size(); ++i)
+            {
+                result = checkVkResult(vkCreateFence(mDevice, &ci, nullptr, &wo.mFences[i]));
+                if (Result::eSuccess != result)
+                {
+                    std::cerr << "Failed to create fence!\n";
+                    return result;
+                }
+            }
+        }
+
+        wo.mPresentCompletedSems.resize(wo.mMaxFrameInFlight);
+        wo.mRenderCompletedSems.resize(wo.mMaxFrameInFlight);
+
+        {
+            VkSemaphoreCreateInfo ci{};
+            ci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+            for (size_t i = 0; i < wo.mMaxFrameInFlight; ++i)
+            {
+                result = checkVkResult(vkCreateSemaphore(mDevice, &ci, nullptr, &wo.mRenderCompletedSems[i]));
+                if (Result::eSuccess != result)
+                {
+                    std::cerr << "Failed to create render completed semaphore!\n";
+                    return result;
+                }
+            }
+
+            for (size_t i = 0; i < wo.mMaxFrameInFlight; ++i)
+            {
+                result = checkVkResult(vkCreateSemaphore(mDevice, &ci, nullptr, &wo.mPresentCompletedSems[i]));
+                if (Result::eSuccess != result)
+                {
+                    std::cerr << "Failed to create present completed semaphore!\n";
+                    return result;
+                }
+            }
+        }
+
+        wo.imagesInFlight.resize(wo.mMaxFrameNum, VK_NULL_HANDLE);
+
+        return result;
+    }
+
     Result Context::createShaderModule(const Shader &shader, const VkShaderStageFlagBits &stage, VkPipelineShaderStageCreateInfo *pSSCI)
     {
         Result result;
@@ -2138,8 +2149,6 @@ namespace Cutlass
         subpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpassDesc.colorAttachmentCount = static_cast<uint32_t>(arVec.size());
         subpassDesc.pColorAttachments = arVec.data();
-        rdsto.mHWindow = std::nullopt;
-        rdsto.colorTargets = colorTargets;
 
 
         VkAttachmentReference depthAr;
@@ -2197,7 +2206,6 @@ namespace Cutlass
             }
             rdsto.mFramebuffers.emplace_back(frameBuffer);
         }
-
 
         handle_out = mNextRenderDSTHandle++;
         mRDSTMap.emplace(handle_out, rdsto);
@@ -2333,12 +2341,12 @@ namespace Cutlass
             rdsto.mFramebuffers.emplace_back(frameBuffer);
         }
 
-
         handle_out = mNextRenderDSTHandle++;
         mRDSTMap.emplace(handle_out, rdsto);
 
         return Result::eSuccess;
     }
+
 
     Result Context::createRenderPipeline(const RenderPipelineInfo &info, HRenderPipeline& handle_out)
     {
@@ -3147,7 +3155,6 @@ namespace Cutlass
             
         }
 
-   
         vkCmdBindDescriptorSets
         (
                 co.mCommandBuffers.back(),
@@ -3235,45 +3242,6 @@ namespace Cutlass
             0, nullptr,
             static_cast<uint32_t>(htexs.size()), imbs.data()
         );
-
-        return Result::eSuccess;
-    }
-
-    Result Context::handleEvent(const HWindow &handle, Event &event_out)
-    {
-        if (mInitializeInfo.debugFlag)
-        {
-            if (mWindowMap.count(handle) <= 0)
-            {
-                std::cerr << "invalid window handle!\n";
-                return Result::eFailure;
-            }
-        }
-
-        auto& wo = mWindowMap[handle];
-        glfwPollEvents();
-
-        double x, y;
-        glfwGetCursorPos(wo.mpWindow.value(), &x, &y);
-
-        auto& keysRef = event_out.getKeyRefInternal();
-
-        for (const auto& key : event_out.getKeyQueries())
-        {
-            switch (glfwGetKey(wo.mpWindow.value(), static_cast<int>(key)))
-            {
-            case GLFW_PRESS:
-                ++keysRef.at(key);
-                break;
-            case GLFW_RELEASE:
-                keysRef.at(key) = UINT32_MAX;
-                break;
-            }
-        }
-
-        event_out.getKeyQueries().clear();
-
-        event_out.updateInternal(x, y, static_cast<bool>(glfwWindowShouldClose(wo.mpWindow.value())));
 
         return Result::eSuccess;
     }
@@ -3420,7 +3388,6 @@ namespace Cutlass
             submitInfo.signalSemaphoreCount = 0;
             submitInfo.pSignalSemaphores = nullptr;
 
-
             result = checkVkResult(vkQueueSubmit(mDeviceQueue, 1, &submitInfo, VK_NULL_HANDLE));
             if (result != Result::eSuccess)
             {
@@ -3432,5 +3399,130 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
+    //I/O------------------------------
+
+    Result Context::updateInput() const
+    {
+        glfwPollEvents();
+        return Result::eSuccess;
+    }
+
+    uint32_t Context::getKey(const Key& key) const
+    {
+        static uint32_t rtn;
+
+        for(const auto& wo : mWindowMap)
+        {
+            //continue if hided
+            if(!glfwGetWindowAttrib(wo.second.mpWindow.value(), GLFW_VISIBLE))
+                continue;
+            
+            if((rtn = glfwGetKey(wo.second.mpWindow.value(), static_cast<int>(key))) > 0)
+                return rtn;
+        }
+
+        return 0;
+    }
+
+    uint32_t Context::getKey(const HWindow& handle, const Key& key) const
+    {
+        if (mInitializeInfo.debugFlag && mWindowMap.count(handle) <= 0)
+        {
+            std::cerr << "invalid window handle!\n";
+            return 0;
+        }
+
+        const auto& wo = mWindowMap.at(handle);
+        return glfwGetKey(wo.mpWindow.value(), static_cast<int>(key));
+    }
+
+    Result Context::getMouse(double& x, double& y) const
+    {
+        for(const auto& wo : mWindowMap)
+        {
+            //continue if not focused
+            if(!glfwGetWindowAttrib(wo.second.mpWindow.value(), GLFW_FOCUSED))
+                continue;
+
+            glfwGetCursorPos(wo.second.mpWindow.value(), &x, &y);
+            return Result::eSuccess;
+        }
+        
+        // all windows were not focused
+        return Result::eFailure;
+    }
+
+    Result Context::getMouse(const HWindow& handle, double& x, double& y) const
+    {
+        if (mInitializeInfo.debugFlag && mWindowMap.count(handle) <= 0)
+        {
+            std::cerr << "invalid window handle!\n";
+            return Result::eFailure;
+        }
+
+        const auto& wo = mWindowMap.at(handle);
+        glfwGetCursorPos(wo.mpWindow.value(), &x, &y);
+        return Result::eSuccess;
+    }
+
+    bool Context::shouldClose() const
+    {
+        for(const auto& wo : mWindowMap)
+            if(glfwWindowShouldClose(wo.second.mpWindow.value()) == GL_TRUE)
+                return true;
+
+        return false;
+    }
+
+    bool Context::shouldClose(const HWindow& handle) const
+    {
+        if (mInitializeInfo.debugFlag && mWindowMap.count(handle) <= 0)
+        {
+            std::cerr << "invalid window handle!\n";
+            return false;
+        }
+
+        const auto& wo = mWindowMap.at(handle);
+        return glfwWindowShouldClose(wo.mpWindow.value()) == GL_TRUE;
+    }
+
+    // Result Context::handleEvent(const HWindow &handle, Event &event_out)
+    // {
+    //     if (mInitializeInfo.debugFlag)
+    //     {
+    //         if (mWindowMap.count(handle) <= 0)
+    //         {
+    //             std::cerr << "invalid window handle!\n";
+    //             return Result::eFailure;
+    //         }
+    //     }
+
+    //     auto& wo = mWindowMap[handle];
+    //     glfwPollEvents();
+
+    //     double x, y;
+    //     glfwGetCursorPos(wo.mpWindow.value(), &x, &y);
+
+    //     auto& keysRef = event_out.getKeyRefInternal();
+
+    //     for (const auto& key : event_out.getKeyQueries())
+    //     {
+    //         switch (glfwGetKey(wo.mpWindow.value(), static_cast<int>(key)))
+    //         {
+    //         case GLFW_PRESS:
+    //             ++keysRef.at(key);
+    //             break;
+    //         case GLFW_RELEASE:
+    //             keysRef.at(key) = UINT32_MAX;
+    //             break;
+    //         }
+    //     }
+
+    //     event_out.getKeyQueries().clear();
+
+    //     event_out.updateInternal(x, y, static_cast<bool>(glfwWindowShouldClose(wo.mpWindow.value())));
+
+    //     return Result::eSuccess;
+    // }
 
 }; // namespace Cutlass

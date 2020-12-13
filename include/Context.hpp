@@ -84,6 +84,12 @@ namespace Cutlass
     {
     private:
 
+        //Singleton
+        Context();
+        //Context(const InitializeInfo &info);
+
+        ~Context();
+
         //Noncopyable
         Context(const Context&) = delete;
         Context &operator=(const Context&) = delete;
@@ -91,10 +97,8 @@ namespace Cutlass
         Context &operator=(Context&&) = delete;
 
     public:
-        Context();
-        Context(const InitializeInfo &info);
 
-        ~Context();
+        static Context& getInstance();
 
         //明示的に初期化
         Result initialize(const InitializeInfo &info);
@@ -122,7 +126,7 @@ namespace Cutlass
 
         //描画対象オブジェクトをスワップチェインから構築
         Result createRenderDST(const HWindow& handle, bool depthTestEnable, HRenderDST& handle_out);
-
+        
         //描画対象オブジェクトをテクスチャから構築
         Result createRenderDST(const HTexture& color, HRenderDST& handle_out);
         Result createRenderDST(const HTexture& color, const HTexture& depth, HRenderDST& handle_out);
@@ -140,13 +144,27 @@ namespace Cutlass
         Result createCommandBuffer(const CommandList& commandList, HCommandBuffer& handle_out);
         Result destroyCommandBuffer(const HCommandBuffer& handle);
 
-        //ウィンドウイベントをハンドリング
-        Result handleEvent(const HWindow& window, Event& event_out);
-
-        uint32_t getFrameBufferIndex(const HRenderDST& handle) const;//現在処理中のフレームバッファのインデックスを取得(0~frameCount)
+        //現在処理中のフレームバッファのインデックスを取得(0~frameCount)
+        uint32_t getFrameBufferIndex(const HRenderDST& handle) const;
 
         //コマンド実行, バックバッファ表示
         Result execute(const HCommandBuffer& handle);
+
+        //入出力インタフェース
+        //各イベントを更新、毎フレーム呼ばないと入力は検知できません
+        Result updateInput() const;
+
+        //キー入力取得
+        uint32_t getKey(const Key& key) const;
+        uint32_t getKey(const HWindow& handle, const Key& key) const;
+
+        //マウス状態取得
+        Result getMouse(double& x, double& y) const;
+        Result getMouse(const HWindow& handle, double& x, double& y) const;
+
+        //ウィンドウ終了判定(指定なしで全てのウィンドウの論理積)
+        bool shouldClose() const;
+        bool shouldClose(const HWindow& handle) const;
 
         //破棄
         Result destroy();
@@ -227,8 +245,12 @@ namespace Cutlass
 
         struct CommandObject
         {
+            CommandObject()
+            : mPresentFlag(false)
+            {}
+
             std::vector<VkCommandBuffer> mCommandBuffers;
-            std::optional<HRenderDST> mHRenderDST;
+            std::optional<HRenderDST> mHRenderDST;//同じ内容を描画するウィンドウが複数ある場合
             std::optional<HRenderPipeline> mHRPO;
             std::vector<VkDescriptorSet> mDescriptorSets;
             bool mPresentFlag;
@@ -249,6 +271,7 @@ namespace Cutlass
 
         inline Result searchGraphicsQueueIndex();
         inline uint32_t getMemoryTypeIndex(uint32_t requestBits, VkMemoryPropertyFlags requestProps) const;
+
 
         inline Result enableDebugReport();
         inline Result disableDebugReport();
@@ -297,7 +320,6 @@ namespace Cutlass
         PFN_vkDebugReportMessageEXT mvkDebugReportMessageEXT;
         PFN_vkDestroyDebugReportCallbackEXT mvkDestroyDebugReportCallbackEXT;
         VkDebugReportCallbackEXT mDebugReport;
-
 
         uint32_t mMaxFrame;
         //初期化確認

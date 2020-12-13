@@ -124,9 +124,3 @@ thread
 stb/stb_image.h
 -
 
-/home/ichi/C++/Cutlass/src/Event.cpp
-../include/Event.hpp
-/home/ichi/C++/Cutlass/include/Event.hpp
-iostream
--
-

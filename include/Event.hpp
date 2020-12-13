@@ -139,157 +139,157 @@ namespace Cutlass
         LAST = Menu
     };
 
-    constexpr uint16_t keyIndex[] =
-        {
-            static_cast<uint16_t>(Key::Space),
-            static_cast<uint16_t>(Key::Apostrophe),
-            static_cast<uint16_t>(Key::Comma),
-            static_cast<uint16_t>(Key::Minus),
-            static_cast<uint16_t>(Key::Period),
-            static_cast<uint16_t>(Key::Slash),
-            static_cast<uint16_t>(Key::e0),
-            static_cast<uint16_t>(Key::e1),
-            static_cast<uint16_t>(Key::e2),
-            static_cast<uint16_t>(Key::e3),
-            static_cast<uint16_t>(Key::e4),
-            static_cast<uint16_t>(Key::e5),
-            static_cast<uint16_t>(Key::e6),
-            static_cast<uint16_t>(Key::e7),
-            static_cast<uint16_t>(Key::e8),
-            static_cast<uint16_t>(Key::e9),
-            static_cast<uint16_t>(Key::Semicolon),
-            static_cast<uint16_t>(Key::Equal),
-            static_cast<uint16_t>(Key::A),
-            static_cast<uint16_t>(Key::B),
-            static_cast<uint16_t>(Key::C),
-            static_cast<uint16_t>(Key::D),
-            static_cast<uint16_t>(Key::E),
-            static_cast<uint16_t>(Key::F),
-            static_cast<uint16_t>(Key::G),
-            static_cast<uint16_t>(Key::H),
-            static_cast<uint16_t>(Key::I),
-            static_cast<uint16_t>(Key::J),
-            static_cast<uint16_t>(Key::K),
-            static_cast<uint16_t>(Key::L),
-            static_cast<uint16_t>(Key::M),
-            static_cast<uint16_t>(Key::N),
-            static_cast<uint16_t>(Key::O),
-            static_cast<uint16_t>(Key::P),
-            static_cast<uint16_t>(Key::Q),
-            static_cast<uint16_t>(Key::R),
-            static_cast<uint16_t>(Key::S),
-            static_cast<uint16_t>(Key::T),
-            static_cast<uint16_t>(Key::U),
-            static_cast<uint16_t>(Key::V),
-            static_cast<uint16_t>(Key::W),
-            static_cast<uint16_t>(Key::X),
-            static_cast<uint16_t>(Key::Y),
-            static_cast<uint16_t>(Key::Z),
-            static_cast<uint16_t>(Key::LeftBracket),
-            static_cast<uint16_t>(Key::BackSlash),
-            static_cast<uint16_t>(Key::RightBracket),
-            static_cast<uint16_t>(Key::GraveAccent),
-            static_cast<uint16_t>(Key::World1),
-            static_cast<uint16_t>(Key::World2),
-            static_cast<uint16_t>(Key::Escape),
-            static_cast<uint16_t>(Key::Enter),
-            static_cast<uint16_t>(Key::Tab),
-            static_cast<uint16_t>(Key::BackSpace),
-            static_cast<uint16_t>(Key::Insert),
-            static_cast<uint16_t>(Key::Delete),
-            static_cast<uint16_t>(Key::Right),
-            static_cast<uint16_t>(Key::Left),
-            static_cast<uint16_t>(Key::Down),
-            static_cast<uint16_t>(Key::Up),
-            static_cast<uint16_t>(Key::PageUp),
-            static_cast<uint16_t>(Key::PageDown),
-            static_cast<uint16_t>(Key::Home),
-            static_cast<uint16_t>(Key::End),
-            static_cast<uint16_t>(Key::CapsLock),
-            static_cast<uint16_t>(Key::ScrollLock),
-            static_cast<uint16_t>(Key::NumLock),
-            static_cast<uint16_t>(Key::PrintScreen),
-            static_cast<uint16_t>(Key::Pause),
-            static_cast<uint16_t>(Key::F1),
-            static_cast<uint16_t>(Key::F2),
-            static_cast<uint16_t>(Key::F3),
-            static_cast<uint16_t>(Key::F4),
-            static_cast<uint16_t>(Key::F5),
-            static_cast<uint16_t>(Key::F6),
-            static_cast<uint16_t>(Key::F7),
-            static_cast<uint16_t>(Key::F8),
-            static_cast<uint16_t>(Key::F9),
-            static_cast<uint16_t>(Key::F10),
-            static_cast<uint16_t>(Key::F11),
-            static_cast<uint16_t>(Key::F12),
-            static_cast<uint16_t>(Key::F13),
-            static_cast<uint16_t>(Key::F14),
-            static_cast<uint16_t>(Key::F15),
-            static_cast<uint16_t>(Key::F16),
-            static_cast<uint16_t>(Key::F17),
-            static_cast<uint16_t>(Key::F18),
-            static_cast<uint16_t>(Key::F19),
-            static_cast<uint16_t>(Key::F20),
-            static_cast<uint16_t>(Key::F21),
-            static_cast<uint16_t>(Key::F22),
-            static_cast<uint16_t>(Key::F23),
-            static_cast<uint16_t>(Key::F24),
-            static_cast<uint16_t>(Key::F25),
-            static_cast<uint16_t>(Key::KP_0),
-            static_cast<uint16_t>(Key::KP_1),
-            static_cast<uint16_t>(Key::KP_2),
-            static_cast<uint16_t>(Key::KP_3),
-            static_cast<uint16_t>(Key::KP_4),
-            static_cast<uint16_t>(Key::KP_5),
-            static_cast<uint16_t>(Key::KP_6),
-            static_cast<uint16_t>(Key::KP_7),
-            static_cast<uint16_t>(Key::KP_8),
-            static_cast<uint16_t>(Key::KP_9),
-            static_cast<uint16_t>(Key::KP_DECIMAL),
-            static_cast<uint16_t>(Key::KP_DIVIDE),
-            static_cast<uint16_t>(Key::KP_MULTIPLY),
-            static_cast<uint16_t>(Key::KP_SUBTRACT),
-            static_cast<uint16_t>(Key::KP_ADD),
-            static_cast<uint16_t>(Key::KP_ENTER),
-            static_cast<uint16_t>(Key::KP_EQUAL),
-            static_cast<uint16_t>(Key::LeftShift),
-            static_cast<uint16_t>(Key::LeftControl),
-            static_cast<uint16_t>(Key::LeftAlt),
-            static_cast<uint16_t>(Key::LeftSuper),
-            static_cast<uint16_t>(Key::RightShift),
-            static_cast<uint16_t>(Key::RightControl),
-            static_cast<uint16_t>(Key::RightAlt),
-            static_cast<uint16_t>(Key::RightSuper),
-            static_cast<uint16_t>(Key::Menu)
-            };
+    // constexpr uint16_t keyIndex[] =
+    //     {
+    //         static_cast<uint16_t>(Key::Space),
+    //         static_cast<uint16_t>(Key::Apostrophe),
+    //         static_cast<uint16_t>(Key::Comma),
+    //         static_cast<uint16_t>(Key::Minus),
+    //         static_cast<uint16_t>(Key::Period),
+    //         static_cast<uint16_t>(Key::Slash),
+    //         static_cast<uint16_t>(Key::e0),
+    //         static_cast<uint16_t>(Key::e1),
+    //         static_cast<uint16_t>(Key::e2),
+    //         static_cast<uint16_t>(Key::e3),
+    //         static_cast<uint16_t>(Key::e4),
+    //         static_cast<uint16_t>(Key::e5),
+    //         static_cast<uint16_t>(Key::e6),
+    //         static_cast<uint16_t>(Key::e7),
+    //         static_cast<uint16_t>(Key::e8),
+    //         static_cast<uint16_t>(Key::e9),
+    //         static_cast<uint16_t>(Key::Semicolon),
+    //         static_cast<uint16_t>(Key::Equal),
+    //         static_cast<uint16_t>(Key::A),
+    //         static_cast<uint16_t>(Key::B),
+    //         static_cast<uint16_t>(Key::C),
+    //         static_cast<uint16_t>(Key::D),
+    //         static_cast<uint16_t>(Key::E),
+    //         static_cast<uint16_t>(Key::F),
+    //         static_cast<uint16_t>(Key::G),
+    //         static_cast<uint16_t>(Key::H),
+    //         static_cast<uint16_t>(Key::I),
+    //         static_cast<uint16_t>(Key::J),
+    //         static_cast<uint16_t>(Key::K),
+    //         static_cast<uint16_t>(Key::L),
+    //         static_cast<uint16_t>(Key::M),
+    //         static_cast<uint16_t>(Key::N),
+    //         static_cast<uint16_t>(Key::O),
+    //         static_cast<uint16_t>(Key::P),
+    //         static_cast<uint16_t>(Key::Q),
+    //         static_cast<uint16_t>(Key::R),
+    //         static_cast<uint16_t>(Key::S),
+    //         static_cast<uint16_t>(Key::T),
+    //         static_cast<uint16_t>(Key::U),
+    //         static_cast<uint16_t>(Key::V),
+    //         static_cast<uint16_t>(Key::W),
+    //         static_cast<uint16_t>(Key::X),
+    //         static_cast<uint16_t>(Key::Y),
+    //         static_cast<uint16_t>(Key::Z),
+    //         static_cast<uint16_t>(Key::LeftBracket),
+    //         static_cast<uint16_t>(Key::BackSlash),
+    //         static_cast<uint16_t>(Key::RightBracket),
+    //         static_cast<uint16_t>(Key::GraveAccent),
+    //         static_cast<uint16_t>(Key::World1),
+    //         static_cast<uint16_t>(Key::World2),
+    //         static_cast<uint16_t>(Key::Escape),
+    //         static_cast<uint16_t>(Key::Enter),
+    //         static_cast<uint16_t>(Key::Tab),
+    //         static_cast<uint16_t>(Key::BackSpace),
+    //         static_cast<uint16_t>(Key::Insert),
+    //         static_cast<uint16_t>(Key::Delete),
+    //         static_cast<uint16_t>(Key::Right),
+    //         static_cast<uint16_t>(Key::Left),
+    //         static_cast<uint16_t>(Key::Down),
+    //         static_cast<uint16_t>(Key::Up),
+    //         static_cast<uint16_t>(Key::PageUp),
+    //         static_cast<uint16_t>(Key::PageDown),
+    //         static_cast<uint16_t>(Key::Home),
+    //         static_cast<uint16_t>(Key::End),
+    //         static_cast<uint16_t>(Key::CapsLock),
+    //         static_cast<uint16_t>(Key::ScrollLock),
+    //         static_cast<uint16_t>(Key::NumLock),
+    //         static_cast<uint16_t>(Key::PrintScreen),
+    //         static_cast<uint16_t>(Key::Pause),
+    //         static_cast<uint16_t>(Key::F1),
+    //         static_cast<uint16_t>(Key::F2),
+    //         static_cast<uint16_t>(Key::F3),
+    //         static_cast<uint16_t>(Key::F4),
+    //         static_cast<uint16_t>(Key::F5),
+    //         static_cast<uint16_t>(Key::F6),
+    //         static_cast<uint16_t>(Key::F7),
+    //         static_cast<uint16_t>(Key::F8),
+    //         static_cast<uint16_t>(Key::F9),
+    //         static_cast<uint16_t>(Key::F10),
+    //         static_cast<uint16_t>(Key::F11),
+    //         static_cast<uint16_t>(Key::F12),
+    //         static_cast<uint16_t>(Key::F13),
+    //         static_cast<uint16_t>(Key::F14),
+    //         static_cast<uint16_t>(Key::F15),
+    //         static_cast<uint16_t>(Key::F16),
+    //         static_cast<uint16_t>(Key::F17),
+    //         static_cast<uint16_t>(Key::F18),
+    //         static_cast<uint16_t>(Key::F19),
+    //         static_cast<uint16_t>(Key::F20),
+    //         static_cast<uint16_t>(Key::F21),
+    //         static_cast<uint16_t>(Key::F22),
+    //         static_cast<uint16_t>(Key::F23),
+    //         static_cast<uint16_t>(Key::F24),
+    //         static_cast<uint16_t>(Key::F25),
+    //         static_cast<uint16_t>(Key::KP_0),
+    //         static_cast<uint16_t>(Key::KP_1),
+    //         static_cast<uint16_t>(Key::KP_2),
+    //         static_cast<uint16_t>(Key::KP_3),
+    //         static_cast<uint16_t>(Key::KP_4),
+    //         static_cast<uint16_t>(Key::KP_5),
+    //         static_cast<uint16_t>(Key::KP_6),
+    //         static_cast<uint16_t>(Key::KP_7),
+    //         static_cast<uint16_t>(Key::KP_8),
+    //         static_cast<uint16_t>(Key::KP_9),
+    //         static_cast<uint16_t>(Key::KP_DECIMAL),
+    //         static_cast<uint16_t>(Key::KP_DIVIDE),
+    //         static_cast<uint16_t>(Key::KP_MULTIPLY),
+    //         static_cast<uint16_t>(Key::KP_SUBTRACT),
+    //         static_cast<uint16_t>(Key::KP_ADD),
+    //         static_cast<uint16_t>(Key::KP_ENTER),
+    //         static_cast<uint16_t>(Key::KP_EQUAL),
+    //         static_cast<uint16_t>(Key::LeftShift),
+    //         static_cast<uint16_t>(Key::LeftControl),
+    //         static_cast<uint16_t>(Key::LeftAlt),
+    //         static_cast<uint16_t>(Key::LeftSuper),
+    //         static_cast<uint16_t>(Key::RightShift),
+    //         static_cast<uint16_t>(Key::RightControl),
+    //         static_cast<uint16_t>(Key::RightAlt),
+    //         static_cast<uint16_t>(Key::RightSuper),
+    //         static_cast<uint16_t>(Key::Menu)
+    //         };
 
-    //���͂̍������̂��߁A�K��1F�x�����������Ă��܂�
-    class Event
-    {
-    public:
-        Event();
+    // //���͂̍������̂��߁A�K��1F�x�����������Ă��܂�
+    // class Event
+    // {
+    // public:
+    //     Event();
 
-        KeyState getKeyState(Key key);
+    //     KeyState getKeyState(Key key);
 
-        uint32_t getKeyFrame(Key key);
+    //     uint32_t getKeyFrame(Key key);
 
-        void getMousePos(double &x, double &y);
+    //     void getMousePos(double &x, double &y);
 
-        bool windowShouldClose();
+    //     bool windowShouldClose();
 
-        //bool windowResized();
+    //     //bool windowResized();
 
-        std::vector<Key>& getKeyQueries();
+    //     std::vector<Key>& getKeyQueries();
 
-        std::unordered_map<Key, uint32_t>& getKeyRefInternal();
+    //     std::unordered_map<Key, uint32_t>& getKeyRefInternal();
 
-        void updateInternal(double mouseX, double mouseY, bool windowShouldClose = false);
+    //     void updateInternal(double mouseX, double mouseY, bool windowShouldClose = false);
 
-    private:
-        std::vector<Key> mQueries;
-        std::unordered_map<Key, uint32_t> mKeys;
-        double mMouseX;
-        double mMouseY;
-        bool mWindowShouldClose;
-    };
+    // private:
+    //     std::vector<Key> mQueries;
+    //     std::unordered_map<Key, uint32_t> mKeys;
+    //     double mMouseX;
+    //     double mMouseY;
+    //     bool mWindowShouldClose;
+    // };
 };

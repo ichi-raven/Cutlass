@@ -19,7 +19,6 @@ CMakeFiles/cutlass.dir/src/Context.cpp.o
  /home/ichi/C++/Cutlass/include/Utility.hpp
  /home/ichi/C++/Cutlass/src/Context.cpp
 CMakeFiles/cutlass.dir/src/Event.cpp.o
- /home/ichi/C++/Cutlass/include/Event.hpp
  /home/ichi/C++/Cutlass/src/Event.cpp
 CMakeFiles/cutlass.dir/src/Shader.cpp.o
  /home/ichi/C++/Cutlass/include/Shader.hpp

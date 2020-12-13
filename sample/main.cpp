@@ -105,18 +105,23 @@ int main()
     //-----------------------------------------------------
 
     //コンテキスト取得
-    InitializeInfo ii("test", true);
-    Context context(ii);
+    Context& context = Context::getInstance();
 
-    // {//明示的に初期化する場合
-    //     if (Result::eSuccess != context.initialize(ii))
-    //         std::cout << "Failed to Initialize!\n";
-    // }
+    {
+        InitializeInfo ii("test", true);
+        if (Result::eSuccess != context.initialize(ii))
+            std::cout << "Failed to Initialize!\n";
+    }
 
-    HWindow window;
+   HWindow window, window2;
     {//ウィンドウ作成
         WindowInfo wi(width, height, frameCount, "CutlassTest", false, true);
         if (Result::eSuccess != context.createWindow(wi, window))
+            std::cout << "Failed to create window!";
+
+        wi.width *= 1.5;
+        wi.height *= 1.5;
+        if (Result::eSuccess != context.createWindow(wi, window2))
             std::cout << "Failed to create window!";
     }
 
@@ -169,13 +174,15 @@ int main()
             std::cout << "Failed to create texture renderDST\n";
     }
 
-    HRenderDST renderDST;
+    HRenderDST renderDST, renderDST2;
     {//ウィンドウ用描画先オブジェクト作成
         if (Result::eSuccess != context.createRenderDST(window, true, renderDST))
             std::cout << "Failed to create renderDST\n";
+        if (Result::eSuccess != context.createRenderDST(window2, true, renderDST2))
+            std::cout << "Failed to create renderDST\n";
     }
 
-    HRenderPipeline renderPipeline1, renderPipeline2;
+    HRenderPipeline renderPipeline, presentPipeline1, presentPipeline2;
     {//テクスチャ描画用パス、ウィンドウ描画用パスを定義
 
         //頂点レイアウト定義
@@ -189,7 +196,7 @@ int main()
         ShaderResourceDesc SRDesc;
         SRDesc.layout.allocForUniformBuffer(0);
         SRDesc.layout.allocForCombinedTexture(1);
-        SRDesc.setCount = frameCount;
+        SRDesc.setCount = frameCount * 2;
 
         RenderPipelineInfo rpi
         (
@@ -205,14 +212,18 @@ int main()
             texDST
         );
 
-        if (Result::eSuccess != context.createRenderPipeline(rpi, renderPipeline1))
+        if (Result::eSuccess != context.createRenderPipeline(rpi, renderPipeline))
             std::cout << "Failed to create render pipeline!\n";
 
         //2パス目は対象とデプスバッファリングが変わる
         rpi.depthStencilState = DepthStencilState::eDepth;
         rpi.renderDST = renderDST;
 
-        if (Result::eSuccess != context.createRenderPipeline(rpi, renderPipeline2))
+        if (Result::eSuccess != context.createRenderPipeline(rpi, presentPipeline1))
+            std::cout << "Failed to create render pipeline2!\n";
+        
+        rpi.renderDST = renderDST2;
+        if (Result::eSuccess != context.createRenderPipeline(rpi, presentPipeline2))
             std::cout << "Failed to create render pipeline2!\n";
     }
 
@@ -234,39 +245,59 @@ int main()
         }
     }
 
-    std::vector<CommandList> commandLists(frameCount);
+    std::vector<CommandList> renderCL(frameCount);
+    std::vector<CommandList> presentCL1(frameCount);
+    std::vector<CommandList> presentCL2(frameCount);
+
     {//コマンドリストを作成
         ColorClearValue ccv{ 0, 0.5f, 0, 0 };
         DepthClearValue dcv(1.f, 0);
-        for (size_t i = 0; i < commandLists.size(); ++i)
+        for (size_t i = 0; i < renderCL.size(); ++i)
         {
-            commandLists[i].bindVB(vertexBuffer);
-            commandLists[i].bindIB(indexBuffer);
+            renderCL[i].bindVB(vertexBuffer);
+            renderCL[i].bindIB(indexBuffer);
             
-            commandLists[i].beginRenderPipeline(renderPipeline1, ccv, dcv);
-            commandLists[i].bindSRSet(Sets1[i]);
-            commandLists[i].renderIndexed(indices.size(), 1, 0, 0, 0);
-            commandLists[i].endRenderPipeline();
-            commandLists[i].sync();
+            renderCL[i].beginRenderPipeline(renderPipeline, ccv, dcv);
+            renderCL[i].bindSRSet(Sets1[i]);
+            renderCL[i].renderIndexed(indices.size(), 1, 0, 0, 0);
+            renderCL[i].endRenderPipeline();
+            renderCL[i].sync();
+        }
 
-            commandLists[i].beginRenderPipeline(renderPipeline2);
-            commandLists[i].bindSRSet(Sets2[i]);
-            commandLists[i].renderIndexed(indices.size(), 1, 0, 0, 0);
-            commandLists[i].endRenderPipeline();
-            commandLists[i].present();
+        for(size_t i = 0; i < presentCL1.size(); ++i)
+        {
+            presentCL1[i].beginRenderPipeline(presentPipeline1);
+            presentCL1[i].bindSRSet(Sets2[i]);
+            presentCL1[i].renderIndexed(indices.size(), 1, 0, 0, 0);
+            presentCL1[i].endRenderPipeline();
+            presentCL1[i].present();
+        }
+        
+        for (size_t i = 0; i < presentCL2.size(); ++i)
+        {
+            presentCL2[i].bindVB(vertexBuffer);
+            presentCL2[i].bindIB(indexBuffer);
+
+            presentCL2[i].beginRenderPipeline(presentPipeline2);
+            presentCL2[i].bindSRSet(Sets2[i]);
+            presentCL2[i].renderIndexed(indices.size(), 1, 0, 0, 0);
+            presentCL2[i].endRenderPipeline();
+            presentCL2[i].present();
         }
     }
 
-    HCommandBuffer commandBuffer;
+    HCommandBuffer renderCB, presentCB1, presentCB2;
     {//リストからGPUでバッファを構築
-        if (Result::eSuccess != context.createCommandBuffer(commandLists, commandBuffer))
+        if (Result::eSuccess != context.createCommandBuffer(renderCL, renderCB))
+            std::cout << "Failed to create command buffer\n";
+        if (Result::eSuccess != context.createCommandBuffer(presentCL1, presentCB1))
+            std::cout << "Failed to create command buffer\n";
+        if (Result::eSuccess != context.createCommandBuffer(presentCL2, presentCB2))
             std::cout << "Failed to create command buffer\n";
     }
 
     {//メインループ
-
         int frame = 0;
-        Event event;
 
         //10F平均でFPSを計測
         std::array<double, 10> times;
@@ -276,27 +307,34 @@ int main()
         glm::vec3 pos(0, 0, 10.f);
 
         //ウィンドウ破棄の通知もしくはEscキーで終了
-        while (!event.windowShouldClose() && event.getKeyState(Key::Escape) != KeyState::ePressed)
+        while (!context.shouldClose() && !context.getKey(Key::Escape))
         {
+            //入出力更新
+            if (Result::eSuccess != context.updateInput())
+                std::cerr << "Failed to handle event!\n";
+
             {//各種情報表示
                 now = std::chrono::high_resolution_clock::now();
                 times[frame % 10] = std::chrono::duration_cast<std::chrono::microseconds>(now - prev).count() / 1000000.;
-                std::cout << "now frame : " << frame << "\n";
-                std::cout << "fps : " << 1. / (std::accumulate(times.begin(), times.end(), 0.) / 10.) << "\n";
+                //std::cout << "now frame : " << frame << "\n";
+                //std::cout << "fps : " << 1. / (std::accumulate(times.begin(), times.end(), 0.) / 10.) << "\n";
+                double x, y;
+                context.getMouse(x, y);
+                std::cout << "mouse x: " << x << " y: " << y << "\n";
             }
 
             {//カメラを移動してみる
-                if (event.getKeyFrame(Key::W))
+                if (context.getKey(Key::W))
                     pos.z -= speed;
-                if (event.getKeyFrame(Key::S))
+                if (context.getKey(Key::S))
                     pos.z += speed;
-                if (event.getKeyFrame(Key::A))
+                if (context.getKey(Key::A))
                     pos.x -= speed;
-                if (event.getKeyFrame(Key::D))
+                if (context.getKey(Key::D))
                     pos.x += speed;
-                if (event.getKeyFrame(Key::Up))
+                if (context.getKey(Key::Up))
                     pos.y += speed;
-                if (event.getKeyFrame(Key::Down))
+                if (context.getKey(Key::Down))
                     pos.y -= speed;
             }
 
@@ -312,12 +350,12 @@ int main()
                     std::cout << "Failed to write uniform buffer!\n";
             }
 
-            //イベント取得
-            if (Result::eSuccess != context.handleEvent(window, event))
-                std::cerr << "Failed to handle event!\n";
-
             //コマンド実行
-            if (Result::eSuccess != context.execute(commandBuffer))
+            if (Result::eSuccess != context.execute(renderCB))
+                std::cerr << "Failed to execute command!\n";
+            if (Result::eSuccess != context.execute(presentCB1))
+                std::cerr << "Failed to execute command!\n";
+            if (Result::eSuccess != context.execute(presentCB2))
                 std::cerr << "Failed to execute command!\n";
 
             {//更新

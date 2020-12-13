@@ -18,7 +18,6 @@ CMakeFiles/cutlass.dir/src/Context.cpp.o: include/Texture.hpp
 CMakeFiles/cutlass.dir/src/Context.cpp.o: include/Utility.hpp
 CMakeFiles/cutlass.dir/src/Context.cpp.o: src/Context.cpp
 
-CMakeFiles/cutlass.dir/src/Event.cpp.o: include/Event.hpp
 CMakeFiles/cutlass.dir/src/Event.cpp.o: src/Event.cpp
 
 CMakeFiles/cutlass.dir/src/Shader.cpp.o: include/Shader.hpp
