@@ -1,11 +1,10 @@
-#include "../include/Scenes/SceneList.hpp"
-#include "../include/Scenes/SceneCommonRegion.hpp"
-#include "../include/Scenes/TestScene.hpp"
+#include <Scenes/SceneList.hpp>
+#include <Scenes/SceneCommonRegion.hpp>
+#include <Scenes/TestScene.hpp>
 
 #include <Engine/Application/Application.hpp>
 
 #include <Cutlass/Cutlass.hpp>
-//#include <Cutlass.hpp>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -19,7 +18,7 @@
 
 int main()
 {
-	//定数, 適当に決定しましょう
+	//定数
 	constexpr uint16_t windowWidth = 800;
 	constexpr uint16_t windowHeight = 600;
 	constexpr uint16_t frameCount = 3;
