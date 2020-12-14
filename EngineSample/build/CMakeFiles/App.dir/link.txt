@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/App.dir/src/Actors/SampleActor.cpp.o CMakeFiles/App.dir/src/Actors/SampleActor2.cpp.o CMakeFiles/App.dir/src/Engine/Components/MeshComponent.cpp.o CMakeFiles/App.dir/src/Engine/Components/TransformComponent.cpp.o CMakeFiles/App.dir/src/Scenes/TestScene.cpp.o CMakeFiles/App.dir/src/main.cpp.o -o App  -lvulkan -lglfw -lcutlass 

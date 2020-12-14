@@ -1,3 +1,0 @@
-/home/ichi/C++/Cutlass/EngineSample/build/CMakeFiles/rebuild_cache.dir
-/home/ichi/C++/Cutlass/EngineSample/build/CMakeFiles/edit_cache.dir
-/home/ichi/C++/Cutlass/EngineSample/build/CMakeFiles/App.dir
