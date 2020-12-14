@@ -4,8 +4,6 @@
 #include <glm/glm.hpp>
 
 #include "IComponent.hpp"
-#include "Material.hpp"
-#include "Light.hpp"
 
 class MeshComponent : public IComponent
 {

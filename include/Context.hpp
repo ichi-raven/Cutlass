@@ -182,12 +182,12 @@ namespace Cutlass
             std::vector<HTexture> mHSwapchainImages;
             HTexture mHDepthBuffer;
 
-            //同期オブジェクト
-            std::vector<VkFence> mFences;
-            //フレーム同時処理用一時的格納場所
-            std::vector<VkFence> imagesInFlight;
-            std::vector<VkSemaphore> mRenderCompletedSems;
-            std::vector<VkSemaphore> mPresentCompletedSems;
+            // //同期オブジェクト
+            // std::vector<VkFence> mFences;
+            // //フレーム同時処理用一時的格納場所
+            // std::vector<VkFence> imagesInFlight;
+            // std::vector<VkSemaphore> mRenderCompletedSems;
+            // std::vector<VkSemaphore> mPresentCompletedSems;
 
             //現在のフレーム(注意 : 処理中のフレームバッファのインデックスとは関係ない)
             uint32_t mCurrentFrame;
@@ -230,6 +230,13 @@ namespace Cutlass
             bool mDepthTestEnable;
             //取得されたスワップチェーンイメージのインデックス、テクスチャレンダリングなどしているときは関係ない
             uint32_t mFrameBufferIndex;
+            
+            //同期オブジェクト, レンダリングの仕方によっては一部しか使用しない
+            std::vector<VkFence> mFences;
+            //フレーム同時処理用一時的格納場所
+            std::vector<VkFence> imagesInFlight;
+            std::vector<VkSemaphore> mRenderCompletedSems;
+            std::vector<VkSemaphore> mPresentCompletedSems;
         };
 
         struct RenderPipelineObject
@@ -267,11 +274,12 @@ namespace Cutlass
         inline Result createSwapchain(WindowObject &wo, bool vsync);
         inline Result createSwapchainImages(WindowObject &wo);
         inline Result createDepthBuffer(WindowObject &wo);
-        inline Result createSyncObjects(WindowObject &wo);
 
         inline Result searchGraphicsQueueIndex();
         inline uint32_t getMemoryTypeIndex(uint32_t requestBits, VkMemoryPropertyFlags requestProps) const;
 
+        inline Result createSyncObjects(RenderDSTObject &rdsto);
+        
         inline Result enableDebugReport();
         inline Result disableDebugReport();
         inline Result setImageMemoryBarrier(VkCommandBuffer command, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);

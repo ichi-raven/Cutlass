@@ -113,15 +113,10 @@ int main()
             std::cout << "Failed to Initialize!\n";
     }
 
-   HWindow window, window2;
+   HWindow window;
     {//ウィンドウ作成
-        WindowInfo wi(width, height, frameCount, "CutlassTest", false, false);
+        WindowInfo wi(width, height, frameCount, "CutlassTest", false, true);
         if (Result::eSuccess != context.createWindow(wi, window))
-            std::cout << "Failed to create window!";
-
-        wi.width *= 1.5;
-        wi.height *= 1.5;
-        if (Result::eSuccess != context.createWindow(wi, window2))
             std::cout << "Failed to create window!";
     }
 
@@ -145,18 +140,23 @@ int main()
             std::cout << "Failed to write index buffer!\n";
     }
 
-    std::vector<HBuffer> uniformBuffers(frameCount);
+    HBuffer renderUB;
+    std::vector<HBuffer> presentUBs(frameCount);
     {//ユニフォームバッファ作成
         BufferInfo bi;
         bi.setUniformBuffer<Uniform>();
-        for (auto& ub : uniformBuffers)
+        
+        if (Result::eSuccess != context.createBuffer(bi, renderUB))
+            std::cout << "Failed to create uniform\n";
+        
+        for (auto& ub : presentUBs)
             if (Result::eSuccess != context.createBuffer(bi, ub))
                 std::cout << "Failed to create uniform\n";
     }
 
     HTexture texture;
     {//テクスチャ作成
-        if (Result::eSuccess != context.createTextureFromFile("./Textures/texture.png", texture))
+        if (Result::eSuccess != context.createTextureFromFile("../Textures/texture.png", texture))
             std::cout << "Failed to create texture from file!\n";
     }
 
@@ -174,15 +174,13 @@ int main()
             std::cout << "Failed to create texture renderDST\n";
     }
 
-    HRenderDST renderDST, renderDST2;
+    HRenderDST renderDST;
     {//ウィンドウ用描画先オブジェクト作成
         if (Result::eSuccess != context.createRenderDST(window, true, renderDST))
             std::cout << "Failed to create renderDST\n";
-        if (Result::eSuccess != context.createRenderDST(window2, true, renderDST2))
-            std::cout << "Failed to create renderDST\n";
     }
 
-    HRenderPipeline renderPipeline, presentPipeline1, presentPipeline2;
+    HRenderPipeline renderPipeline, presentPipeline;
     {//テクスチャ描画用パス、ウィンドウ描画用パスを定義
 
         //頂点レイアウト定義
@@ -206,8 +204,8 @@ int main()
             RasterizerState(),
             MultiSampleState::eDefault,
             DepthStencilState::eNone,
-            Shader("./Shaders/vert.spv", "main"),
-            Shader("./Shaders/frag.spv", "main"),
+            Shader("../Shaders/vert.spv", "main"),
+            Shader("../Shaders/frag.spv", "main"),
             SRDesc,
             texDST
         );
@@ -219,92 +217,62 @@ int main()
         rpi.depthStencilState = DepthStencilState::eDepth;
         rpi.renderDST = renderDST;
 
-        if (Result::eSuccess != context.createRenderPipeline(rpi, presentPipeline1))
-            std::cout << "Failed to create render pipeline2!\n";
-        
-        rpi.renderDST = renderDST2;
-        if (Result::eSuccess != context.createRenderPipeline(rpi, presentPipeline2))
+        if (Result::eSuccess != context.createRenderPipeline(rpi, presentPipeline))
             std::cout << "Failed to create render pipeline2!\n";
     }
 
-    std::vector<ShaderResourceSet> renderSets(frameCount);
+    ShaderResourceSet renderSet;
     {//テクスチャレンダリングパスのリソースセット
-        for (size_t i = 0; i < renderSets.size(); ++i)
+
+        renderSet.setUniformBuffer(0, renderUB);
+        renderSet.setCombinedTexture(1, texture);
+        
+    }
+
+    std::vector<ShaderResourceSet> presentSets(frameCount);
+    {//ウィンドウに描画するパスのリソースセット
+        for (size_t i = 0; i < presentSets.size(); ++i)
         {
-            renderSets[i].setUniformBuffer(0, uniformBuffers[i]);
-            renderSets[i].setCombinedTexture(1, texture);
+            presentSets[i].setUniformBuffer(0, presentUBs[i]);
+            presentSets[i].setCombinedTexture(1, target);
         }
     }
 
-    std::vector<ShaderResourceSet> presentSets1(frameCount);
-    {//ウィンドウ1に描画するパスのリソースセット
-        for (size_t i = 0; i < presentSets1.size(); ++i)
-        {
-            presentSets1[i].setUniformBuffer(0, uniformBuffers[i]);
-            presentSets1[i].setCombinedTexture(1, target);
-        }
-    }
-
-    std::vector<ShaderResourceSet> presentSets2(frameCount);
-    {//ウィンドウ1に描画するパスのリソースセット
-        for (size_t i = 0; i < presentSets2.size(); ++i)
-        {
-            presentSets2[i].setUniformBuffer(0, uniformBuffers[i]);
-            presentSets2[i].setCombinedTexture(1, target);
-        }
-    }
-
-    std::vector<CommandList> renderCL(frameCount);
-    std::vector<CommandList> presentCL1(frameCount);
-    std::vector<CommandList> presentCL2(frameCount);
+    CommandList renderCL;
+    std::vector<CommandList> presentCL(frameCount);
 
     {//コマンドリストを作成
         ColorClearValue ccv{ 0, 0.5f, 0, 0 };
         DepthClearValue dcv(1.f, 0);
-        for (size_t i = 0; i < renderCL.size(); ++i)
-        {
-            renderCL[i].bindVB(vertexBuffer);
-            renderCL[i].bindIB(indexBuffer);
-            
-            renderCL[i].beginRenderPipeline(renderPipeline, ccv, dcv);
-            renderCL[i].bindSRSet(renderSets[i]);
-            renderCL[i].renderIndexed(indices.size(), 1, 0, 0, 0);
-            renderCL[i].endRenderPipeline();
-            renderCL[i].sync();
-        }
 
-        for(size_t i = 0; i < presentCL1.size(); ++i)
-        {
-            presentCL1[i].bindVB(vertexBuffer);
-            presentCL1[i].bindIB(indexBuffer);
-
-            presentCL1[i].beginRenderPipeline(presentPipeline1);
-            presentCL1[i].bindSRSet(presentSets1[i]);
-            presentCL1[i].renderIndexed(indices.size(), 1, 0, 0, 0);
-            presentCL1[i].endRenderPipeline();
-            presentCL1[i].present();
-        }
+        renderCL.bindVB(vertexBuffer);
+        renderCL.bindIB(indexBuffer);
         
-        for (size_t i = 0; i < presentCL2.size(); ++i)
-        {
-            presentCL2[i].bindVB(vertexBuffer);
-            presentCL2[i].bindIB(indexBuffer);
+        renderCL.beginRenderPipeline(renderPipeline, ccv, dcv);
+        renderCL.bindSRSet(renderSet);
+        renderCL.renderIndexed(indices.size(), 1, 0, 0, 0);
+        renderCL.endRenderPipeline();
+        renderCL.sync();
+        
 
-            presentCL2[i].beginRenderPipeline(presentPipeline2);
-            presentCL2[i].bindSRSet(presentSets2[i]);
-            presentCL2[i].renderIndexed(indices.size(), 1, 0, 0, 0);
-            presentCL2[i].endRenderPipeline();
-            presentCL2[i].present();
-        }
+        for(size_t i = 0; i < presentCL.size(); ++i)
+        {
+            presentCL[i].bindVB(vertexBuffer);
+            presentCL[i].bindIB(indexBuffer);
+
+            presentCL[i].beginRenderPipeline(presentPipeline);
+            presentCL[i].bindSRSet(presentSets[i]);
+            presentCL[i].renderIndexed(indices.size(), 1, 0, 0, 0);
+            presentCL[i].endRenderPipeline();
+            presentCL[i].present();
+        }  
     }
 
-    HCommandBuffer renderCB, presentCB1, presentCB2;
+    HCommandBuffer renderCB, presentCB;
     {//リストからGPUでバッファを構築
         if (Result::eSuccess != context.createCommandBuffer(renderCL, renderCB))
             std::cout << "Failed to create command buffer\n";
-        if (Result::eSuccess != context.createCommandBuffer(presentCL1, presentCB1))
-            std::cout << "Failed to create command buffer\n";
-        if (Result::eSuccess != context.createCommandBuffer(presentCL2, presentCB2))
+        if (Result::eSuccess != context.createCommandBuffer(presentCL, presentCB))
             std::cout << "Failed to create command buffer\n";
     }
 
@@ -358,17 +326,17 @@ int main()
                 ubo.proj[1][1] *= -1;
 
                 uint32_t frameIndex = context.getFrameBufferIndex(renderDST);
-                if (Result::eSuccess != context.writeBuffer(sizeof(Uniform), &ubo, uniformBuffers[(frameIndex + frameCount - 1) % frameCount]))
+                if (Result::eSuccess != context.writeBuffer(sizeof(Uniform), &ubo, renderUB))
+                    std::cout << "Failed to write uniform buffer!\n";
+                if (Result::eSuccess != context.writeBuffer(sizeof(Uniform), &ubo, presentUBs[(frameIndex + 1) % frameCount]))
                     std::cout << "Failed to write uniform buffer!\n";
             }
 
             //コマンド実行
             if (Result::eSuccess != context.execute(renderCB))
                 std::cerr << "Failed to execute command!\n";
-            if (Result::eSuccess != context.execute(presentCB1))
-                std::cerr << "Failed to execute command!\n";
-            if (Result::eSuccess != context.execute(presentCB2))
-                std::cerr << "Failed to execute command!\n";
+            if (Result::eSuccess != context.execute(presentCB))
+               std::cerr << "Failed to execute command!\n";
 
             {//更新
                 ++frame;

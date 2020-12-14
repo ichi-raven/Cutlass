@@ -4,7 +4,7 @@
 #include <string>
 #include <memory>
 
-#include "IActor.hpp"
+#include "../Actors/IActor.hpp"
 
 //Scene内のアクタを分離して各アクタに配布しやすいようにする
 class ActorsInScene
@@ -30,12 +30,14 @@ public:
 		return (iter != mActors.end()) ? std::dynamic_pointer_cast<RequiredActor>(iter->second) : nullptr;
 	}
 
-    void init()//アクタ類のinitはここで呼ばれる 忘れないようにStateのinitの最後に呼ぶように
+	//全てのアクタに対しての初期化処理、Scene::initActorsを呼べばユーザは呼ぶ必要はありません
+    void init()
 	{
 		for(auto& actor : mActors)
 			actor.second->init(*this);
 	}
 
+	//全てのアクタに対しての更新処理、Scene::updateActorsを呼べばユーザは呼ぶ必要はありません
 	void update()
 	{
 		for(auto& actor : mActors)

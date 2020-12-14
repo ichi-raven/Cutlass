@@ -207,6 +207,13 @@ namespace Cutlass
 
         for (auto &e : mRDSTMap)
         {
+            for (auto &f : e.second.mFences)
+                vkDestroyFence(mDevice, f, nullptr);
+            for (const auto &pcSem : e.second.mPresentCompletedSems)
+                vkDestroySemaphore(mDevice, pcSem, nullptr);
+            for (const auto &rcSem : e.second.mRenderCompletedSems)
+                vkDestroySemaphore(mDevice, rcSem, nullptr);
+
             for (auto &f : e.second.mFramebuffers)
                 vkDestroyFramebuffer(mDevice, f.value(), nullptr);
 
@@ -243,12 +250,12 @@ namespace Cutlass
 
         for (auto &so : mWindowMap)
         {
-            for (auto &f : so.second.mFences)
-                vkDestroyFence(mDevice, f, nullptr);
-            for (const auto &pcSem : so.second.mPresentCompletedSems)
-                vkDestroySemaphore(mDevice, pcSem, nullptr);
-            for (const auto &rcSem : so.second.mRenderCompletedSems)
-                vkDestroySemaphore(mDevice, rcSem, nullptr);
+            // for (auto &f : so.second.mFences)
+            //     vkDestroyFence(mDevice, f, nullptr);
+            // for (const auto &pcSem : so.second.mPresentCompletedSems)
+            //     vkDestroySemaphore(mDevice, pcSem, nullptr);
+            // for (const auto &rcSem : so.second.mRenderCompletedSems)
+            //     vkDestroySemaphore(mDevice, rcSem, nullptr);
 
             if (so.second.mSwapchain)
             {
@@ -992,12 +999,12 @@ namespace Cutlass
         }
         std::cerr << "created swapchain depthbuffer\n";
 
-        result = createSyncObjects(wo);
-        if (Result::eSuccess != result)
-        {
-            return result;
-        }
-        std::cerr << "created swapchain sync objects\n";
+        // result = createSyncObjects(wo);
+        // if (Result::eSuccess != result)
+        // {
+        //     return result;
+        // }
+        // std::cerr << "created swapchain sync objects\n";
 
         //set swapchain object
         handle_out = mNextWindowHandle++;
@@ -1790,58 +1797,6 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Context::createSyncObjects(WindowObject& wo)
-    {
-        Result result = Result::eSuccess;
-
-        wo.mFences.resize(wo.mMaxFrameInFlight);
-        {
-            VkFenceCreateInfo ci{};
-            ci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-            ci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-            for (size_t i = 0; i < wo.mFences.size(); ++i)
-            {
-                result = checkVkResult(vkCreateFence(mDevice, &ci, nullptr, &wo.mFences[i]));
-                if (Result::eSuccess != result)
-                {
-                    std::cerr << "Failed to create fence!\n";
-                    return result;
-                }
-            }
-        }
-
-        wo.mPresentCompletedSems.resize(wo.mMaxFrameInFlight);
-        wo.mRenderCompletedSems.resize(wo.mMaxFrameInFlight);
-
-        {
-            VkSemaphoreCreateInfo ci{};
-            ci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-            for (size_t i = 0; i < wo.mMaxFrameInFlight; ++i)
-            {
-                result = checkVkResult(vkCreateSemaphore(mDevice, &ci, nullptr, &wo.mRenderCompletedSems[i]));
-                if (Result::eSuccess != result)
-                {
-                    std::cerr << "Failed to create render completed semaphore!\n";
-                    return result;
-                }
-            }
-
-            for (size_t i = 0; i < wo.mMaxFrameInFlight; ++i)
-            {
-                result = checkVkResult(vkCreateSemaphore(mDevice, &ci, nullptr, &wo.mPresentCompletedSems[i]));
-                if (Result::eSuccess != result)
-                {
-                    std::cerr << "Failed to create present completed semaphore!\n";
-                    return result;
-                }
-            }
-        }
-
-        wo.imagesInFlight.resize(wo.mMaxFrameNum, VK_NULL_HANDLE);
-
-        return result;
-    }
-
     Result Context::createShaderModule(const Shader &shader, const VkShaderStageFlagBits &stage, VkPipelineShaderStageCreateInfo *pSSCI)
     {
         Result result;
@@ -2040,6 +1995,8 @@ namespace Cutlass
             }
         }
 
+        createSyncObjects(rdsto);
+
         handle_out = mNextRenderDSTHandle++;
         mRDSTMap.emplace(handle_out, rdsto);
 
@@ -2207,6 +2164,8 @@ namespace Cutlass
             rdsto.mFramebuffers.emplace_back(frameBuffer);
         }
 
+        createSyncObjects(rdsto);
+
         handle_out = mNextRenderDSTHandle++;
         mRDSTMap.emplace(handle_out, rdsto);
 
@@ -2336,15 +2295,79 @@ namespace Cutlass
             result = checkVkResult(vkCreateFramebuffer(mDevice, &fbci, nullptr, &frameBuffer));
             if (Result::eSuccess != result)
             {
+                std::cerr << "Failed to create frame buffer!\n";
                 return result;
             }
             rdsto.mFramebuffers.emplace_back(frameBuffer);
         }
 
+        createSyncObjects(rdsto);
+
         handle_out = mNextRenderDSTHandle++;
         mRDSTMap.emplace(handle_out, rdsto);
 
         return Result::eSuccess;
+    }
+
+    Result Context::createSyncObjects(RenderDSTObject& rdsto)
+    {
+        Result result = Result::eSuccess;
+
+        uint32_t maxFramesInFlight = rdsto.mTargetNum;
+        uint32_t maxFrameNum = rdsto.mTargetNum;
+        if(rdsto.mHWindow)
+        {
+            auto& wo =  mWindowMap[rdsto.mHWindow.value()];
+            maxFramesInFlight = wo.mMaxFrameInFlight;
+            maxFrameNum = wo.mMaxFrameNum;
+        }
+
+        rdsto.mFences.resize(maxFramesInFlight);
+        {
+            VkFenceCreateInfo ci{};
+            ci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+            ci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+            for (size_t i = 0; i < rdsto.mFences.size(); ++i)
+            {
+                result = checkVkResult(vkCreateFence(mDevice, &ci, nullptr, &rdsto.mFences[i]));
+                if (Result::eSuccess != result)
+                {
+                    std::cerr << "Failed to create fence!\n";
+                    return result;
+                }
+            }
+        }
+
+        rdsto.mPresentCompletedSems.resize(maxFramesInFlight);
+        rdsto.mRenderCompletedSems.resize(maxFramesInFlight);
+
+        {
+            VkSemaphoreCreateInfo ci{};
+            ci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+            for (size_t i = 0; i < maxFramesInFlight; ++i)
+            {
+                result = checkVkResult(vkCreateSemaphore(mDevice, &ci, nullptr, &rdsto.mRenderCompletedSems[i]));
+                if (Result::eSuccess != result)
+                {
+                    std::cerr << "Failed to create render completed semaphore!\n";
+                    return result;
+                }
+            }
+
+            for (size_t i = 0; i < maxFramesInFlight; ++i)
+            {
+                result = checkVkResult(vkCreateSemaphore(mDevice, &ci, nullptr, &rdsto.mPresentCompletedSems[i]));
+                if (Result::eSuccess != result)
+                {
+                    std::cerr << "Failed to create present completed semaphore!\n";
+                    return result;
+                }
+            }
+        }
+
+        rdsto.imagesInFlight.resize(maxFrameNum, VK_NULL_HANDLE);
+
+        return result;
     }
 
 
@@ -3295,7 +3318,7 @@ namespace Cutlass
         {
             auto &wo = mWindowMap[rdsto.mHWindow.value()];
 
-            result = checkVkResult(vkWaitForFences(mDevice, 1, &wo.mFences[wo.mCurrentFrame], VK_TRUE, UINT64_MAX));
+            result = checkVkResult(vkWaitForFences(mDevice, 1, &rdsto.mFences[wo.mCurrentFrame], VK_TRUE, UINT64_MAX));
             if (result != Result::eSuccess)
             {
                 std::cerr << "Failed to wait fence!\n";
@@ -3309,7 +3332,7 @@ namespace Cutlass
                     mDevice,
                     wo.mSwapchain.value(),
                     UINT64_MAX,
-                    wo.mPresentCompletedSems[wo.mCurrentFrame],
+                    rdsto.mPresentCompletedSems[wo.mCurrentFrame],
                     VK_NULL_HANDLE,
                     &rdsto.mFrameBufferIndex
                 )
@@ -3321,9 +3344,9 @@ namespace Cutlass
                 return result;
             }
 
-            if (wo.imagesInFlight[rdsto.mFrameBufferIndex] != VK_NULL_HANDLE)
-                vkWaitForFences(mDevice, 1, &wo.imagesInFlight[rdsto.mFrameBufferIndex], VK_TRUE, UINT64_MAX);
-            wo.imagesInFlight[rdsto.mFrameBufferIndex] = wo.mFences[wo.mCurrentFrame];
+            if (rdsto.imagesInFlight[rdsto.mFrameBufferIndex] != VK_NULL_HANDLE)
+                vkWaitForFences(mDevice, 1, &rdsto.imagesInFlight[rdsto.mFrameBufferIndex], VK_TRUE, UINT64_MAX);
+            rdsto.imagesInFlight[rdsto.mFrameBufferIndex] = rdsto.mFences[wo.mCurrentFrame];
 
             //submit command
             VkSubmitInfo submitInfo{};
@@ -3333,17 +3356,17 @@ namespace Cutlass
             submitInfo.pCommandBuffers = &(co.mCommandBuffers[rdsto.mFrameBufferIndex % co.mCommandBuffers.size()]);
             submitInfo.pWaitDstStageMask = &waitStageMask;
             submitInfo.waitSemaphoreCount = 1;
-            submitInfo.pWaitSemaphores = &wo.mPresentCompletedSems[wo.mCurrentFrame];
+            submitInfo.pWaitSemaphores = &rdsto.mPresentCompletedSems[wo.mCurrentFrame];
             submitInfo.signalSemaphoreCount = 1;
-            submitInfo.pSignalSemaphores = &wo.mRenderCompletedSems[wo.mCurrentFrame];
-            result = checkVkResult(vkResetFences(mDevice, 1, &wo.mFences[wo.mCurrentFrame]));
+            submitInfo.pSignalSemaphores = &rdsto.mRenderCompletedSems[wo.mCurrentFrame];
+            result = checkVkResult(vkResetFences(mDevice, 1, &rdsto.mFences[wo.mCurrentFrame]));
             if (result != Result::eSuccess)
             {
                 std::cerr << "failed to reset fence!\n";
                 return result;
             }
 
-            result = checkVkResult(vkQueueSubmit(mDeviceQueue, 1, &submitInfo, wo.mFences[wo.mCurrentFrame]));
+            result = checkVkResult(vkQueueSubmit(mDeviceQueue, 1, &submitInfo, rdsto.mFences[wo.mCurrentFrame]));
             if (result != Result::eSuccess)
             {
                 std::cerr << "failed to submit cmd to queue!\n";
@@ -3357,7 +3380,7 @@ namespace Cutlass
             presentInfo.pSwapchains = &wo.mSwapchain.value();
             presentInfo.pImageIndices = &rdsto.mFrameBufferIndex;
             presentInfo.waitSemaphoreCount = 1;
-            presentInfo.pWaitSemaphores = &wo.mRenderCompletedSems[wo.mCurrentFrame];
+            presentInfo.pWaitSemaphores = &rdsto.mRenderCompletedSems[wo.mCurrentFrame];
 
             result = checkVkResult(vkQueuePresentKHR(mDeviceQueue, &presentInfo));
             if (Result::eSuccess != result)
@@ -3370,6 +3393,20 @@ namespace Cutlass
         }
         else
         {
+            result = checkVkResult(vkWaitForFences(mDevice, 1, &rdsto.mFences[0], VK_TRUE, UINT64_MAX));
+            if (result != Result::eSuccess)
+            {
+                std::cerr << "Failed to wait fence!\n";
+                return result;
+            }
+            
+            result = checkVkResult(vkResetFences(mDevice, 1, &rdsto.mFences[0]));
+            if (result != Result::eSuccess)
+            {
+                std::cerr << "failed to reset fence!\n";
+                return result;
+            }
+
             //submit command
             VkSubmitInfo submitInfo{};
             VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -3380,16 +3417,16 @@ namespace Cutlass
             submitInfo.waitSemaphoreCount = 0;
             submitInfo.pWaitSemaphores = nullptr;
             submitInfo.signalSemaphoreCount = 0;
-            submitInfo.pSignalSemaphores = nullptr;
+            submitInfo.pSignalSemaphores = nullptr;//&rdsto.mSemaphore;
 
-            result = checkVkResult(vkQueueSubmit(mDeviceQueue, 1, &submitInfo, VK_NULL_HANDLE));
+            result = checkVkResult(vkQueueSubmit(mDeviceQueue, 1, &submitInfo, rdsto.mFences[0]));
             if (result != Result::eSuccess)
             {
                 std::cerr << "failed to submit cmd to queue!\n";
                 return result;
             }
 
-            vkQueueWaitIdle(mDeviceQueue);
+            //vkQueueWaitIdle(mDeviceQueue);
         }
 
         return Result::eSuccess;

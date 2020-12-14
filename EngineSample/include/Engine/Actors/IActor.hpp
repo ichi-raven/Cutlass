@@ -5,8 +5,7 @@
 #include <unordered_map>
 #include <Cutlass/Cutlass.hpp>
 
-#include "SceneCommonRegion.hpp"
-#include "IComponent.hpp"
+#include "../Components/IComponent.hpp"
 
 class ActorsInScene;
 
@@ -31,7 +30,7 @@ public:
     IActor()
     {}
 
-    virtual ~IActor() = 0;
+    virtual ~IActor(){};
 
     virtual void init([[maybe_unused]] ActorsInScene& actors) = 0;//注意 : 他アクタは取得できますが、望む情報が得られない可能性があります
 

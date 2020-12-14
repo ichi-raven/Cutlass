@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.11)
 
-project(SimpleSample CXX)
+project(EngineSample CXX)
 
 add_definitions("-w -std=c++17")
 
@@ -9,10 +9,14 @@ include_directories(
    GLFW
    glm
    stb
+   cutlass
    "../include"
+   "./include"
 )
 
-add_executable(App main.cpp)
+file(GLOB_RECURSE SRCS src/*.cpp)
+
+add_executable(App ${SRCS})
 
 link_directories(../)
 
