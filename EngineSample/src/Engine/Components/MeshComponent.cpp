@@ -14,12 +14,17 @@ MeshComponent::MeshComponent(const char* path)
 
 void MeshComponent::load(const char* path)
 {
-
+    //ここでVB, IB, VLを構築すべき
 }
 
 void MeshComponent::setVisible(bool flag)
 {
     mVisible = flag;
+}
+
+bool MeshComponent::getVisible() const
+{
+    return mVisible;
 }
 
 const Cutlass::HBuffer& MeshComponent::getVB() const

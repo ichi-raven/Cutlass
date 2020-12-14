@@ -1,7 +1,9 @@
-#include "../include/Scenes/TestScene.hpp"
+#include <Scenes/TestScene.hpp>
 
-#include "../include/Actors/SampleActor.hpp"
-#include "../include/Actors/SampleActor2.hpp"
+#include <Actors/SampleActor.hpp>
+#include <Actors/SampleActor2.hpp>
+
+#include <Engine/Components/MeshComponent.hpp>
 
 #include <cassert>
 #include <iostream>
@@ -30,5 +32,19 @@ void TestScene::update()
 
 void TestScene::render()
 {
-	//描画する
+	std::vector<std::shared_ptr<MeshComponent>> pRenderMeshs;
+	const auto& lmdSearchRenderebleActors = [&](std::shared_ptr<IActor> actor)
+	{
+		if(auto cmp = actor->getComponent<MeshComponent>())
+		{
+			if(!cmp->getVisible())
+				return;
+			
+			pRenderMeshs.emplace_back(cmp);
+		}
+	};
+
+	getActorsInScene().forEachActor(lmdSearchRenderebleActors);
+
+	
 }

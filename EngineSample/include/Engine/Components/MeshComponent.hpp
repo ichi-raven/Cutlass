@@ -16,6 +16,7 @@ public:
     void load(const char* path);
 
     void setVisible(bool flag);
+    bool getVisible() const;
 
     const Cutlass::HBuffer& getVB() const;
 
@@ -26,6 +27,7 @@ public:
     virtual void update() override;
 
 private:
+    //頂点型は適当に定義すべきです
     struct Vertex
     {
         glm::vec3 pos;

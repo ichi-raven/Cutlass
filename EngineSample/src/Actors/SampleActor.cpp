@@ -12,7 +12,7 @@ SampleActor::~SampleActor()
 
 void SampleActor::init(INIT_ARG_ACTORS(actors))
 {
-	addComponent<MeshComponent>();
+	addComponent<MeshComponent>("testPath");
 	addComponent<TransformComponent>();
 	auto mesh = getComponent<MeshComponent>();
 	if(!mesh)

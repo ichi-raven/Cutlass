@@ -54,7 +54,7 @@ int main()
 		app.mCommonRegion->frameBuffer = rdst;
 	}
 
-	//ステートをセット
+	//シーンをセット
 	{
 		app.addScene<TestScene>(SceneList::eTest);
 		

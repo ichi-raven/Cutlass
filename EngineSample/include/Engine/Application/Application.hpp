@@ -97,12 +97,10 @@ protected://子以外呼ばなくていいです
 		return mActors.getActor<RequiredActor>(actorName);
 	}
 
-	//init/updateActorsを呼べば不要
-	// //各Actorに渡すとき
-	// ActorsInScene& getActors()
-	// {
-	//		return mActors;
-	// }
+	ActorsInScene& getActorsInScene()
+	{
+		return mActors;
+	}
 
 	std::shared_ptr<CommonRegion> const getCommonRegion() const
 	{

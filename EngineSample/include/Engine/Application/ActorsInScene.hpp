@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <string>
 #include <memory>
+#include <functional>
 
 #include "../Actors/IActor.hpp"
 
@@ -28,6 +29,12 @@ public:
 	{
 		const auto& iter = mActors.find(actorName);
 		return (iter != mActors.end()) ? std::dynamic_pointer_cast<RequiredActor>(iter->second) : nullptr;
+	}
+
+	void forEachActor(const std::function<void(std::shared_ptr<IActor> actor)>& proc)
+	{
+		for(auto& ap : mActors)
+			proc(ap.second);
 	}
 
 	//全てのアクタに対しての初期化処理、Scene::initActorsを呼べばユーザは呼ぶ必要はありません
