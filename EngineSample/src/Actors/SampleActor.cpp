@@ -17,7 +17,7 @@ void SampleActor::init(INIT_ARG_ACTORS(actors))
 	auto mesh = getComponent<MeshComponent>();
 	if(!mesh)
 		return;
-	mesh->loadCube(1.f);
+	mesh.value()->loadCube(1.f);
 }
 
 void SampleActor::update(UPDATE_ARG_ACTORS(actors))

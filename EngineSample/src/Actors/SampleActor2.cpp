@@ -11,7 +11,7 @@
 
 SampleActor2::~SampleActor2()
 {
-    
+
 }
 
 void SampleActor2::init(INIT_ARG_ACTORS(actors))
@@ -21,14 +21,13 @@ void SampleActor2::init(INIT_ARG_ACTORS(actors))
 	auto mesh = getComponent<MeshComponent>();
 	if(!mesh)
 		return;
-	mesh->loadCube(1.f);
+	mesh.value()->loadCube(1.f);
 }
 
 void SampleActor2::update(UPDATE_ARG_ACTORS(actors))
 {
-    auto sa2 = actors.getActor<SampleActor2>("SampleActor2");
-    
-    auto meshcmp = sa2->getComponent<MeshComponent>();
+    auto sa2 = actors.getActor<SampleActor2>("SampleActor2").value();
+    auto meshcmp = sa2->getComponent<MeshComponent>().value();
 
 	updateComponents();
 }

@@ -27,7 +27,7 @@ public:
     virtual void update() override;
 
 private:
-    //頂点型は適当に定義すべきです
+    //頂点型は適当に定義してください(VLさえ渡せてシェーダと適合すればOK)
     struct Vertex
     {
         glm::vec3 pos;

@@ -4,6 +4,7 @@
 #include <Actors/SampleActor2.hpp>
 
 #include <Engine/Components/MeshComponent.hpp>
+#include <Engine/Components/TransformComponent.hpp>
 
 #include <cassert>
 #include <iostream>
@@ -33,18 +34,19 @@ void TestScene::update()
 void TestScene::render()
 {
 	std::vector<std::shared_ptr<MeshComponent>> pRenderMeshs;
+	std::vector<std::shared_ptr<TransformComponent>> pTransforms;
 	const auto& lmdSearchRenderebleActors = [&](std::shared_ptr<IActor> actor)
 	{
-		if(auto cmp = actor->getComponent<MeshComponent>())
+		if(auto&& cmp = actor->getComponent<MeshComponent>())
 		{
-			if(!cmp->getVisible())
+			if(!cmp.value()->getVisible())
 				return;
 			
-			pRenderMeshs.emplace_back(cmp);
+			pRenderMeshs.emplace_back(cmp.value());
 		}
 	};
 
 	getActorsInScene().forEachActor(lmdSearchRenderebleActors);
 
-	
+
 }

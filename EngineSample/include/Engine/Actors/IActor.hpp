@@ -28,7 +28,9 @@ class IActor
 {
 public:
     IActor()
-    {}
+    {
+        mComponentsVec.reserve(10);
+    }
 
     virtual ~IActor(){};
 
@@ -38,15 +40,15 @@ public:
 
     void updateComponents()
     {
-        for (auto& component : mComponents)
-            component.second->update();
+        for (auto& component : mComponentsVec)
+            component->update();
     }
 
     template<typename RequiredComponent>
-    std::shared_ptr<RequiredComponent> getComponent() //なければ無効値、必ずチェックを(shared_ptrのoperator boolで判別可能)
+    std::optional<std::shared_ptr<RequiredComponent>> getComponent() //なければ無効値、必ずチェックを(shared_ptrのoperator boolで判別可能)
     {
         const auto& iter = mComponents.find(typeid(RequiredComponent).hash_code());
-        return (iter != mComponents.end()) ? std::dynamic_pointer_cast<RequiredComponent>(iter->second) : nullptr;
+        return (iter != mComponents.end()) ? std::make_optional(std::dynamic_pointer_cast<RequiredComponent>(iter->second)) : std::nullopt;
     }
 
 protected:
@@ -54,17 +56,22 @@ protected:
     template<typename Component>
     void addComponent()
     {
-        mComponents.emplace(typeid(Component).hash_code(), std::make_shared<Component>());
+        auto tmp = std::make_shared<Component>();
+        mComponents.emplace(typeid(Component).hash_code(), tmp);
+        mComponentsVec.emplace_back(tmp);
     }
 
     //引数付きコンストラクタもOK
     template<typename Component, typename... Args>
     void addComponent(Args... constructArgs)
     {
-        mComponents.emplace(typeid(Component).hash_code(), std::make_shared<Component>(constructArgs...));
+        auto tmp = std::make_shared<Component>(constructArgs...);
+        mComponents.emplace(typeid(Component).hash_code(), tmp);
+        mComponentsVec.emplace_back(tmp);
     }
 
 private:
     //キーは型のハッシュ値
     std::unordered_map<size_t, std::shared_ptr<IComponent>> mComponents;
+    std::vector<std::shared_ptr<IComponent>> mComponentsVec;
 };
