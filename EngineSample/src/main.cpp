@@ -23,14 +23,6 @@ int main()
 	constexpr uint16_t windowHeight = 600;
 	constexpr uint16_t frameCount = 3;
 
-	//アプリケーション実体
-	Application<SceneList, SceneCommonRegion> app;
-
-	//情報セット
-	app.mCommonRegion->width = windowWidth;
-	app.mCommonRegion->height = windowHeight;
-	app.mCommonRegion->frameCount = frameCount;
-
 	//コンテキスト取得
 	auto& context = Cutlass::Context::getInstance();
 	
@@ -40,22 +32,33 @@ int main()
 			std::cerr << "failed to initialize!\n";
 	}
 
+	Cutlass::HWindow window;
+	Cutlass::HRenderDST rdst;
 	{//window, 描画対象オブジェクト作成
-		Cutlass::HWindow window;
 		Cutlass::WindowInfo wi(windowWidth, windowHeight, frameCount, "testAppWindow", false, true);
 		if (Cutlass::Result::eSuccess != context.createWindow(wi, window))
 			std::cerr << "failed to create window!\n";
 
-		Cutlass::HRenderDST rdst;
 		if (Cutlass::Result::eSuccess != context.createRenderDST(window, true, rdst))
 			std::cerr << "failed to create frame buffer!\n";
 
-		app.mCommonRegion->window = window;
-		app.mCommonRegion->frameBuffer = rdst;
 	}
 
-	//シーンをセット
+	//注意 : 処理順序を変更するとcontextの初期化忘れが発生する可能性があります
+	//初期化後にアプリケーション実体を構築すれば、コンストラクタでもcontextを使用可能です
+	
+	//アプリケーション実体
+	Application<SceneList, SceneCommonRegion> app;
+
 	{
+		//情報セット
+		app.mCommonRegion->width = windowWidth;
+		app.mCommonRegion->height = windowHeight;
+		app.mCommonRegion->frameCount = frameCount;
+		app.mCommonRegion->window = window;
+		app.mCommonRegion->frameBuffer = rdst;
+		
+		//シーン追加
 		app.addScene<TestScene>(SceneList::eTest);
 		
 		//このステートで開始

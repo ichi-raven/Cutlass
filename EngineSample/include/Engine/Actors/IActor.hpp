@@ -29,8 +29,15 @@ class IActor
 public:
     IActor()
     {
-        mComponentsVec.reserve(10);
+        //これも大して影響ないとは思うけどチューニングしたら速いかも知れない
+        mComponentsVec.reserve(5);
     }
+
+    //Noncopyable
+    IActor(const IActor&) = delete;
+    IActor &operator=(const IActor&) = delete;
+    IActor(IActor&&) = delete;
+    IActor &operator=(IActor&&) = delete;
 
     virtual ~IActor(){};
 

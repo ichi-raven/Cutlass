@@ -15,6 +15,7 @@ public:
 
 	ActorsInScene()
 	{
+		//ここを
 		mActorsVec.reserve(30);
 	}
 

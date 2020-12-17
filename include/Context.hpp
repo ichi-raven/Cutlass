@@ -86,7 +86,6 @@ namespace Cutlass
 
         //Singleton
         Context();
-        //Context(const InitializeInfo &info);
 
         ~Context();
 
@@ -181,11 +180,6 @@ namespace Cutlass
             VkExtent2D mSwapchainExtent;
             std::vector<HTexture> mHSwapchainImages;
             HTexture mHDepthBuffer;
-
-            // //同期オブジェクト
-            // std::vector<VkFence> mFences;
-            // //フレーム同時処理用一時的格納場所
-            // std::vector<VkFence> imagesInFlight;
             // std::vector<VkSemaphore> mRenderCompletedSems;
             // std::vector<VkSemaphore> mPresentCompletedSems;
 
