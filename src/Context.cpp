@@ -15,6 +15,7 @@
 #define GetInstanceProcAddr(FuncName) \
     m##FuncName = reinterpret_cast<PFN_##FuncName>(vkGetInstanceProcAddr(mInstance, #FuncName))
 
+
 namespace Cutlass
 {
 #define GetInstanceProcAddr(FuncName) \
