@@ -7,6 +7,5 @@ CutlassEngine.code-workspace
 src/.vscode/*
 include/.vscode/*
 App
-*.exe
 *.ipch
 *.pdb
