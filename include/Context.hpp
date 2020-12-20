@@ -89,7 +89,7 @@ namespace Cutlass
 
         ~Context();
 
-        //Noncopyable
+        //Noncopyable, nonmovable
         Context(const Context&) = delete;
         Context &operator=(const Context&) = delete;
         Context(Context&&) = delete;

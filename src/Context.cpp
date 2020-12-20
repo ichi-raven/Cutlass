@@ -3191,13 +3191,11 @@ namespace Cutlass
                 nullptr
         );
         
-
         return Result::eSuccess;
     }
 
     Result Context::cmdRenderIndexed(CommandObject &co, const CmdRenderIndexed &info)
     {
-      
         vkCmdDrawIndexed
         (
             co.mCommandBuffers.back(),
@@ -3407,6 +3405,9 @@ namespace Cutlass
                 std::cerr << "failed to reset fence!\n";
                 return result;
             }
+ 
+            //Maybe it will be useless
+            rdsto.mFrameBufferIndex = (rdsto.mFrameBufferIndex + 1) % rdsto.mFramebuffers.size();
 
             //submit command
             VkSubmitInfo submitInfo{};
@@ -3418,7 +3419,7 @@ namespace Cutlass
             submitInfo.waitSemaphoreCount = 0;
             submitInfo.pWaitSemaphores = nullptr;
             submitInfo.signalSemaphoreCount = 0;
-            submitInfo.pSignalSemaphores = nullptr;//&rdsto.mSemaphore;
+            submitInfo.pSignalSemaphores = nullptr;
 
             result = checkVkResult(vkQueueSubmit(mDeviceQueue, 1, &submitInfo, rdsto.mFences[0]));
             if (result != Result::eSuccess)
@@ -3426,8 +3427,6 @@ namespace Cutlass
                 std::cerr << "failed to submit cmd to queue!\n";
                 return result;
             }
-
-            //vkQueueWaitIdle(mDeviceQueue);
         }
 
         return Result::eSuccess;

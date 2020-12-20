@@ -1,8 +1,11 @@
 #pragma once
 
-class IComponent
+namespace Engine
 {
-public:
-    virtual void update() = 0;
-    
-};
+    class IComponent
+    {
+    public:
+        virtual void update() = 0;
+        
+    };
+}

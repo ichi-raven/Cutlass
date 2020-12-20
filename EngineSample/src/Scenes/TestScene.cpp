@@ -4,7 +4,6 @@
 #include <Actors/SampleActor2.hpp>
 
 #include <Engine/Components/MeshComponent.hpp>
-#include <Engine/Components/TransformComponent.hpp>
 
 #include <cassert>
 #include <iostream>
@@ -12,9 +11,7 @@
 void TestScene::init()
 {
 	addActor<SampleActor>("SampleActor");
-	addActor<SampleActor2>("SampleActor2");
-
-	initActors();
+	//addActor<SampleActor2>("SampleActor2");
 }
 
 void TestScene::update()
@@ -26,27 +23,37 @@ void TestScene::update()
 	//ESCで終わる
 	if(context.getKey(Cutlass::Key::Escape))
 		exitApplication();
-
-	updateActors();
 	render();
 }
 
 void TestScene::render()
 {
-	std::vector<std::shared_ptr<MeshComponent>> pRenderMeshs;
-	std::vector<std::shared_ptr<TransformComponent>> pTransforms;
-	const auto& lmdSearchRenderebleActors = [&](std::shared_ptr<IActor> actor)
+	std::vector<std::shared_ptr<Engine::MeshComponent>> pRenderMeshs;
+	const auto& lmdSearchRenderebleActors = [&](std::shared_ptr<Engine::IActor> actor)
 	{
-		if(auto&& cmp = actor->getComponent<MeshComponent>())
+		if(auto&& mesh = actor->getComponent<Engine::MeshComponent>())
+		if(auto&& material = actor->getComponent<Engine::MaterialComponent>())
+		if(!mesh.value()->getVisible())
 		{
-			if(!cmp.value()->getVisible())
-				return;
-			
-			pRenderMeshs.emplace_back(cmp.value());
+				mRenderer.addMesh(mesh.value(), material.value());
 		}
+
+		// if(auto&& camera = actor->getComponent<Engine::CameraComponent>())
+		// {
+		// 	//CameraComponentの有効フラグをチェック
+		// 	if(false)
+		// 		mRenderer.addCamera(camera.value());
+		// }
+
+		// if(auto&& light = actor->getComponent<Engine::LightComponent>())
+		// {
+		// 	//LightComponentの有効フラグをチェック
+		// 	if(false)
+		// 		mRenderer.addLight(light.value());
+		// }
 	};
 
 	getActorsInScene().forEachActor(lmdSearchRenderebleActors);
 
-
+	mRenderer.render(getCommonRegion()->frameBuffer);
 }

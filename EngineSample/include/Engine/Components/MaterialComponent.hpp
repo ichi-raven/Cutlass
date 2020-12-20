@@ -3,11 +3,14 @@
 
 #include <Cutlass.hpp>
 
-class MaterialComponent : public IComponent
+namespace Engine
 {
-public:
-    
+    class MaterialComponent : public IComponent
+    {
+    public:
+        
 
-private:
+    private:
 
-};
+    };
+}

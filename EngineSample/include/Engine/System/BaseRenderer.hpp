@@ -2,30 +2,47 @@
 
 #include <Cutlass.hpp>
 
-class MeshComponent;
-class MaterialComponent;
-
-class BaseRenderer
+namespace Engine
 {
-public:
-    BaseRenderer();
-    
-    //Noncopyable
-    BaseRenderer(const BaseRenderer&) = delete;
-    BaseRenderer &operator=(const BaseRenderer&) = delete;
-    BaseRenderer(BaseRenderer&&) = delete;
-    BaseRenderer &operator=(BaseRenderer&&) = delete;
+    class MeshComponent;
+    class MaterialComponent;
+    class CameraComponent;
+    class LightComponent;
 
-    virtual void addMesh(const std::shared_ptr<MeshComponent> mesh);
-    
-    virtual void addMesh(const std::shared_ptr<MeshComponent> mesh, const std::shared_ptr<MaterialComponent> material);
+    class BaseRenderer
+    {
+    public:
+        BaseRenderer();
+        
+        //Noncopyable, Nonmoveable
+        BaseRenderer(const BaseRenderer&) = delete;
+        BaseRenderer &operator=(const BaseRenderer&) = delete;
+        BaseRenderer(BaseRenderer&&) = delete;
+        BaseRenderer &operator=(BaseRenderer&&) = delete;
 
-    virtual void render(const Cutlass::HWindow& window);
+        virtual void addMesh
+        (
+            const std::shared_ptr<MeshComponent> mesh, 
+            const std::shared_ptr<MaterialComponent> material
+        );
 
-private:
+        virtual void addCamera
+        (
+            const std::shared_ptr<CameraComponent> camera
+        );
 
-    Cutlass::HTexture mRTTex;
-    Cutlass::HRenderDST mIntermediateDST;
-    std::vector<Cutlass::CommandList> mCommandList;
-    Cutlass::HCommandBuffer mCommandBuffer;
+        virtual void addLight
+        (
+            const std::shared_ptr<LightComponent> light
+        );
+
+        virtual void render(const Cutlass::HRenderDST& windowRDST);
+
+    private:
+
+        Cutlass::HTexture mRTTex;
+        Cutlass::HRenderDST mIntermediateDST;
+        std::vector<Cutlass::CommandList> mCommandList;
+        Cutlass::HCommandBuffer mCommandBuffer;
+    };
 };

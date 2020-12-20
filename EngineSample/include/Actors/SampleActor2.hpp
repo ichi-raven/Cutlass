@@ -5,7 +5,7 @@
 
 #include "../Engine/Actors/IActor.hpp"
 
-class SampleActor2 : public IActor
+class SampleActor2 : public Engine::IActor
 {
     GEN_ACTOR_CLASS(SampleActor2)
 public:
