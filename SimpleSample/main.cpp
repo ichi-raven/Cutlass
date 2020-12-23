@@ -105,7 +105,7 @@ int main()
     //-----------------------------------------------------
 
     //コンテキスト取得
-    Context& context = Context::getInstance();
+    Context context;
 
     {
         InitializeInfo ii("test", true);

@@ -12,8 +12,10 @@ namespace Engine
     class BaseRenderer
     {
     public:
-        BaseRenderer();
-        
+        BaseRenderer(){}
+
+        void init(Cutlass::Context& context);
+
         //Noncopyable, Nonmoveable
         BaseRenderer(const BaseRenderer&) = delete;
         BaseRenderer &operator=(const BaseRenderer&) = delete;

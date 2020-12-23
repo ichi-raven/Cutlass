@@ -59,18 +59,18 @@ namespace Cutlass
         mNextCBHandle = 1;
     }
 
-    // Context::Context(const InitializeInfo &info)
-    // {
-    //     mIsInitialized = false;
-    //     mNextWindowHandle = 1;
-    //     mNextBufferHandle = 1;
-    //     mNextTextureHandle = 1;
-    //     mNextRenderDSTHandle = 1;
-    //     mNextRPHandle = 1;
-    //     mNextCBHandle = 1;
+    Context::Context(const InitializeInfo &info, Result& result_out)
+    {
+        mIsInitialized = false;
+        mNextWindowHandle = 1;
+        mNextBufferHandle = 1;
+        mNextTextureHandle = 1;
+        mNextRenderDSTHandle = 1;
+        mNextRPHandle = 1;
+        mNextCBHandle = 1;
 
-    //     initialize(info);
-    // }
+        result_out = initialize(info);
+    }
 
     Context::~Context()
     {
@@ -79,12 +79,6 @@ namespace Cutlass
             std::cerr << "You forgot destroy context explicitly!\n";
             destroy();
         }
-    }
-
-    Context& Context::getInstance()
-    {
-        static Context context;
-        return context;
     }
 
     Result Context::initialize(const InitializeInfo &initializeInfo)

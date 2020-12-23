@@ -12,11 +12,26 @@ namespace Engine
     class MeshComponent : public IComponent
     {
     public:
-        MeshComponent();
+        //頂点構造
+        struct Vertex
+        {
+            glm::vec3 pos;
+            glm::vec3 color;
+            glm::vec3 normal;
+            glm::vec2 UV;
+        };
+
+        MeshComponent(Cutlass::Context& context);
         //MeshComponent(const char* path);
 
-        //マテリアル関係なしにメッシュをロードする
-        void loadCube(const double& edgeLength);
+        //メッシュを構築する
+        void createCube(const double& edgeLength);
+
+        void create
+        (
+            const std::vector<MeshComponent::Vertex>& vertices,
+            const std::vector<uint32_t>& indices
+        );
 
         void setVisible(bool flag);
         bool getVisible() const;
@@ -37,14 +52,7 @@ namespace Engine
         virtual void update() override;
 
     private:
-        //頂点型は適当に定義してください(VLさえ渡せてシェーダと適合すればOK)
-        struct Vertex
-        {
-            glm::vec3 pos;
-            glm::vec3 color;
-            glm::vec3 normal;
-            glm::vec2 UV;
-        };
+        Cutlass::Context& mContext;
 
         bool mVisible;
         bool mEnabled;

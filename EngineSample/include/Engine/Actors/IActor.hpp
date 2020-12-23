@@ -7,27 +7,28 @@
 
 #include "../Components/IComponent.hpp"
 
-class ActorsInScene;
 
 //アクタのクラスのヘッダにこれを書けばヘッダが自動生成できます
-#define GEN_ACTOR_CLASS(CLASSNAME) \
+#define GEN_ACTOR_CLASS(CLASSNAME, COMMONREGION_TYPE) \
 public:\
 virtual ~CLASSNAME() final override;\
-virtual void init([[maybe_unused]] Engine::ActorsInScene& actors) final override;\
-virtual void update([[maybe_unused]] Engine::ActorsInScene& actors) final override;\
+virtual void init([[maybe_unused]] Engine::ActorsInScene<COMMONREGION_TYPE>& actors, [[maybe_unused]] std::shared_ptr<COMMONREGION_TYPE> commonRegion) final override;\
+virtual void update([[maybe_unused]] Engine::ActorsInScene<COMMONREGION_TYPE>& actors, [[maybe_unused]] std::shared_ptr<COMMONREGION_TYPE> commonRegion) final override;\
 private:
 
-//init, updateの引数自動生成(ARG_NAME...引数名)
-#define INIT_ARG_ACTORS(ARG_NAME) [[maybe_unused]] Engine::ActorsInScene& ARG_NAME
-#define UPDATE_ARG_ACTORS(ARG_NAME) [[maybe_unused]] Engine::ActorsInScene& ARG_NAME
+//init, updateの引数自動生成(COMMONREGION_TYPE...共有領域の型, ARG_***...引数名)
+#define INIT_ARG_ACTORS(COMMONREGION_TYPE, ARG_ACTORS, ARG_COMMONREGION) [[maybe_unused]] Engine::ActorsInScene<COMMONREGION_TYPE>& ARG_ACTORS, [[maybe_unused]] std::shared_ptr<COMMONREGION_TYPE> ARG_COMMONREGION
+#define UPDATE_ARG_ACTORS(COMMONREGION_TYPE, ARG_ACTORS, ARG_COMMONREGION) [[maybe_unused]] Engine::ActorsInScene<COMMONREGION_TYPE>& ARG_ACTORS, [[maybe_unused]] std::shared_ptr<COMMONREGION_TYPE> ARG_COMMONREGION
 
 //[[maybe_unused]]とは、その引数を関数内で使用しなかったとしてもコンパイラに警告を吐かせない属性です
 //よくわからない場合は上記マクロを使用すればいいかも?
 
 namespace Engine
 {
+    template<typename SceneCommonRegion>
     class ActorsInScene;
-
+    
+    template<typename SceneCommonRegion>
     class IActor
     {
     public:
@@ -37,7 +38,7 @@ namespace Engine
             mComponentsVec.reserve(5);
         }
 
-        //Noncopyable
+        //Noncopyable, Nonmovable
         IActor(const IActor&) = delete;
         IActor &operator=(const IActor&) = delete;
         IActor(IActor&&) = delete;
@@ -45,9 +46,15 @@ namespace Engine
 
         virtual ~IActor(){};
 
-        virtual void init([[maybe_unused]] ActorsInScene& actors) = 0;//注意 : 他アクタは取得できますが、望む情報が得られない可能性があります
+        virtual void init([[maybe_unused]] ActorsInScene<SceneCommonRegion>& actors, [[maybe_unused]] std::shared_ptr<SceneCommonRegion> commonRegion) = 0;//注意 : 他アクタは取得できますが、望む情報が得られない可能性があります
 
-        virtual void update([[maybe_unused]] ActorsInScene& actors) = 0;
+        virtual void update([[maybe_unused]] ActorsInScene<SceneCommonRegion>& actors, [[maybe_unused]] std::shared_ptr<SceneCommonRegion> commonRegion) = 0;
+
+        void updateAll([[maybe_unused]] ActorsInScene<SceneCommonRegion>& actors, [[maybe_unused]] std::shared_ptr<SceneCommonRegion> commonRegion)
+        {
+            update(actors, commonRegion);
+            updateComponents();
+        }
 
         void updateComponents()
         {
@@ -55,6 +62,7 @@ namespace Engine
                 component->update();
         }
 
+        //なければnullopt
         template<typename RequiredComponent>
         std::optional<std::shared_ptr<RequiredComponent>> getComponent() //なければ無効値、必ずチェックを(shared_ptrのoperator boolで判別可能)
         {
@@ -65,20 +73,22 @@ namespace Engine
     protected:
 
         template<typename Component>
-        void addComponent()
+        std::shared_ptr<Component> addComponent()
         {
             auto tmp = std::make_shared<Component>();
             mComponents.emplace(typeid(Component).hash_code(), tmp);
             mComponentsVec.emplace_back(tmp);
+            return tmp;
         }
 
         //引数付きコンストラクタもOK
         template<typename Component, typename... Args>
-        void addComponent(Args... constructArgs)
+        std::shared_ptr<Component> addComponent(Args... constructArgs)
         {
             auto tmp = std::make_shared<Component>(constructArgs...);
             mComponents.emplace(typeid(Component).hash_code(), tmp);
             mComponentsVec.emplace_back(tmp);
+            return tmp;
         }
 
     private:

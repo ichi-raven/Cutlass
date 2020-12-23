@@ -5,9 +5,9 @@
 
 #include "../Engine/Actors/IActor.hpp"
 
-class SampleActor : public Engine::IActor
+class SampleActor : public Engine::IActor<SceneCommonRegion>
 {
-    GEN_ACTOR_CLASS(SampleActor)
+    GEN_ACTOR_CLASS(SampleActor, SceneCommonRegion)
 public:
     void test();
 };

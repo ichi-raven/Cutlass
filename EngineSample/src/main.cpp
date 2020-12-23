@@ -23,8 +23,11 @@ int main()
 	constexpr uint16_t windowHeight = 600;
 	constexpr uint16_t frameCount = 3;
 
+	//アプリケーション実体作成
+	Engine::Application<SceneList, SceneCommonRegion> app;
+
 	//コンテキスト取得
-	auto& context = Cutlass::Context::getInstance();
+	auto& context = app.mCommonRegion->context;
 	
 	{//初期化
 		Cutlass::InitializeInfo ii("testApp", true);
@@ -45,9 +48,6 @@ int main()
 	}
 
 	//注意 : 処理順序を変更するとcontextの初期化忘れが発生する可能性があります
-	
-	//アプリケーション実体作成
-	Engine::Application<SceneList, SceneCommonRegion> app;
 
 	{
 		//情報セット

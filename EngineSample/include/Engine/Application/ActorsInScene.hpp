@@ -11,32 +11,41 @@
 //Scene内のアクタを分離して各アクタに配布しやすいようにする
 namespace Engine
 {
+	template<typename SceneCommonRegion>
 	class ActorsInScene
 	{
 	public:
 
 		ActorsInScene()
 		{
-			//ここを
-			mActorsVec.reserve(20);
+			//チューニング対象?
+			mActorsVec.reserve(7);
+		}
+
+		//呼ばずに実行すると壊れるぞ!(そもそもここ関連の部分を弄らないでください)
+		void setNewCommonRegion(const std::shared_ptr<SceneCommonRegion>& sceneCommonRegion)
+		{
+			mCommonRegion = sceneCommonRegion;
 		}
 
 		template<typename Actor>
-		void addActor(const std::string& actorName)
+		std::shared_ptr<Actor> addActor(const std::string& actorName)
 		{
-			auto&& tmp = std::make_shared<Actor>();
-			tmp->init(*this);
+			auto tmp = std::make_shared<Actor>();
+			tmp->template init(*this, mCommonRegion);
 			mActors.emplace(actorName, tmp);
 			mActorsVec.emplace_back(tmp);
+			return tmp;
 		}
 
 		template<typename Actor, typename... Args>
-		void addActor(const std::string& actorName, Args... constructArgs)
+		std::shared_ptr<Actor> addActor(const std::string& actorName, Args... constructArgs)
 		{
-			auto&& tmp = std::make_shared<Actor>(constructArgs...);
-			tmp->init(*this);
+			auto tmp = std::make_shared<Actor>(constructArgs...);
+			tmp->template init(*this, mCommonRegion);
 			mActors.emplace(actorName, tmp);
 			mActorsVec.emplace_back(tmp);
+			return tmp;
 		}
 
 		void removeActor(const std::string& actorName)
@@ -55,7 +64,7 @@ namespace Engine
 			return (iter != mActors.end()) ? std::make_optional(std::dynamic_pointer_cast<RequiredActor>(iter->second)) : std::nullopt;
 		}
 
-		void forEachActor(const std::function<void(std::shared_ptr<IActor> actor)>& proc)
+		void forEachActor(const std::function<void(std::shared_ptr<IActor<SceneCommonRegion>> actor)>& proc)
 		{
 			std::for_each(mActorsVec.begin(), mActorsVec.end(), proc);
 		}
@@ -64,15 +73,15 @@ namespace Engine
 		void init()
 		{
 			for(auto& actor : mActorsVec)
-				actor->init(*this);
+				actor->init(*this, mCommonRegion);
 		}
 
 		//全てのアクタに対しての更新処理、Scene::updateActorsを呼べばユーザは呼ぶ必要はありません
 		void update()
-		{	
+		{
 			//ついでに削除しちゃう
 			auto&& end = mActorsVec.end();
-			auto&& itr = std::remove_if(mActorsVec.begin(), end, [&](std::shared_ptr<IActor>& actor)
+			auto&& itr = std::remove_if(mActorsVec.begin(), end, [&](std::shared_ptr<IActor<SceneCommonRegion>>& actor)
 			{
 				if(!mRemovedActors.empty() && actor == mRemovedActors.back())
 				{
@@ -80,7 +89,7 @@ namespace Engine
 					return true;
 				}
 
-				actor->update(*this);
+				actor->updateAll(*this, mCommonRegion);
 				return false;
 			});
 
@@ -89,8 +98,9 @@ namespace Engine
 		}
 
 	private:
-		std::unordered_map<std::string, std::shared_ptr<IActor>> mActors;
-		std::vector<std::shared_ptr<IActor>> mActorsVec;
-		std::queue<std::shared_ptr<IActor>> mRemovedActors;
+		std::unordered_map<std::string, std::shared_ptr<IActor<SceneCommonRegion>>> mActors;
+		std::vector<std::shared_ptr<IActor<SceneCommonRegion>>> mActorsVec;
+		std::queue<std::shared_ptr<IActor<SceneCommonRegion>>> mRemovedActors;
+		std::shared_ptr<SceneCommonRegion> mCommonRegion;
 	};
 };

@@ -9,19 +9,17 @@ SampleActor::~SampleActor()
 
 }
 
-void SampleActor::init(INIT_ARG_ACTORS(actors))
+void SampleActor::init(INIT_ARG_ACTORS(SceneCommonRegion, actors, scr))
 {
-	addComponent<Engine::MeshComponent>();
-	auto mesh = getComponent<Engine::MeshComponent>();
+	auto mesh = addComponent<Engine::MeshComponent>(std::ref(scr->context));
 	if(!mesh)
 		return;
-	mesh.value()->loadCube(1.f);
-	
+	mesh->createCube(1.f);
 }
 
-void SampleActor::update(UPDATE_ARG_ACTORS(actors))
+void SampleActor::update(UPDATE_ARG_ACTORS(SceneCommonRegion, actors, scr))
 {
-	updateComponents();
+	
 }
 
 void SampleActor::test()

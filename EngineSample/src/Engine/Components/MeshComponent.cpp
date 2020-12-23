@@ -2,8 +2,9 @@
 
 namespace Engine
 {
-    MeshComponent::MeshComponent()
+    MeshComponent::MeshComponent(Cutlass::Context& context)
     : mVisible(true)
+    , mContext(context)
     {
         
     }
@@ -70,7 +71,7 @@ namespace Engine
         mTransform.update();
     }
 
-    void MeshComponent::loadCube(const double& edgeLength)
+    void MeshComponent::createCube(const double& edgeLength)
     {
 
         constexpr glm::vec3 red(1.0f, 0.0f, 0.0f);

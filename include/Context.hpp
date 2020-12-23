@@ -82,22 +82,17 @@ namespace Cutlass
 
     class Context
     {
-    private:
-
-        //Singleton
+    public:
         Context();
+        Context(const InitializeInfo& info, Result& result_out);
 
         ~Context();
 
-        //Noncopyable, nonmovable
+        //Noncopyable, Nonmovable
         Context(const Context&) = delete;
         Context &operator=(const Context&) = delete;
         Context(Context&&) = delete;
         Context &operator=(Context&&) = delete;
-
-    public:
-
-        static Context& getInstance();
 
         //明示的に初期化
         Result initialize(const InitializeInfo &info);

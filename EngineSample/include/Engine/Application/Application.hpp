@@ -51,30 +51,42 @@ namespace Engine
 
 		Scene()
 		: mApplication(nullptr)
+		, mIsSetData(false)
 		{
 			//コンストラクタです
 		}
+
+		// Scene(Application_t* application, const std::shared_ptr<CommonRegion>& commonRegion)
+		// : mApplication(application)
+		// , mCommonRegion(commonRegion)
+		// , mActors(ActorsInScene(commonRegion))
+		// {
+
+		// }
 
 		virtual void init() = 0;
 
 		virtual void update() = 0;
 
-		void initInternal()
+		void initAll()
 		{
+			assert(mIsSetData);
 			init();
 			mActors.init();
 		}
 
-		void updateInternal()
+		void updateAll()
 		{
 			update();
 			mActors.update();
 		}
 
-		void setInternalData(Application_t* Application, const std::shared_ptr<CommonRegion>& commonRegion)
+		void setInternalData(Application_t* application, const std::shared_ptr<CommonRegion>& commonRegion)
 		{
-			mApplication = Application;
+			mApplication = application;
 			mCommonRegion = commonRegion;
+			mActors.setNewCommonRegion(commonRegion);
+			mIsSetData = true;
 		}
 
 	protected://子以外呼ばなくていいです
@@ -92,22 +104,22 @@ namespace Engine
 		template<typename Actor>
 		void addActor(const std::string& actorName)
 		{
-			mActors.addActor<Actor>(actorName);
+			mActors.template addActor<Actor>(actorName);
 		}
 
 		template<typename Actor, typename... Args>
 		void addActor(const std::string& actorName, Args... constructArgs)
 		{
-			mActors.addActor<Actor>(actorName, constructArgs...);
+			mActors.template addActor<Actor>(actorName, constructArgs...);
 		}
 
 		template<typename RequiredActor>
-		std::shared_ptr<RequiredActor> getActor(const std::string& actorName)//なければ無効値、必ずチェックを(shared_ptrのoperator boolで判別可能)
+		std::optional<std::shared_ptr<RequiredActor>> getActor(const std::string& actorName)//なければ無効値、必ずチェックを(shared_ptrのoperator boolで判別可能)
 		{
-			return mActors.getActor<RequiredActor>(actorName);
+			return mActors.template getActor<RequiredActor>(actorName);
 		}
 
-		ActorsInScene& getActorsInScene()
+		ActorsInScene<CommonRegion>& getActorsInScene()
 		{
 			return mActors;
 		}
@@ -118,11 +130,12 @@ namespace Engine
 		}
 
 	private://メンバ変数
+		bool mIsSetData;
 
 		std::shared_ptr<CommonRegion> mCommonRegion;
 		//std::unique_ptr<BaseRenderer> mRenderer;
 		Application_t* mApplication;//コンストラクタにてnullptrで初期化
-		ActorsInScene mActors;
+		ActorsInScene<CommonRegion> mActors;
 	};
 
 	template<typename Key_t, typename CommonRegion>
@@ -159,12 +172,12 @@ namespace Engine
 
 			mCurrent.first = mFirstSceneKey.value();
 			mCurrent.second = mScenesFactory[mFirstSceneKey.value()]();
-			mCurrent.second->initInternal();
+			mCurrent.second->initAll();
 		}
 
 		void update()
 		{
-			mCurrent.second->updateInternal();
+			mCurrent.second->updateAll();
 		}
 
 		template<typename DerivedScene>
@@ -184,10 +197,10 @@ namespace Engine
 				key,
 				[&]()
 				{
-					auto m = std::make_shared<DerivedScene>();//
-
+					//auto m = std::make_shared<DerivedScene>(this, mCommonRegion);//
+					auto m = std::make_shared<DerivedScene>();
 					m->setInternalData(this, mCommonRegion);
-					m->initInternal();
+					m->initAll();
 
 					return m;
 				}

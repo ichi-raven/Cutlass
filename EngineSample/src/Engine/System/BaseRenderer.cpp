@@ -7,10 +7,9 @@
 
 namespace Engine
 {
-    BaseRenderer::BaseRenderer()
+
+    void BaseRenderer::init(Cutlass::Context& context)
     {
-        auto& context = Cutlass::Context::getInstance();
-        
         {
             Cutlass::TextureInfo ti;
             ti.setRTTex2D(1920, 1080);
@@ -20,8 +19,8 @@ namespace Engine
 
         if(Cutlass::Result::eSuccess != context.createRenderDST(mRTTex, mIntermediateDST))
             return;
-        
     }
+    
 
     void BaseRenderer::addMesh(const std::shared_ptr<MeshComponent> mesh, const std::shared_ptr<MaterialComponent> material)
     {
