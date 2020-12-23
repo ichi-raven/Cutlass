@@ -21,7 +21,6 @@ namespace Engine
             return;
     }
     
-
     void BaseRenderer::addMesh(const std::shared_ptr<MeshComponent> mesh, const std::shared_ptr<MaterialComponent> material)
     {
         

@@ -15,10 +15,10 @@ SampleActor2::~SampleActor2()
 
 void SampleActor2::init(INIT_ARG_ACTORS(SceneCommonRegion, actors, scr))
 {
-	auto mesh = addComponent<Engine::MeshComponent>(std::ref(scr->context));
+	auto mesh = addComponent<Engine::MeshComponent>();
 	if(!mesh)
 		return;
-	mesh->createCube(1.f);
+	mesh->createCube(scr->context, 1.f);
 }
 
 void SampleActor2::update(UPDATE_ARG_ACTORS(SceneCommonRegion, actors, scr))

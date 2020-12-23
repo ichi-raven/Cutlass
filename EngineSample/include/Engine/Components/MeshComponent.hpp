@@ -21,14 +21,14 @@ namespace Engine
             glm::vec2 UV;
         };
 
-        MeshComponent(Cutlass::Context& context);
-        //MeshComponent(const char* path);
+        MeshComponent();
 
         //メッシュを構築する
-        void createCube(const double& edgeLength);
+        void createCube(Cutlass::Context& context, const double& edgeLength);
 
         void create
         (
+            Cutlass::Context& context,
             const std::vector<MeshComponent::Vertex>& vertices,
             const std::vector<uint32_t>& indices
         );
@@ -52,7 +52,6 @@ namespace Engine
         virtual void update() override;
 
     private:
-        Cutlass::Context& mContext;
 
         bool mVisible;
         bool mEnabled;

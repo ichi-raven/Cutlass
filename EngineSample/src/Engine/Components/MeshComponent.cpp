@@ -2,18 +2,12 @@
 
 namespace Engine
 {
-    MeshComponent::MeshComponent(Cutlass::Context& context)
+    MeshComponent::MeshComponent()
     : mVisible(true)
-    , mContext(context)
+    , mEnabled(true)
     {
         
     }
-
-    // MeshComponent::MeshComponent(const char* path)
-    //  : mVisible(true)
-    // {
-    //     load(path);
-    // }
 
     void MeshComponent::setVisible(bool flag)
     {
@@ -71,7 +65,32 @@ namespace Engine
         mTransform.update();
     }
 
-    void MeshComponent::createCube(const double& edgeLength)
+    void MeshComponent::create(Cutlass::Context& context, const std::vector<MeshComponent::Vertex>& vertices, const std::vector<uint32_t>& indices)
+    {
+        mVertices = vertices;
+        mIndices = indices;
+
+        mVertexLayout.set(Cutlass::ResourceType::eF32Vec3, "position");
+        mVertexLayout.set(Cutlass::ResourceType::eF32Vec3, "color");
+        mVertexLayout.set(Cutlass::ResourceType::eF32Vec3, "normal");
+        mVertexLayout.set(Cutlass::ResourceType::eF32Vec2, "uv");
+
+        {
+            Cutlass::BufferInfo bi;
+            bi.setVertexBuffer<Vertex>(mVertices.size());
+            context.createBuffer(bi, mVB);
+            context.writeBuffer(mVertices.size() * sizeof(decltype(mVertices[0])), mVertices.data(), mVB);
+        }
+
+        {
+            Cutlass::BufferInfo bi;
+            bi.setIndexBuffer<uint32_t>(mIndices.size());
+            context.createBuffer(bi, mIB);
+            context.writeBuffer(mIndices.size() * sizeof(decltype(mIndices[0])), mIndices.data(), mVB);
+        }
+    }
+
+    void MeshComponent::createCube(Cutlass::Context& context, const double& edgeLength)
     {
 
         constexpr glm::vec3 red(1.0f, 0.0f, 0.0f);
@@ -145,5 +164,18 @@ namespace Engine
         mVertexLayout.set(Cutlass::ResourceType::eF32Vec3, "normal");
         mVertexLayout.set(Cutlass::ResourceType::eF32Vec2, "uv");
 
+        {
+            Cutlass::BufferInfo bi;
+            bi.setVertexBuffer<Vertex>(mVertices.size());
+            context.createBuffer(bi, mVB);
+            context.writeBuffer(mVertices.size() * sizeof(decltype(mVertices[0])), mVertices.data(), mVB);
+        }
+
+        {
+            Cutlass::BufferInfo bi;
+            bi.setIndexBuffer<uint32_t>(mIndices.size());
+            context.createBuffer(bi, mIB);
+            context.writeBuffer(mIndices.size() * sizeof(decltype(mIndices[0])), mIndices.data(), mVB);
+        }
     }
 }
