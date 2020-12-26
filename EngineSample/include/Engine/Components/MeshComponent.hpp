@@ -12,7 +12,7 @@ namespace Engine
     class MeshComponent : public IComponent
     {
     public:
-        //頂点構造
+        //頂点構造, これをいじるとRendererとかも変わります
         struct Vertex
         {
             glm::vec3 pos;
@@ -21,11 +21,28 @@ namespace Engine
             glm::vec2 UV;
         };
 
+        //VertexLayoutはMeshごとに固定です
+        //上の型を変えたときに変えてください
+        static const Cutlass::VertexLayout& getVertexLayout()
+        {
+            //なかったら構築
+            if(!meshVL)
+            {
+                Cutlass::VertexLayout vl;
+                vl.set(Cutlass::ResourceType::eF32Vec3, "position");
+                vl.set(Cutlass::ResourceType::eF32Vec3, "color");
+                vl.set(Cutlass::ResourceType::eF32Vec3, "normal");
+                vl.set(Cutlass::ResourceType::eF32Vec2, "uv");
+                meshVL = vl;
+            }
+
+            return meshVL.value();
+        }
+
         MeshComponent();
 
         //メッシュを構築する
         void createCube(Cutlass::Context& context, const double& edgeLength);
-
         void create
         (
             Cutlass::Context& context,
@@ -36,8 +53,8 @@ namespace Engine
         void setVisible(bool flag);
         bool getVisible() const;
 
-        void setEnabled(bool flag);
-        bool getEnabled() const;
+        void setEnable(bool flag);
+        bool getEnable() const;
 
         void setTransform(const Transform& transform);
         Transform& getTransform();
@@ -47,11 +64,11 @@ namespace Engine
 
         const Cutlass::HBuffer& getIB() const;
 
-        const Cutlass::VertexLayout& getVL() const;
-
         virtual void update() override;
 
     private:
+        //メッシュで固定、自作Componentとか使う場合はどうにかしてください
+        static std::optional<Cutlass::VertexLayout> meshVL;
 
         bool mVisible;
         bool mEnabled;
@@ -62,7 +79,5 @@ namespace Engine
 
         Cutlass::HBuffer mVB;
         Cutlass::HBuffer mIB;
-
-        Cutlass::VertexLayout mVertexLayout;
     };
 };

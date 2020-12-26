@@ -9,15 +9,17 @@ SampleActor::~SampleActor()
 
 }
 
-void SampleActor::init(INIT_ARG_ACTORS(SceneCommonRegion, actors, scr))
+void SampleActor::init(INIT_ARG_ACTOR(SceneCommonRegion, actors, scr))
 {
 	auto mesh = addComponent<Engine::MeshComponent>();
-	if(!mesh)
+	addComponent<Engine::MeshComponent>();
+	auto mesh2 = getComponent<Engine::MeshComponent>();
+	if(!mesh || !mesh2)
 		return;
 	mesh->createCube(scr->context, 1.f);
 }
 
-void SampleActor::update(UPDATE_ARG_ACTORS(SceneCommonRegion, actors, scr))
+void SampleActor::update(UPDATE_ARG_ACTOR(SceneCommonRegion, actors, scr))
 {
 	
 }

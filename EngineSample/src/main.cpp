@@ -25,7 +25,7 @@ int main()
 
 	//アプリケーション実体作成
 	Engine::Application<SceneList, SceneCommonRegion> app;
-
+	
 	//コンテキスト取得
 	auto& context = app.mCommonRegion->context;
 	
@@ -48,19 +48,19 @@ int main()
 	}
 
 	//注意 : 処理順序を変更するとcontextの初期化忘れが発生する可能性があります
+	
+	//情報セット
+	app.mCommonRegion->width = windowWidth;
+	app.mCommonRegion->height = windowHeight;
+	app.mCommonRegion->frameCount = frameCount;
+	app.mCommonRegion->window = window;
+	app.mCommonRegion->frameBuffer = rdst;
 
-	{
-		//情報セット
-		app.mCommonRegion->width = windowWidth;
-		app.mCommonRegion->height = windowHeight;
-		app.mCommonRegion->frameCount = frameCount;
-		
-		//シーン追加
-		app.addScene<TestScene>(SceneList::eTest);
-		
-		//このステートで開始
-		app.init(SceneList::eTest);
-	}
+	//シーン追加
+	app.addScene<TestScene>(SceneList::eTest);
+	
+	//このシーンから開始, Scene::initを実行
+	app.init(SceneList::eTest);
 
 	{//メインループ
 		uint32_t frame = 0;

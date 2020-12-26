@@ -1,10 +1,12 @@
 #include <Engine/Components/MeshComponent.hpp>
 
+#include <Engine/Components/MaterialComponent.hpp>
+
 namespace Engine
 {
     MeshComponent::MeshComponent()
-    : mVisible(true)
-    , mEnabled(true)
+    : mVisible(false)
+    , mEnabled(false)
     {
         
     }
@@ -19,12 +21,12 @@ namespace Engine
         return mVisible;
     }
 
-    void MeshComponent::setEnabled(bool flag)
+    void MeshComponent::setEnable(bool flag)
     {
         mEnabled = flag;
     }
 
-    bool MeshComponent::getEnabled() const
+    bool MeshComponent::getEnable() const
     {
         return mEnabled;
     }
@@ -54,11 +56,6 @@ namespace Engine
         return mIB;
     }
 
-    const Cutlass::VertexLayout& MeshComponent::getVL() const
-    {
-        return mVertexLayout;
-    }
-
     void MeshComponent::update()
     {
         //update
@@ -67,22 +64,18 @@ namespace Engine
 
     void MeshComponent::create(Cutlass::Context& context, const std::vector<MeshComponent::Vertex>& vertices, const std::vector<uint32_t>& indices)
     {
+        mVisible = mEnabled = true;
         mVertices = vertices;
         mIndices = indices;
 
-        mVertexLayout.set(Cutlass::ResourceType::eF32Vec3, "position");
-        mVertexLayout.set(Cutlass::ResourceType::eF32Vec3, "color");
-        mVertexLayout.set(Cutlass::ResourceType::eF32Vec3, "normal");
-        mVertexLayout.set(Cutlass::ResourceType::eF32Vec2, "uv");
-
-        {
+        {//頂点バッファ構築
             Cutlass::BufferInfo bi;
             bi.setVertexBuffer<Vertex>(mVertices.size());
             context.createBuffer(bi, mVB);
             context.writeBuffer(mVertices.size() * sizeof(decltype(mVertices[0])), mVertices.data(), mVB);
         }
 
-        {
+        {//インデックスバッファ構築
             Cutlass::BufferInfo bi;
             bi.setIndexBuffer<uint32_t>(mIndices.size());
             context.createBuffer(bi, mIB);
@@ -92,6 +85,7 @@ namespace Engine
 
     void MeshComponent::createCube(Cutlass::Context& context, const double& edgeLength)
     {
+        mVisible = mEnabled = true;
 
         constexpr glm::vec3 red(1.0f, 0.0f, 0.0f);
         constexpr glm::vec3 green(0.0f, 1.0f, 0.0f);
@@ -158,11 +152,6 @@ namespace Engine
             16, 18, 17, 17, 18, 19, // top
             20, 22, 21, 21, 22, 23, // bottom
         };
-
-        mVertexLayout.set(Cutlass::ResourceType::eF32Vec3, "position");
-        mVertexLayout.set(Cutlass::ResourceType::eF32Vec3, "color");
-        mVertexLayout.set(Cutlass::ResourceType::eF32Vec3, "normal");
-        mVertexLayout.set(Cutlass::ResourceType::eF32Vec2, "uv");
 
         {
             Cutlass::BufferInfo bi;

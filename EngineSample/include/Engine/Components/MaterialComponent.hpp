@@ -24,9 +24,7 @@ namespace Engine
 
         void addMaterial(const PhongMaterial& material, std::optional<const char*> texturePath, std::optional<uint32_t> useVertexNum);
 
-        void setFS(const Cutlass::Shader& shader);
-
-        // const Cutlass::HBuffer& getMaterialCB();
+        const Cutlass::HBuffer& getMaterialCB();
 
         virtual void update() override;
 
@@ -35,10 +33,9 @@ namespace Engine
         struct Material
         {
             MaterialType materialType;
-            std::optional<Cutlass::HTexture> texture;
             std::optional<uint32_t> useVertexNum;
-            std::vector<Cutlass::HBuffer> CBs;
-            
+            std::optional<Cutlass::HTexture> texture;
+            Cutlass::HBuffer constantBuffer;
         };
 
         //単一のMeshに対して複数のMaterialがある場合があります

@@ -3004,8 +3004,42 @@ namespace Cutlass
 
     Result Context::createCommandBuffer(const CommandList& commandList, HCommandBuffer& handle_out)
     {
-        auto tmp = std::move(std::vector<CommandList>(1, commandList));
+        auto&& tmp = std::move(std::vector<CommandList>(1, commandList));
         return createCommandBuffer(tmp, handle_out);
+    }
+
+    Result Context::releaseShaderResourceSet(const HCommandBuffer& handle)
+    {
+        Result result = Result::eSuccess;
+
+        if(mInitializeInfo.debugFlag && mCommandBufferMap.count(handle) <= 0)
+        {
+            std::cerr << "invalid command buffer handle!\n";
+            return Result::eFailure;
+        }
+
+        auto& co = mCommandBufferMap.at(handle);
+        if(mInitializeInfo.debugFlag && mRPMap.count(co.mHRPO.value()) <= 0)
+        {
+            std::cerr << "invalid render pipeline handle!\n";
+            return Result::eFailure;
+        }
+
+        auto& rpo = mRPMap.at(co.mHRPO.value());
+        if(!rpo.mDescriptorPool)
+        {
+            std::cerr << "this render pipeline didn't have descriptor pool!\n";
+            return Result::eFailure;
+        }
+
+        result = checkVkResult(vkFreeDescriptorSets(mDevice, rpo.mDescriptorPool.value(), co.mDescriptorSets.size(), co.mDescriptorSets.data()));
+        if(result != Result::eSuccess)
+        {
+            std::cerr << "failed to free descriptor set!\n";
+            return Result::eFailure;
+        }
+
+        return Result::eFailure;
     }
 
     Result Context::cmdBeginRenderPipeline(CommandObject &co, size_t frameBufferIndex, const CmdBeginRenderPipeline &info)

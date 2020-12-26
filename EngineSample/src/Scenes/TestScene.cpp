@@ -62,5 +62,5 @@ void TestScene::render()
 
 	getActorsInScene().forEachActor(lmdSearchRenderebleActors);
 
-	mRenderer.render(getCommonRegion()->frameBuffer);
+	mRenderer.render(getCommonRegion()->context);
 }

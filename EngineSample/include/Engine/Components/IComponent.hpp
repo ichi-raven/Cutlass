@@ -7,5 +7,16 @@ namespace Engine
     public:
         virtual void update() = 0;
         
+        //どうしても識別したいときに使ってください
+        void setIDString(int ID)
+        {
+            mID = ID;
+        }
+        int getID() const
+        {
+            return mID;
+        }
+    private:
+        int mID;
     };
 }

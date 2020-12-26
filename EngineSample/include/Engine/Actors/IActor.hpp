@@ -17,8 +17,8 @@ virtual void update([[maybe_unused]] Engine::ActorsInScene<COMMONREGION_TYPE>& a
 private:
 
 //init, updateの引数自動生成(COMMONREGION_TYPE...共有領域の型, ARG_***...引数名)
-#define INIT_ARG_ACTORS(COMMONREGION_TYPE, ARG_ACTORS, ARG_COMMONREGION) [[maybe_unused]] Engine::ActorsInScene<COMMONREGION_TYPE>& ARG_ACTORS, [[maybe_unused]] std::shared_ptr<COMMONREGION_TYPE> ARG_COMMONREGION
-#define UPDATE_ARG_ACTORS(COMMONREGION_TYPE, ARG_ACTORS, ARG_COMMONREGION) [[maybe_unused]] Engine::ActorsInScene<COMMONREGION_TYPE>& ARG_ACTORS, [[maybe_unused]] std::shared_ptr<COMMONREGION_TYPE> ARG_COMMONREGION
+#define INIT_ARG_ACTOR(COMMONREGION_TYPE, ARG_ACTORS, ARG_COMMONREGION) [[maybe_unused]] Engine::ActorsInScene<COMMONREGION_TYPE>& ARG_ACTORS, [[maybe_unused]] std::shared_ptr<COMMONREGION_TYPE> ARG_COMMONREGION
+#define UPDATE_ARG_ACTOR(COMMONREGION_TYPE, ARG_ACTORS, ARG_COMMONREGION) [[maybe_unused]] Engine::ActorsInScene<COMMONREGION_TYPE>& ARG_ACTORS, [[maybe_unused]] std::shared_ptr<COMMONREGION_TYPE> ARG_COMMONREGION
 
 //[[maybe_unused]]とは、その引数を関数内で使用しなかったとしてもコンパイラに警告を吐かせない属性です
 //よくわからない場合は上記マクロを使用すればいいかも?
@@ -62,9 +62,17 @@ namespace Engine
                 component->update();
         }
 
-        //なければnullopt
+        //なければnullopt, 同型のComponentのうち最も前のものを返します
         template<typename RequiredComponent>
         std::optional<std::shared_ptr<RequiredComponent>> getComponent() //なければ無効値、必ずチェックを(shared_ptrのoperator boolで判別可能)
+        {
+            const auto& iter = mComponents.find(typeid(RequiredComponent).hash_code());
+            return (iter != mComponents.end()) ? std::make_optional(std::dynamic_pointer_cast<RequiredComponent>(iter->second[0])) : std::nullopt;
+        }
+
+        //なければnullopt, 同型のComponentを全て取得します
+        template<typename RequiredComponent>
+        std::optional<std::vector<std::shared_ptr<RequiredComponent>>>& getComponents() //なければ無効値、必ずチェックを(shared_ptrのoperator boolで判別可能)
         {
             const auto& iter = mComponents.find(typeid(RequiredComponent).hash_code());
             return (iter != mComponents.end()) ? std::make_optional(std::dynamic_pointer_cast<RequiredComponent>(iter->second)) : std::nullopt;
@@ -76,7 +84,12 @@ namespace Engine
         std::shared_ptr<Component> addComponent()
         {
             auto tmp = std::make_shared<Component>();
-            mComponents.emplace(typeid(Component).hash_code(), tmp);
+            auto&& p = mComponents.emplace(typeid(Component).hash_code(), std::vector<std::shared_ptr<IComponent>>());
+            if(p.second)
+                p.first->second.emplace_back(tmp);
+            else
+                mComponents.at(typeid(Component).hash_code()).emplace_back(tmp);
+            
             mComponentsVec.emplace_back(tmp);
             return tmp;
         }
@@ -86,14 +99,18 @@ namespace Engine
         std::shared_ptr<Component> addComponent(Args... constructArgs)
         {
             auto tmp = std::make_shared<Component>(constructArgs...);
-            mComponents.emplace(typeid(Component).hash_code(), tmp);
+            auto&& p = mComponents.emplace(typeid(Component).hash_code(), std::vector<std::shared_ptr<IComponent>>());
+            if(p.second)
+                p.first->second.emplace_back(tmp);
+            else
+                mComponents.at(typeid(Component).hash_code()).emplace_back(tmp);
             mComponentsVec.emplace_back(tmp);
             return tmp;
         }
 
     private:
         //キーは型のハッシュ値
-        std::unordered_map<size_t, std::shared_ptr<IComponent>> mComponents;
+        std::unordered_map<size_t, std::vector<std::shared_ptr<IComponent>>> mComponents;
         std::vector<std::shared_ptr<IComponent>> mComponentsVec;
     };
 };

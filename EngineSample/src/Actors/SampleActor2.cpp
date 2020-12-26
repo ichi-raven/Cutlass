@@ -13,7 +13,7 @@ SampleActor2::~SampleActor2()
 
 }
 
-void SampleActor2::init(INIT_ARG_ACTORS(SceneCommonRegion, actors, scr))
+void SampleActor2::init(INIT_ARG_ACTOR(SceneCommonRegion, actors, scr))
 {
 	auto mesh = addComponent<Engine::MeshComponent>();
 	if(!mesh)
@@ -21,7 +21,7 @@ void SampleActor2::init(INIT_ARG_ACTORS(SceneCommonRegion, actors, scr))
 	mesh->createCube(scr->context, 1.f);
 }
 
-void SampleActor2::update(UPDATE_ARG_ACTORS(SceneCommonRegion, actors, scr))
+void SampleActor2::update(UPDATE_ARG_ACTOR(SceneCommonRegion, actors, scr))
 {
     auto sa2 = actors.getActor<SampleActor2>("SampleActor2").value();
     auto meshcmp = sa2->getComponent<Engine::MeshComponent>().value();
