@@ -52,9 +52,22 @@ namespace Cutlass
     {
         RasterizerState()
             : polygonMode(PolygonMode::eFill)
-            , cullMode(CullMode::eBack)
+            , cullMode(CullMode::eNone)
             , frontFace(FrontFace::eClockwise)
             , lineWidth(1.f)
+        {}
+
+        RasterizerState
+        (
+            PolygonMode polygonMode,
+            CullMode cullMode,
+            FrontFace frontFace,
+            float lineWidth = 1.f
+        )            
+            : polygonMode(polygonMode)
+            , cullMode(cullMode)
+            , frontFace(frontFace)
+            , lineWidth(lineWidth)
         {}
 
         PolygonMode polygonMode;

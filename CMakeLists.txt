@@ -5,15 +5,15 @@ project(CutlassEngine CXX)
 
 add_definitions("-g -O0 -std=c++17")
 
-INCLUDE_DIRECTORIES(
+include_directories(
    vulkan
    glfw
    stb
    ${PROJECT_SOURCE_DIR}/include
 )
 
-FILE(GLOB SRCS src/*.cpp)
-FILE(GLOB HDRS include/*.hpp)
+file(GLOB SRCS src/*.cpp)
+file(GLOB HDRS include/*.hpp)
 
 add_library(cutlass STATIC ${SRCS})
 

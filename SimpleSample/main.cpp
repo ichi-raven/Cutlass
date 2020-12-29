@@ -140,13 +140,15 @@ int main()
             std::cout << "Failed to write index buffer!\n";
     }
 
-    HBuffer renderUB;
+    HBuffer renderUB, renderUB2;
     std::vector<HBuffer> presentUBs(frameCount);
     {//ユニフォームバッファ作成
         BufferInfo bi;
         bi.setUniformBuffer<Uniform>();
         
         if (Result::eSuccess != context.createBuffer(bi, renderUB))
+            std::cout << "Failed to create uniform\n";
+        if (Result::eSuccess != context.createBuffer(bi, renderUB2))
             std::cout << "Failed to create uniform\n";
         
         for (auto& ub : presentUBs)
@@ -180,7 +182,7 @@ int main()
             std::cout << "Failed to create renderDST\n";
     }
 
-    HRenderPipeline renderPipeline, presentPipeline;
+    HRenderPipeline renderPipeline, renderPipeline2, presentPipeline;
     {//テクスチャ描画用パス、ウィンドウ描画用パスを定義
 
         //頂点レイアウト定義
@@ -194,18 +196,32 @@ int main()
         ShaderResourceDesc SRDesc;
         SRDesc.layout.allocForUniformBuffer(0);
         SRDesc.layout.allocForCombinedTexture(1);
-        SRDesc.setCount = frameCount;
+        SRDesc.setCount = 1;
 
         RenderPipelineInfo rpi
         (
             vl,
             ColorBlend::eDefault,
             Topology::eTriangleList,
-            RasterizerState(),
+            RasterizerState(PolygonMode::eFill, CullMode::eBack, FrontFace::eClockwise, 1.f),
             MultiSampleState::eDefault,
-            DepthStencilState::eNone,
-            Shader("../Shaders/vert.spv", "main"),
-            Shader("../Shaders/frag.spv", "main"),
+            DepthStencilState::eDepth,
+            Shader("../Shaders/TexturedCube/vert.spv", "main"),
+            Shader("../Shaders/TexturedCube/frag.spv", "main"),
+            SRDesc,
+            texDST
+        );
+
+        RenderPipelineInfo rpi2
+        (
+            vl,
+            ColorBlend::eDefault,
+            Topology::eTriangleList,
+            RasterizerState(PolygonMode::eFill, CullMode::eBack, FrontFace::eClockwise, 1.f),
+            MultiSampleState::eDefault,
+            DepthStencilState::eDepth,
+            Shader("../Shaders/TexturedCube/vert.spv", "main"),
+            Shader("../Shaders/TexturedCube/frag2.spv", "main"),
             SRDesc,
             texDST
         );
@@ -213,64 +229,90 @@ int main()
         if (Result::eSuccess != context.createRenderPipeline(rpi, renderPipeline))
             std::cout << "Failed to create render pipeline!\n";
 
-        //2パス目は対象とデプスバッファリングが変わる
-        rpi.depthStencilState = DepthStencilState::eDepth;
-        rpi.renderDST = renderDST;
-
-        if (Result::eSuccess != context.createRenderPipeline(rpi, presentPipeline))
-            std::cout << "Failed to create render pipeline2!\n";
+        if (Result::eSuccess != context.createRenderPipeline(rpi2, renderPipeline2))
+            std::cout << "Failed to create render pipeline!\n";  
     }
 
-    ShaderResourceSet renderSet;
+    {
+        ShaderResourceDesc SRDesc;
+        SRDesc.layout.allocForCombinedTexture(0);
+        SRDesc.setCount = frameCount;
+
+        RenderPipelineInfo rpi
+        (
+            ColorBlend::eDefault,
+            Topology::eTriangleStrip,
+            RasterizerState(),
+            MultiSampleState::eDefault,
+            DepthStencilState::eDepth,
+            Shader("../Shaders/present/vert.spv", "main"),
+            Shader("../Shaders/present/frag.spv", "main"),
+            SRDesc,
+            renderDST
+        );
+
+        if (Result::eSuccess != context.createRenderPipeline(rpi, presentPipeline))
+            std::cout << "Failed to create present pipeline!\n";  
+    }
+
+    ShaderResourceSet renderSet, renderSet2;
     {//テクスチャレンダリングパスのリソースセット
 
         renderSet.setUniformBuffer(0, renderUB);
         renderSet.setCombinedTexture(1, texture);
-        
+
+        renderSet2.setUniformBuffer(0, renderUB2);
+        renderSet2.setCombinedTexture(1, texture);
     }
 
     std::vector<ShaderResourceSet> presentSets(frameCount);
     {//ウィンドウに描画するパスのリソースセット
         for (size_t i = 0; i < presentSets.size(); ++i)
         {
-            presentSets[i].setUniformBuffer(0, presentUBs[i]);
-            presentSets[i].setCombinedTexture(1, target);
+            presentSets[i].setCombinedTexture(0, target);
         }
     }
 
-    CommandList renderCL;
+    CommandList renderCL, renderCL2;
     std::vector<CommandList> presentCL(frameCount);
 
     {//コマンドリストを作成
-        ColorClearValue ccv{ 0, 0.5f, 0, 0 };
+        ColorClearValue ccv{ 0, 0, 0.5f, 1.f};
         DepthClearValue dcv(1.f, 0);
 
         renderCL.bindVB(vertexBuffer);
         renderCL.bindIB(indexBuffer);
         
-        renderCL.beginRenderPipeline(renderPipeline, ccv, dcv);
+        renderCL.beginRenderPipeline(renderPipeline, false, ccv, dcv);
         renderCL.bindSRSet(renderSet);
         renderCL.renderIndexed(indices.size(), 1, 0, 0, 0);
         renderCL.endRenderPipeline();
         renderCL.sync();
         
+        renderCL2.bindVB(vertexBuffer);
+        renderCL2.bindIB(indexBuffer);
+        
+        renderCL2.beginRenderPipeline(renderPipeline2, false);
+        renderCL2.bindSRSet(renderSet2);
+        renderCL2.renderIndexed(indices.size(), 1, 0, 0, 0);
+        renderCL2.endRenderPipeline();
+        renderCL2.sync();
 
         for(size_t i = 0; i < presentCL.size(); ++i)
         {
-            presentCL[i].bindVB(vertexBuffer);
-            presentCL[i].bindIB(indexBuffer);
-
-            presentCL[i].beginRenderPipeline(presentPipeline);
+            presentCL[i].beginRenderPipeline(presentPipeline, true, ccv, dcv);
             presentCL[i].bindSRSet(presentSets[i]);
-            presentCL[i].renderIndexed(indices.size(), 1, 0, 0, 0);
+            presentCL[i].render(4, 1, 0, 0);
             presentCL[i].endRenderPipeline();
             presentCL[i].present();
-        }  
+        }
     }
 
-    HCommandBuffer renderCB, presentCB;
+    HCommandBuffer renderCB, renderCB2, presentCB;
     {//リストからGPUでバッファを構築
         if (Result::eSuccess != context.createCommandBuffer(renderCL, renderCB))
+            std::cout << "Failed to create command buffer\n";
+        if (Result::eSuccess != context.createCommandBuffer(renderCL2, renderCB2))
             std::cout << "Failed to create command buffer\n";
         if (Result::eSuccess != context.createCommandBuffer(presentCL, presentCB))
             std::cout << "Failed to create command buffer\n";
@@ -328,12 +370,17 @@ int main()
                 uint32_t frameIndex = context.getFrameBufferIndex(renderDST);
                 if (Result::eSuccess != context.writeBuffer(sizeof(Uniform), &ubo, renderUB))
                     std::cout << "Failed to write uniform buffer!\n";
-                if (Result::eSuccess != context.writeBuffer(sizeof(Uniform), &ubo, presentUBs[(frameIndex + 1) % frameCount]))
+                ubo.world = glm::translate(glm::identity<glm::mat4>(), glm::vec3(2, 2, 2));
+                if (Result::eSuccess != context.writeBuffer(sizeof(Uniform), &ubo, renderUB2))
                     std::cout << "Failed to write uniform buffer!\n";
+                // if (Result::eSuccess != context.writeBuffer(sizeof(Uniform), &ubo, presentUBs[(frameIndex + 1) % frameCount]))
+                //     std::cout << "Failed to write uniform buffer!\n";
             }
 
             //コマンド実行
             if (Result::eSuccess != context.execute(renderCB))
+                std::cerr << "Failed to execute command!\n";
+            if (Result::eSuccess != context.execute(renderCB2))
                 std::cerr << "Failed to execute command!\n";
             if (Result::eSuccess != context.execute(presentCB))
                std::cerr << "Failed to execute command!\n";

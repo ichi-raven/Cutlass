@@ -50,14 +50,11 @@ namespace Engine
 
         virtual void update([[maybe_unused]] ActorsInScene<SceneCommonRegion>& actors, [[maybe_unused]] std::shared_ptr<SceneCommonRegion> commonRegion) = 0;
 
+        virtual void render([[maybe_unused]] Cutlass::Context& context, Cutlass::HRenderDST renderDST) = 0;
+
         void updateAll([[maybe_unused]] ActorsInScene<SceneCommonRegion>& actors, [[maybe_unused]] std::shared_ptr<SceneCommonRegion> commonRegion)
         {
             update(actors, commonRegion);
-            updateComponents();
-        }
-
-        void updateComponents()
-        {
             for (auto& component : mComponentsVec)
                 component->update();
         }

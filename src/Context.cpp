@@ -2088,7 +2088,7 @@ namespace Cutlass
 
             adVec.back().format = io.format;
             adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
-            adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
             adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
             arVec.back().attachment = 0;
@@ -2109,7 +2109,7 @@ namespace Cutlass
 
         adVec.back().format = depthBuffer.format;
         adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
-        adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         adVec.back().finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -2237,7 +2237,7 @@ namespace Cutlass
 
             adVec.back().format = io.format;
             adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
-            adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
             adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
             arVec.back().attachment = 0;
@@ -2884,12 +2884,6 @@ namespace Cutlass
 
         Result result = Result::eSuccess;
 
-        // if (commandLists.size() > mMaxFrameNum)
-        // {
-        //     std::cerr << "invalid command list size! (greater than frame count)\n";
-        //     return Result::eFailure;
-        // }
-
         CommandObject co;
         co.mPresentFlag = false; //事前設定
 
@@ -2978,10 +2972,13 @@ namespace Cutlass
                     result = cmdSync(co, std::get<CmdSync>(command.second));
                     break;
                 default:
-                    std::cerr << "invalid command!\n";
-                    result = Result::eFailure;
+                    std::cerr << "invalid command!\nrequested command : " << static_cast<int>(command.first) << "\n";
+                    return Result::eFailure;
                     break;
                 }
+
+                if(result != Result::eSuccess)
+                    return result;
             }
 
             {//end command buffer
@@ -3004,8 +3001,7 @@ namespace Cutlass
 
     Result Context::createCommandBuffer(const CommandList& commandList, HCommandBuffer& handle_out)
     {
-        auto&& tmp = std::move(std::vector<CommandList>(1, commandList));
-        return createCommandBuffer(tmp, handle_out);
+        return createCommandBuffer(std::vector<CommandList>(1, commandList), handle_out);
     }
 
     Result Context::releaseShaderResourceSet(const HCommandBuffer& handle)
@@ -3055,25 +3051,35 @@ namespace Cutlass
         VkRenderPassBeginInfo bi{};
 
         VkClearValue clearValues[2];
-        clearValues[0].color = 
+        
+        if(info.clear)
         {
-            info.ccv[0], info.ccv[1], info.ccv[2], info.ccv[3]
-        };
+            
+            clearValues[0].color = 
+            {
+                info.ccv[0], info.ccv[1], info.ccv[2], info.ccv[3]
+            };
 
-        clearValues[1].depthStencil = 
-        {
-            std::get<0>(info.dcv), std::get<1>(info.dcv)
-        };
+            clearValues[1].depthStencil = 
+            {
+                std::get<0>(info.dcv), std::get<1>(info.dcv)
+            };
 
-        if (rdsto.mDepthTestEnable)
-        {
-            bi.clearValueCount = 2;
-            bi.pClearValues = clearValues;
+            if (rdsto.mDepthTestEnable)
+            {
+                bi.clearValueCount = 2;
+                bi.pClearValues = clearValues;
+            }
+            else
+            {
+                bi.clearValueCount = 1;
+                bi.pClearValues = clearValues;
+            }
         }
         else
         {
-            bi.clearValueCount = 1;
-            bi.pClearValues = clearValues;
+            bi.clearValueCount = 0;
+            bi.pClearValues = nullptr;
         }
 
         bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;

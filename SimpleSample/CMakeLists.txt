@@ -12,9 +12,9 @@ include_directories(
    "../include"
 )
 
-add_executable(App main.cpp)
+link_directories(../build)
 
-link_directories(../)
+add_executable(App main.cpp)
 
 target_link_libraries(App
    vulkan

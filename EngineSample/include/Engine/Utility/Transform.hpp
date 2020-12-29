@@ -28,7 +28,7 @@ namespace Engine
 
         const glm::mat4& getWorldMatrix();
 
-        virtual void update();
+        virtual void update(const float& deltatime);
 
     private:
         glm::vec3 mPos;

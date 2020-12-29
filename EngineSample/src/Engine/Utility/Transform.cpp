@@ -42,8 +42,9 @@ namespace Engine
 
     void Transform::setRotationDeg(const glm::vec3& rotAxis, float angle_deg)
     {
+        constexpr float deg2rad = 3.14159265358979 / 180.;
         mRotAxis = rotAxis;
-        mRotAngle = angle_deg * (M_PI / 180.f);
+        mRotAngle = angle_deg * deg2rad;
     }
 
 
@@ -87,14 +88,10 @@ namespace Engine
         return mWorld;
     }
 
-    void Transform::update()
+    void Transform::update(const float& deltatime)
     {
-        auto&& now = std::chrono::high_resolution_clock::now();
-        float&& deltatime = std::chrono::duration_cast<std::chrono::microseconds>(now - mPrev).count() / 1000000.f;
         mPos += deltatime * (mVel += deltatime * mAcc);
 
         mWorld = glm::translate(glm::mat4(), mPos) * glm::rotate(mRotAngle, mRotAxis) * glm::scale(mScale); 
-
-        mPrev = now;
     }
 }

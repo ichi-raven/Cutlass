@@ -67,7 +67,7 @@ int main()
 		std::array<double, 10> times;//10F平均でFPSを計測
 		std::chrono::high_resolution_clock::time_point now, prev = std::chrono::high_resolution_clock::now();
 
-		while (!app.endAll())
+		while (!app.endAll() && !context.shouldClose())
 		{
 			{//frame数, fps表示
                 now = std::chrono::high_resolution_clock::now();

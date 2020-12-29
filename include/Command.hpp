@@ -17,6 +17,7 @@ namespace Cutlass
         HRenderPipeline RPHandle;
         ColorClearValue ccv;
         DepthClearValue dcv;
+        bool clear;
     };
 
     struct CmdEndRenderPipeline
@@ -106,7 +107,9 @@ namespace Cutlass
     class CommandList
     {
     public:
-        void beginRenderPipeline(const HRenderPipeline& RPHandle, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f }, const DepthClearValue dcv = { 1.f, 0 });
+        void beginRenderPipeline(const HRenderPipeline& RPHandle, bool clearFlag, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f }, const DepthClearValue dcv = { 1.f, 0 });
+        void beginRenderPipeline(const HRenderPipeline& RPHandle, const DepthClearValue dcv = { 1.f, 0 }, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f });
+
         void endRenderPipeline();
         void present();
         void bindVB(const HBuffer &VBHandle);
@@ -128,6 +131,9 @@ namespace Cutlass
             uint32_t firstInstance //インスタシング描画しないなら0
         );
         void sync();
+
+        //現在のCommandListに接続する
+        void append(CommandList& commandList);
 
         const InternalCommandList& getInternalCommandData() const;
 

@@ -3,9 +3,14 @@
 namespace Cutlass
 {
 
-    void CommandList::beginRenderPipeline(const HRenderPipeline &RPHandle, const ColorClearValue ccv, const DepthClearValue dcv)
+    void CommandList::beginRenderPipeline(const HRenderPipeline& RPHandle, bool clearFlag, const ColorClearValue ccv, const DepthClearValue dcv)
     {
-        mCommands.emplace_back(CommandType::eBeginRenderPipeline, CmdBeginRenderPipeline{RPHandle, ccv, dcv});
+        mCommands.emplace_back(CommandType::eBeginRenderPipeline, CmdBeginRenderPipeline{RPHandle, ccv, dcv, clearFlag});
+    }
+
+    void CommandList::beginRenderPipeline(const HRenderPipeline& RPHandle, const DepthClearValue dcv, const ColorClearValue ccv)
+    {
+        mCommands.emplace_back(CommandType::eBeginRenderPipeline, CmdBeginRenderPipeline{RPHandle, ccv, dcv, true});
     }
 
     void CommandList::endRenderPipeline()
@@ -59,6 +64,13 @@ namespace Cutlass
     void CommandList::sync()
     {
         mCommands.emplace_back(CommandType::eSync, CmdSync{});
+    }
+
+    void CommandList::append(CommandList& commandList)
+    {
+        auto& icl = commandList.getInternalCommandData();
+        mCommands.reserve(icl.size());
+        std::copy(icl.begin(), icl.end(), std::back_inserter(mCommands));
     }
 
     const std::vector<std::pair<CommandType, CommandInfoVariant>>& CommandList::getInternalCommandData() const
