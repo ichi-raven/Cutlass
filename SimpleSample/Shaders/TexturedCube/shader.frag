@@ -12,7 +12,7 @@ layout(location = 0) out vec4 outColor;
 
 void main() 
 {
-     vec4 color = texture(texSampler, fragTexCoord);
+    vec4 color = texture(texSampler, fragTexCoord);
    
     vec4 lightDirection = vec4(0, 1.f, 1.f, 0);
     vec3 normal = normalize(fragNormal);

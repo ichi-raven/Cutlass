@@ -3,19 +3,19 @@
 namespace Cutlass
 {
 
-    void CommandList::beginRenderPipeline(const HRenderPipeline& RPHandle, bool clearFlag, const ColorClearValue ccv, const DepthClearValue dcv)
+    void CommandList::beginRenderPass(const HRenderPass& handle, bool clearFlag, const ColorClearValue ccv, const DepthClearValue dcv)
     {
-        mCommands.emplace_back(CommandType::eBeginRenderPipeline, CmdBeginRenderPipeline{RPHandle, ccv, dcv, clearFlag});
+        mCommands.emplace_back(CommandType::eBeginRenderPass, CmdBeginRenderPass{handle, ccv, dcv, clearFlag});
     }
 
-    void CommandList::beginRenderPipeline(const HRenderPipeline& RPHandle, const DepthClearValue dcv, const ColorClearValue ccv)
+    void CommandList::beginRenderPass(const HRenderPass& handle, const DepthClearValue dcv, const ColorClearValue ccv)
     {
-        mCommands.emplace_back(CommandType::eBeginRenderPipeline, CmdBeginRenderPipeline{RPHandle, ccv, dcv, true});
+        mCommands.emplace_back(CommandType::eBeginRenderPass, CmdBeginRenderPass{handle, ccv, dcv, true});
     }
 
-    void CommandList::endRenderPipeline()
+    void CommandList::endRenderPass()
     {
-        mCommands.emplace_back(CommandType::eEndRenderPipeline, CmdEndRenderPipeline{});
+        mCommands.emplace_back(CommandType::eEndRenderPass, CmdEndRenderPass{});
     }
 
     void CommandList::present()
@@ -23,17 +23,22 @@ namespace Cutlass
         mCommands.emplace_back(CommandType::ePresent, CmdPresent{});
     }
 
-    void CommandList::bindVB(const HBuffer& VBHandle)
+    void CommandList::bindGraphicsPipeline(const HGraphicsPipeline& handle)
     {
-        mCommands.emplace_back(CommandType::eBindVB, CmdBindVB{VBHandle});
+        mCommands.emplace_back(CommandType::eBindGraphicsPipeline, CmdBindGraphicsPipeline{handle});
     }
 
-    void CommandList::bindIB(const HBuffer& IBHandle)
+    void CommandList::bindVertexBuffer(const HBuffer& handle)
     {
-        mCommands.emplace_back(CommandType::eBindIB, CmdBindIB{IBHandle});
+        mCommands.emplace_back(CommandType::eBindVB, CmdBindVB{handle});
     }
 
-    void CommandList::bindSRSet(const ShaderResourceSet& shaderResourceSet)
+    void CommandList::bindIndexBuffer(const HBuffer& handle)
+    {
+        mCommands.emplace_back(CommandType::eBindIB, CmdBindIB{handle});
+    }
+
+    void CommandList::bindShaderResourceSet(const ShaderResourceSet& shaderResourceSet)
     {
         mCommands.emplace_back(CommandType::eBindSRSet, CmdBindSRSet{shaderResourceSet});
     }

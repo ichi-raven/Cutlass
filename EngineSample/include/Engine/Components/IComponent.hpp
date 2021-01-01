@@ -8,10 +8,11 @@ namespace Engine
         virtual void update() = 0;
         
         //どうしても識別したいときに使ってください
-        void setIDString(int ID)
+        void setID(int ID)
         {
             mID = ID;
         }
+        
         int getID() const
         {
             return mID;

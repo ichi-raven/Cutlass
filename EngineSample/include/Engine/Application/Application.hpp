@@ -25,18 +25,16 @@ virtual void update() override final;\
 #pragma once
 
 #include <unordered_map>
+#include <iostream>
 #include <string>
 #include <memory>
 #include <functional>
 #include <optional>
 #include <exception>
 #include <cassert>
-
-#include "../Components/MeshComponent.hpp"
-#include "../Components/MaterialComponent.hpp"
+#include <Cutlass.hpp>
 
 #include "ActorsInScene.hpp"
-#include "../System/BaseRenderer.hpp"
 
 namespace Engine
 {
@@ -68,11 +66,10 @@ namespace Engine
 
 		virtual void update() = 0;
 
-		void initAll()
+		inline void initAll()
 		{
 			assert(mIsSetData);
 			init();
-			mActors.init();
 		}
 
 		void updateAll()
@@ -81,11 +78,18 @@ namespace Engine
 			mActors.update();
 		}
 
-		void setInternalData(Application_t* application, const std::shared_ptr<CommonRegion>& commonRegion)
+		void setInternalData
+		(
+			Application_t* application, 
+			std::shared_ptr<CommonRegion> commonRegion,
+			std::shared_ptr<Cutlass::Context> context,
+			const std::vector<Cutlass::HWindow>& windows
+		)
 		{
 			mApplication = application;
 			mCommonRegion = commonRegion;
-			mActors.setNewCommonRegion(commonRegion);
+			mContext = context;
+			mActors.setInternalData(commonRegion, context, windows);
 			mIsSetData = true;
 		}
 
@@ -94,6 +98,12 @@ namespace Engine
 		void changeScene(const Key_t& dstSceneKey, bool cachePrevScene = false)
 		{
 			mApplication->changeScene(dstSceneKey, cachePrevScene);
+		}
+
+		void resetScene()
+		{
+			mActors.clearActors();
+			initAll();
 		}
 
 		void exitApplication()
@@ -129,6 +139,16 @@ namespace Engine
 			return mCommonRegion;
 		}
 
+		std::shared_ptr<Cutlass::Context> const getContext() const
+		{
+			return mContext;
+		}
+
+		const std::vector<Cutlass::HWindow>& getHWindows() const
+		{
+			return mWindows;
+		}
+
 	private://メンバ変数
 		bool mIsSetData;
 
@@ -136,6 +156,10 @@ namespace Engine
 		//std::unique_ptr<BaseRenderer> mRenderer;
 		Application_t* mApplication;//コンストラクタにてnullptrで初期化
 		ActorsInScene<CommonRegion> mActors;
+
+		//Cutlass
+		std::shared_ptr<Cutlass::Context> mContext;
+		std::vector<Cutlass::HWindow> mWindows;
 	};
 
 	template<typename Key_t, typename CommonRegion>
@@ -148,12 +172,55 @@ namespace Engine
 
 	public://メソッド宣言部
 
-		Application()
+		Application(const Cutlass::InitializeInfo& initializeInfo, const std::initializer_list<Cutlass::WindowInfo>& windowInfos)
+		 : mCommonRegion(std::make_shared<CommonRegion>())
+		 , mEndFlag(false)
 		{
-			mFirstSceneKey = std::nullopt;
-			mCommonRegion = std::make_shared<CommonRegion>();
-			mEndFlag = false;
-			mCache = std::nullopt;
+			mContext = std::make_shared<Cutlass::Context>();
+
+			{//Context初期化
+				if(Cutlass::Result::eSuccess != mContext->initialize(initializeInfo))
+					std::cerr << "Failed to initialize cutlass context!\n";
+			}
+
+			mWindows.reserve(windowInfos.size());
+			for(const auto& wi : windowInfos)
+			{//window作成
+				mWindows.emplace_back();
+				if (Cutlass::Result::eSuccess != mContext->createWindow(wi, mWindows.back()))
+					std::cerr << "Failed to create window!\n";
+			}
+		}
+
+		Application(const Cutlass::InitializeInfo&& initializeInfo, const std::initializer_list<Cutlass::WindowInfo>&& windowInfos)
+		 : mCommonRegion(std::make_shared<CommonRegion>())
+		 , mEndFlag(false)
+		{
+			mContext = std::make_shared<Cutlass::Context>();
+
+			{//Context初期化
+				if(Cutlass::Result::eSuccess != mContext->initialize(initializeInfo))
+					std::cerr << "Failed to initialize cutlass context!\n";
+			}
+
+			mWindows.reserve(windowInfos.size());
+			for(const auto& wi : windowInfos)
+			{//window作成
+				mWindows.emplace_back();
+				if (Cutlass::Result::eSuccess != mContext->createWindow(wi, mWindows.back()))
+					std::cerr << "Failed to create window!\n";
+			}
+		}
+
+		//Noncopyable, Nonmoveable
+        Application(const Application&) = delete;
+        Application &operator=(const Application&) = delete;
+        Application(Application&&) = delete;
+        Application &operator=(Application&&) = delete;
+
+		~Application()
+		{
+			mContext->destroy();
 		}
 
 		void init(const Key_t& firstSceneKey)
@@ -172,11 +239,14 @@ namespace Engine
 
 			mCurrent.first = mFirstSceneKey.value();
 			mCurrent.second = mScenesFactory[mFirstSceneKey.value()]();
-			mCurrent.second->initAll();
 		}
 
 		void update()
 		{
+			//入力更新
+			if (Cutlass::Result::eSuccess != mContext->updateInput())
+				std::cerr << "Failed to update input!\n";
+			//全体更新
 			mCurrent.second->updateAll();
 		}
 
@@ -199,7 +269,7 @@ namespace Engine
 				{
 					//auto m = std::make_shared<DerivedScene>(this, mCommonRegion);//
 					auto m = std::make_shared<DerivedScene>();
-					m->setInternalData(this, mCommonRegion);
+					m->setInternalData(this, mCommonRegion, mContext, mWindows);
 					m->initAll();
 
 					return m;
@@ -246,7 +316,7 @@ namespace Engine
 
 		bool endAll()
 		{
-			return mEndFlag;
+			return mEndFlag || mContext->shouldClose();
 		}
 
 	public://共有データはアクセスできるべき
@@ -259,6 +329,10 @@ namespace Engine
 		std::optional<std::pair<Key_t, Scene_t>> mCache;
 		std::optional<Key_t> mFirstSceneKey;//nulloptで初期化
 		bool mEndFlag;
+
+		//Cutlass
+		std::shared_ptr<Cutlass::Context> mContext;
+		std::vector<Cutlass::HWindow> mWindows;
 	};
 };
 

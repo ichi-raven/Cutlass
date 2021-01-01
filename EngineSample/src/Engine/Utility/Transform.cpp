@@ -10,6 +10,7 @@ namespace Engine
     Transform::Transform()
     : mWorld(glm::identity<glm::mat4>())
     , mRotAngle(0)
+    , mPrev(std::chrono::high_resolution_clock::now())
     {
 
     }
@@ -88,10 +89,20 @@ namespace Engine
         return mWorld;
     }
 
-    void Transform::update(const float& deltatime)
-    {
-        mPos += deltatime * (mVel += deltatime * mAcc);
+    // void Transform::update(const float& deltaTime)
+    // {
+    //     mPos += deltaTime * (mVel += deltaTime * mAcc);
 
-        mWorld = glm::translate(glm::mat4(), mPos) * glm::rotate(mRotAngle, mRotAxis) * glm::scale(mScale); 
+    //     mWorld = glm::translate(glm::mat4(), mPos) * glm::rotate(mRotAngle, mRotAxis) * glm::scale(mScale); 
+    // }
+
+    void Transform::update()
+    {
+        auto&& now = std::chrono::high_resolution_clock::now();
+        float deltaTime = std::chrono::duration_cast<std::chrono::microseconds>(now - mPrev).count() / 1000000.;
+        mPos += deltaTime * (mVel += deltaTime * mAcc);
+
+        mWorld = glm::translate(glm::mat4(), mPos) * glm::rotate(mRotAngle, mRotAxis) * glm::scale(mScale);
+        mPrev = now;
     }
 }

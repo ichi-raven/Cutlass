@@ -54,8 +54,8 @@ namespace Cutlass
         mNextWindowHandle = 1;
         mNextBufferHandle = 1;
         mNextTextureHandle = 1;
-        mNextRenderDSTHandle = 1;
-        mNextRPHandle = 1;
+        mNextRenderPassHandle = 1;
+        mNextGPHandle = 1;
         mNextCBHandle = 1;
     }
 
@@ -65,8 +65,8 @@ namespace Cutlass
         mNextWindowHandle = 1;
         mNextBufferHandle = 1;
         mNextTextureHandle = 1;
-        mNextRenderDSTHandle = 1;
-        mNextRPHandle = 1;
+        mNextRenderPassHandle = 1;
+        mNextGPHandle = 1;
         mNextCBHandle = 1;
 
         result_out = initialize(info);
@@ -176,8 +176,8 @@ namespace Cutlass
             if (e.second.mMemory)
                 vkFreeMemory(mDevice, e.second.mMemory.value(), nullptr);
         }
+        std::cerr << "destroyed user allocated buffers(size : " << mBufferMap.size() << ")\n";
         mBufferMap.clear();
-        std::cerr << "destroyed user allocated buffers\n";
 
         for (auto &e : mImageMap)
         {
@@ -196,11 +196,11 @@ namespace Cutlass
                 vkDestroySampler(mDevice, e.second.mSampler.value(), nullptr);
         }
 
-        mImageMap.clear();
-        std::cerr << "destroyed user allocated textures\n";
+        std::cerr << "destroyed user allocated textures(size : " << mImageMap.size() << ")\n";
         std::cerr << "destroyed user allocated sampler\n";
+        mImageMap.clear();
 
-        for (auto &e : mRDSTMap)
+        for (auto &e : mRPMap)
         {
             for (auto &f : e.second.mFences)
                 vkDestroyFence(mDevice, f, nullptr);
@@ -216,7 +216,7 @@ namespace Cutlass
                 vkDestroyRenderPass(mDevice, e.second.mRenderPass.value(), nullptr);
         }
 
-        for (auto &e : mRPMap)
+        for (auto &e : mGPMap)
         {
             if (e.second.mDescriptorSetLayout)
                 vkDestroyDescriptorSetLayout(mDevice, e.second.mDescriptorSetLayout.value(), nullptr);
@@ -233,7 +233,8 @@ namespace Cutlass
             vkFreeCommandBuffers(mDevice, mCommandPool, uint32_t(e.second.mCommandBuffers.size()), e.second.mCommandBuffers.data());
         }
 
-        std::cerr << "destroyed command buffers\n";
+        std::cerr << "destroyed command buffers(size : " << mCommandBufferMap.size() << ")\n";
+        mCommandBufferMap.clear();
         //for(auto& e : mSamplerMap)
         //{
         //    vkDestroySampler(mDevice, e.second, nullptr);
@@ -311,6 +312,8 @@ namespace Cutlass
         if (bo.mMemory)
             vkFreeMemory(mDevice, bo.mMemory.value(), nullptr);
 
+        mBufferMap.erase(handle);
+
         return result;
     }
 
@@ -340,51 +343,57 @@ namespace Cutlass
         if (io.mSampler)
             vkDestroySampler(mDevice, io.mSampler.value(), nullptr);
 
-        return result;
-    }
-
-    Result Context::destroyRenderDST(const HRenderDST& handle)
-    {
-        Result result = Result::eSuccess;
-
-        if (mInitializeInfo.debugFlag && mRDSTMap.count(handle) <= 0)
-        {
-            std::cerr << "invalid renderDST handle!\n";
-            return Result::eFailure;
-        }
-
-        auto& rdsto = mRDSTMap[handle];
-
-        for (auto& f : rdsto.mFramebuffers)
-            vkDestroyFramebuffer(mDevice, f.value(), nullptr);
-
-        if (rdsto.mRenderPass)
-            vkDestroyRenderPass(mDevice, rdsto.mRenderPass.value(), nullptr);
+        mImageMap.erase(handle);
 
         return result;
     }
 
-    Result Context::destroyRenderPipeline(const HRenderPipeline& handle)
+    Result Context::destroyRenderPass(const HRenderPass& handle)
     {
         Result result = Result::eSuccess;
 
         if (mInitializeInfo.debugFlag && mRPMap.count(handle) <= 0)
         {
-            std::cerr << "invalid render pipeline handle!\n";
+            std::cerr << "invalid renderPass handle!\n";
             return Result::eFailure;
         }
 
         auto& rpo = mRPMap[handle];
 
+        for (auto& f : rpo.mFramebuffers)
+            vkDestroyFramebuffer(mDevice, f.value(), nullptr);
 
-        if (rpo.mDescriptorSetLayout)
-            vkDestroyDescriptorSetLayout(mDevice,rpo.mDescriptorSetLayout.value(), nullptr);
-        if (rpo.mDescriptorPool)
-            vkDestroyDescriptorPool(mDevice, rpo.mDescriptorPool.value(), nullptr);
-        if (rpo.mPipelineLayout)
-            vkDestroyPipelineLayout(mDevice, rpo.mPipelineLayout.value(), nullptr);
-        if (rpo.mPipeline)
-            vkDestroyPipeline(mDevice, rpo.mPipeline.value(), nullptr);
+        if (rpo.mRenderPass)
+            vkDestroyRenderPass(mDevice, rpo.mRenderPass.value(), nullptr);
+
+        mRPMap.erase(handle);
+
+        return result;
+    }
+
+    Result Context::destroyGraphicsPipeline(const HGraphicsPipeline& handle)
+    {
+        Result result = Result::eSuccess;
+
+        if (mInitializeInfo.debugFlag && mGPMap.count(handle) <= 0)
+        {
+            std::cerr << "invalid render pipeline handle!\n";
+            return Result::eFailure;
+        }
+
+        auto& gpo = mGPMap[handle];
+
+
+        if (gpo.mDescriptorSetLayout)
+            vkDestroyDescriptorSetLayout(mDevice,gpo.mDescriptorSetLayout.value(), nullptr);
+        if (gpo.mDescriptorPool)
+            vkDestroyDescriptorPool(mDevice, gpo.mDescriptorPool.value(), nullptr);
+        if (gpo.mPipelineLayout)
+            vkDestroyPipelineLayout(mDevice, gpo.mPipelineLayout.value(), nullptr);
+        if (gpo.mPipeline)
+            vkDestroyPipeline(mDevice, gpo.mPipeline.value(), nullptr);
+
+        mGPMap.erase(handle);
 
         return result;
     }
@@ -401,8 +410,22 @@ namespace Cutlass
 
         auto& co = mCommandBufferMap[handle];
 
+        if(co.mHRPO)
+        {
+            auto& gpo = mGPMap[co.mHRPO.value()];
+
+            if(gpo.mDescriptorPool)
+                vkFreeDescriptorSets(mDevice, gpo.mDescriptorPool.value(), co.mDescriptorSets.size(), co.mDescriptorSets.data());
+            
+            co.mDescriptorSets.clear();
+        }
+
+        //削除前にちょっと止める必要がある
+        vkQueueWaitIdle(mDeviceQueue);
         vkFreeCommandBuffers(mDevice, mCommandPool, uint32_t(co.mCommandBuffers.size()), co.mCommandBuffers.data());
         
+        mCommandBufferMap.erase(handle);
+
         return result;
     }
 
@@ -1830,9 +1853,23 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Context::createRenderDST(const HWindow &handle, bool depthTestEnable, HRenderDST &handle_out)
+    Result Context::createRenderPass(const RenderPassCreateInfo& info, HRenderPass& handle_out)
     {
+        if(info.window)
+            return createRenderPass(info.window.value(), info.windowDepthTestEnable, handle_out);
+        else
+        {
+            if(info.depthTarget)
+                return createRenderPass(info.colorTargets, info.depthTarget.value(), info.initialUsage, handle_out);
+            else
+                return createRenderPass(info.colorTargets, info.initialUsage, handle_out);
+        }
 
+        return Result::eFailure;
+    }
+
+    Result Context::createRenderPass(const HWindow &handle, bool depthTestEnable, HRenderPass &handle_out)
+    {
         if (!mIsInitialized)
         {
             std::cerr << "context did not initialize yet!\n";
@@ -1840,9 +1877,10 @@ namespace Cutlass
         }
 
         Result result;
-        RenderDSTObject rdsto;
-        rdsto.mFrameBufferIndex = 0;
-        rdsto.mDepthTestEnable = depthTestEnable;
+        RenderPassObject rpo;
+        rpo.mFrameBufferIndex = 0;
+        rpo.mDepthTestEnable = depthTestEnable;
+        rpo.mLoadPrevData = false;
 
         //Renderpass, framebuffer
 
@@ -1852,7 +1890,7 @@ namespace Cutlass
             return Result::eFailure;
         }
 
-        rdsto.mHWindow = handle;
+        rpo.mHWindow = handle;
         auto &swapchain = mWindowMap[handle];
 
         {
@@ -1860,7 +1898,7 @@ namespace Cutlass
             extent.width = swapchain.mSwapchainExtent.width;
             extent.height = swapchain.mSwapchainExtent.height;
             extent.depth = 1;
-            rdsto.mExtent = extent;
+            rpo.mExtent = extent;
         }
 
         {
@@ -1913,7 +1951,7 @@ namespace Cutlass
                 adVec.back().format = depthBuffer.format;
                 adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
                 adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-                adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
                 adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
                 adVec.back().finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
                 depthAr.attachment = 1;
@@ -1940,13 +1978,13 @@ namespace Cutlass
                     return result;
                 }
 
-                rdsto.mRenderPass = renderPass;
+                rpo.mRenderPass = renderPass;
             }
         }
 
         VkFramebufferCreateInfo fbci{};
         fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        fbci.renderPass = rdsto.mRenderPass.value();
+        fbci.renderPass = rpo.mRenderPass.value();
         fbci.width = swapchain.mSwapchainExtent.width;
         fbci.height = swapchain.mSwapchainExtent.height;
         fbci.layers = 1;
@@ -1968,7 +2006,7 @@ namespace Cutlass
                     std::cerr << "failed to create frame buffer!\n";
                     return result;
                 }
-                rdsto.mFramebuffers.emplace_back(framebuffer);
+                rpo.mFramebuffers.emplace_back(framebuffer);
             }
         }
         else
@@ -1986,24 +2024,24 @@ namespace Cutlass
                     return result;
                 }
 
-                rdsto.mFramebuffers.emplace_back(frameBuffer);
+                rpo.mFramebuffers.emplace_back(frameBuffer);
             }
         }
 
-        createSyncObjects(rdsto);
+        createSyncObjects(rpo);
 
-        handle_out = mNextRenderDSTHandle++;
-        mRDSTMap.emplace(handle_out, rdsto);
+        handle_out = mNextRenderPassHandle++;
+        mRPMap.emplace(handle_out, rpo);
 
         return Result::eSuccess;
     }
 
-    Result Context::createRenderDST(const HTexture& color, HRenderDST& handle_out)
-    {
-        return createRenderDST(std::vector(1, color), handle_out);
-    }
+    // Result Context::createRenderPass(const HTexture& color, bool loadPrevData, HRenderPass& handle_out)
+    // {
+    //     return createRenderPass(std::vector(1, color), handle_out);
+    // }
 
-    Result Context::createRenderDST(const std::vector<HTexture>& colorTargets, const HTexture& depthTarget, HRenderDST& handle_out)
+    Result Context::createRenderPass(const std::vector<HTexture>& colorTargets, const HTexture& depthTarget, const std::optional<TextureUsage>& initialUsage, HRenderPass& handle_out)
     {
         if (!mIsInitialized)
         {
@@ -2012,9 +2050,10 @@ namespace Cutlass
         }
 
         Result result;
-        RenderDSTObject rdsto;
-        rdsto.mFrameBufferIndex = 0;
-        rdsto.mDepthTestEnable = true;
+        RenderPassObject rpo;
+        rpo.mFrameBufferIndex = 0;
+        rpo.mDepthTestEnable = true;
+        rpo.mLoadPrevData = initialUsage.has_value();
 
         if (mInitializeInfo.debugFlag) //for debug mode
         {
@@ -2035,9 +2074,9 @@ namespace Cutlass
                 }
 
                 //extent substitute and check
-                if (!rdsto.mExtent)
-                    rdsto.mExtent = io.extent;
-                if (rdsto.mExtent.value().width != io.extent.width || rdsto.mExtent.value().height != io.extent.height || rdsto.mExtent.value().depth != io.extent.depth)
+                if (!rpo.mExtent)
+                    rpo.mExtent = io.extent;
+                if (rpo.mExtent.value().width != io.extent.width || rpo.mExtent.value().height != io.extent.height || rpo.mExtent.value().depth != io.extent.depth)
                 {
                     std::cerr << "invalid texture extent\n";
                     return Result::eFailure;
@@ -2058,17 +2097,17 @@ namespace Cutlass
             }
 
             //extent substitute and check
-            if (!rdsto.mExtent)
-                rdsto.mExtent = io.extent;
-            if (rdsto.mExtent.value().width != io.extent.width || rdsto.mExtent.value().height != io.extent.height || rdsto.mExtent.value().depth != io.extent.depth)
+            if (!rpo.mExtent)
+                rpo.mExtent = io.extent;
+            if (rpo.mExtent.value().width != io.extent.width || rpo.mExtent.value().height != io.extent.height || rpo.mExtent.value().depth != io.extent.depth)
             {
                 std::cerr << "invalid texture extent\n";
                 return Result::eFailure;
             }
         }
 
-        rdsto.mHWindow = std::nullopt;
-        rdsto.colorTargets = colorTargets;
+        rpo.mHWindow = std::nullopt;
+        rpo.colorTargets = colorTargets;
 
         VkRenderPassCreateInfo ci{};
         ci.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -2083,16 +2122,36 @@ namespace Cutlass
             adVec.emplace_back();
             arVec.emplace_back();
 
-            if (!rdsto.mExtent)
-                rdsto.mExtent = io.extent;
+            if (!rpo.mExtent)
+                rpo.mExtent = io.extent;
 
-            adVec.back().format = io.format;
-            adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
-            adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-            adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-            adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            if(initialUsage)
+            {
+                adVec.back().loadOp =  VK_ATTACHMENT_LOAD_OP_LOAD;
+                adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+                switch(initialUsage.value())
+                {
+                    case TextureUsage::eColorTarget:
+                        adVec.back().initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                    break;
+                    case TextureUsage::eShaderResource:
+                        adVec.back().initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                    break;
+                    default:
+                        std::cerr << "invalid usage of initial render target!\n";
+                        return Result::eFailure;
+                    break;
+                }
+            }
+            else
+            {
+                adVec.back().loadOp =  VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            }
+
             arVec.back().attachment = 0;
-
             adVec.back().finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
             arVec.back().layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         }
@@ -2109,8 +2168,8 @@ namespace Cutlass
 
         adVec.back().format = depthBuffer.format;
         adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
-        adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        adVec.back().loadOp =  VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
         adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         adVec.back().finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         depthAr.attachment = 1;
@@ -2130,17 +2189,17 @@ namespace Cutlass
                 return result;
             }
 
-            rdsto.mRenderPass = renderPass;
+            rpo.mRenderPass = renderPass;
         }
 
         VkFramebufferCreateInfo fbci{};
         fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        fbci.renderPass = rdsto.mRenderPass.value();
-        fbci.width = rdsto.mExtent.value().width;
-        fbci.height = rdsto.mExtent.value().height;
+        fbci.renderPass = rpo.mRenderPass.value();
+        fbci.width = rpo.mExtent.value().width;
+        fbci.height = rpo.mExtent.value().height;
         fbci.layers = 1;
 
-        fbci.attachmentCount = rdsto.mTargetNum = static_cast<uint32_t>(adVec.size());
+        fbci.attachmentCount = rpo.mTargetNum = static_cast<uint32_t>(adVec.size());
         std::vector<VkImageView> ivVec;
         for (auto& tex : colorTargets)
         {
@@ -2156,23 +2215,23 @@ namespace Cutlass
             {
                 return result;
             }
-            rdsto.mFramebuffers.emplace_back(frameBuffer);
+            rpo.mFramebuffers.emplace_back(frameBuffer);
         }
 
-        createSyncObjects(rdsto);
+        createSyncObjects(rpo);
 
-        handle_out = mNextRenderDSTHandle++;
-        mRDSTMap.emplace(handle_out, rdsto);
+        handle_out = mNextRenderPassHandle++;
+        mRPMap.emplace(handle_out, rpo);
 
         return Result::eSuccess;
     }
 
-    Result Context::createRenderDST(const HTexture& colorTarget, const HTexture& depthTarget, HRenderDST& handle_out)
-    {
-        return createRenderDST(std::vector(1, colorTarget), depthTarget, handle_out);
-    }
+    // Result Context::createRenderPass(const HTexture& colorTarget, const HTexture& depthTarget, bool loadPrevData, HRenderPass& handle_out)
+    // {
+    //     return createRenderPass(std::vector(1, colorTarget), depthTarget, handle_out);
+    // }
 
-    Result Context::createRenderDST(const std::vector<HTexture> &colorTargets, HRenderDST &handle_out)
+    Result Context::createRenderPass(const std::vector<HTexture> &colorTargets, const std::optional<TextureUsage>& initialUsage, HRenderPass &handle_out)
     {
 
         if (!mIsInitialized)
@@ -2182,9 +2241,10 @@ namespace Cutlass
         }
 
         Result result;
-        RenderDSTObject rdsto;
-        rdsto.mFrameBufferIndex = 0;
-        rdsto.mDepthTestEnable = false;
+        RenderPassObject rpo;
+        rpo.mFrameBufferIndex = 0;
+        rpo.mDepthTestEnable = false;
+        rpo.mLoadPrevData = initialUsage.has_value();
 
         if (mInitializeInfo.debugFlag) //for debug mode
         {
@@ -2205,9 +2265,9 @@ namespace Cutlass
                 }
 
                 //extent substitute and check
-                if (!rdsto.mExtent)
-                    rdsto.mExtent = io.extent;
-                if (rdsto.mExtent.value().width != io.extent.width || rdsto.mExtent.value().height != io.extent.height || rdsto.mExtent.value().depth != io.extent.depth)
+                if (!rpo.mExtent)
+                    rpo.mExtent = io.extent;
+                if (rpo.mExtent.value().width != io.extent.width || rpo.mExtent.value().height != io.extent.height || rpo.mExtent.value().depth != io.extent.depth)
                 {
                     std::cerr << "invalid texture extent\n";
                     return Result::eFailure;
@@ -2215,8 +2275,8 @@ namespace Cutlass
             }
         }
 
-        rdsto.mHWindow = std::nullopt;
-        rdsto.colorTargets = colorTargets;
+        rpo.mHWindow = std::nullopt;
+        rpo.colorTargets = colorTargets;
 
         VkRenderPassCreateInfo ci{};
         ci.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -2227,21 +2287,43 @@ namespace Cutlass
         //Renderpass, Framebuffer
         for (auto &tex : colorTargets)
         {
-
             auto &io = mImageMap[tex];
             adVec.emplace_back();
             arVec.emplace_back();
 
-            if (!rdsto.mExtent)
-                rdsto.mExtent = io.extent;
+            if (!rpo.mExtent)
+                rpo.mExtent = io.extent;
 
             adVec.back().format = io.format;
             adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
-            adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-            adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-            adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            arVec.back().attachment = 0;
+            
+            if(initialUsage)
+            {
+                adVec.back().loadOp =  VK_ATTACHMENT_LOAD_OP_LOAD;
+                adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                
+                switch(initialUsage.value())
+                {
+                    case TextureUsage::eColorTarget:
+                        adVec.back().initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                    break;
+                    case TextureUsage::eShaderResource:
+                        adVec.back().initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                    break;
+                    default:
+                        std::cerr << "invalid usage of initial render target!\n";
+                        return Result::eFailure;
+                    break;
+                }
+            }
+            else
+            {
+                adVec.back().loadOp =  VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            }
 
+            arVec.back().attachment = 0;
             adVec.back().finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
             arVec.back().layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         }
@@ -2250,8 +2332,8 @@ namespace Cutlass
         subpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpassDesc.colorAttachmentCount = static_cast<uint32_t>(arVec.size());
         subpassDesc.pColorAttachments = arVec.data();
-        rdsto.mHWindow = std::nullopt;
-        rdsto.colorTargets = colorTargets;
+        rpo.mHWindow = std::nullopt;
+        rpo.colorTargets = colorTargets;
 
         ci.attachmentCount = static_cast<uint32_t>(adVec.size());
         ci.pAttachments = adVec.data();
@@ -2266,17 +2348,17 @@ namespace Cutlass
                 return result;
             }
 
-            rdsto.mRenderPass = renderPass;
+            rpo.mRenderPass = renderPass;
         }
 
         VkFramebufferCreateInfo fbci{};
         fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        fbci.renderPass = rdsto.mRenderPass.value();
-        fbci.width = rdsto.mExtent.value().width;
-        fbci.height = rdsto.mExtent.value().height;
+        fbci.renderPass = rpo.mRenderPass.value();
+        fbci.width = rpo.mExtent.value().width;
+        fbci.height = rpo.mExtent.value().height;
         fbci.layers = 1;
 
-        fbci.attachmentCount = rdsto.mTargetNum = static_cast<uint32_t>(adVec.size());
+        fbci.attachmentCount = rpo.mTargetNum = static_cast<uint32_t>(adVec.size());
         std::vector<VkImageView> ivVec;
         for (auto &tex : colorTargets)
         {
@@ -2293,38 +2375,38 @@ namespace Cutlass
                 std::cerr << "Failed to create frame buffer!\n";
                 return result;
             }
-            rdsto.mFramebuffers.emplace_back(frameBuffer);
+            rpo.mFramebuffers.emplace_back(frameBuffer);
         }
 
-        createSyncObjects(rdsto);
+        createSyncObjects(rpo);
 
-        handle_out = mNextRenderDSTHandle++;
-        mRDSTMap.emplace(handle_out, rdsto);
+        handle_out = mNextRenderPassHandle++;
+        mRPMap.emplace(handle_out, rpo);
 
         return Result::eSuccess;
     }
 
-    Result Context::createSyncObjects(RenderDSTObject& rdsto)
+    Result Context::createSyncObjects(RenderPassObject& rpo)
     {
         Result result = Result::eSuccess;
 
-        uint32_t maxFramesInFlight = rdsto.mTargetNum;
-        uint32_t maxFrameNum = rdsto.mTargetNum;
-        if(rdsto.mHWindow)
+        uint32_t maxFramesInFlight = rpo.mTargetNum;
+        uint32_t maxFrameNum = rpo.mTargetNum;
+        if(rpo.mHWindow)
         {
-            auto& wo =  mWindowMap[rdsto.mHWindow.value()];
+            auto& wo =  mWindowMap[rpo.mHWindow.value()];
             maxFramesInFlight = wo.mMaxFrameInFlight;
             maxFrameNum = wo.mMaxFrameNum;
         }
 
-        rdsto.mFences.resize(maxFramesInFlight);
+        rpo.mFences.resize(maxFramesInFlight);
         {
             VkFenceCreateInfo ci{};
             ci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
             ci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-            for (size_t i = 0; i < rdsto.mFences.size(); ++i)
+            for (size_t i = 0; i < rpo.mFences.size(); ++i)
             {
-                result = checkVkResult(vkCreateFence(mDevice, &ci, nullptr, &rdsto.mFences[i]));
+                result = checkVkResult(vkCreateFence(mDevice, &ci, nullptr, &rpo.mFences[i]));
                 if (Result::eSuccess != result)
                 {
                     std::cerr << "Failed to create fence!\n";
@@ -2333,15 +2415,15 @@ namespace Cutlass
             }
         }
 
-        rdsto.mPresentCompletedSems.resize(maxFramesInFlight);
-        rdsto.mRenderCompletedSems.resize(maxFramesInFlight);
+        rpo.mPresentCompletedSems.resize(maxFramesInFlight);
+        rpo.mRenderCompletedSems.resize(maxFramesInFlight);
 
         {
             VkSemaphoreCreateInfo ci{};
             ci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
             for (size_t i = 0; i < maxFramesInFlight; ++i)
             {
-                result = checkVkResult(vkCreateSemaphore(mDevice, &ci, nullptr, &rdsto.mRenderCompletedSems[i]));
+                result = checkVkResult(vkCreateSemaphore(mDevice, &ci, nullptr, &rpo.mRenderCompletedSems[i]));
                 if (Result::eSuccess != result)
                 {
                     std::cerr << "Failed to create render completed semaphore!\n";
@@ -2351,7 +2433,7 @@ namespace Cutlass
 
             for (size_t i = 0; i < maxFramesInFlight; ++i)
             {
-                result = checkVkResult(vkCreateSemaphore(mDevice, &ci, nullptr, &rdsto.mPresentCompletedSems[i]));
+                result = checkVkResult(vkCreateSemaphore(mDevice, &ci, nullptr, &rpo.mPresentCompletedSems[i]));
                 if (Result::eSuccess != result)
                 {
                     std::cerr << "Failed to create present completed semaphore!\n";
@@ -2360,13 +2442,13 @@ namespace Cutlass
             }
         }
 
-        rdsto.imagesInFlight.resize(maxFrameNum, VK_NULL_HANDLE);
+        rpo.imagesInFlight.resize(maxFrameNum, VK_NULL_HANDLE);
 
         return result;
     }
 
 
-    Result Context::createRenderPipeline(const RenderPipelineInfo &info, HRenderPipeline& handle_out)
+    Result Context::createGraphicsPipeline(const GraphicsPipelineInfo &info, HGraphicsPipeline& handle_out)
     {
 
         if (!mIsInitialized)
@@ -2376,16 +2458,16 @@ namespace Cutlass
         }
 
         Result result;
-        RenderPipelineObject rpo;
+        GraphicsPipelineObject gpo;
 
-        if (mRDSTMap.count(info.renderDST) <= 0)
+        if (mRPMap.count(info.renderPass) <= 0)
         {
-            std::cerr << "invalid renderDST handle!\n";
+            std::cerr << "invalid renderPass handle!\n";
             return Result::eFailure;
         }
 
-        RenderDSTObject rdsto = mRDSTMap[info.renderDST];
-        rpo.mHRenderDST = info.renderDST;
+        RenderPassObject rpo = mRPMap[info.renderPass];
+        gpo.mHRenderPass = info.renderPass;
 
         //pWO
         {
@@ -2522,6 +2604,10 @@ namespace Cutlass
                     VK_COLOR_COMPONENT_A_BIT;
                 switch (info.colorBlend)
                 {
+                case ColorBlend::eNone:
+                    blendAttachment.blendEnable = VK_FALSE;
+                    break;
+                
                 case ColorBlend::eDefault:
                     blendAttachment.blendEnable = VK_TRUE;
                     blendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
@@ -2531,10 +2617,17 @@ namespace Cutlass
                     blendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
                     blendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
                     blendAttachment.colorWriteMask = colorWriteAll;
+                    break;
 
-                    cbci.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-                    cbci.attachmentCount = 1;
-                    cbci.pAttachments = &blendAttachment;
+                case ColorBlend::eAlphaBlend:
+                    blendAttachment.blendEnable = VK_TRUE;
+                    blendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+                    blendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+                    blendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+                    blendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+                    blendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+                    blendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+                    blendAttachment.colorWriteMask = colorWriteAll;
                     break;
 
                 default:
@@ -2542,6 +2635,12 @@ namespace Cutlass
                     return Result::eFailure;
                     break;
                 }
+
+                cbci.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+                cbci.logicOpEnable = VK_FALSE;
+                cbci.logicOp = VK_LOGIC_OP_COPY;
+                cbci.attachmentCount = 1;
+                cbci.pAttachments = &blendAttachment;
             }
 
             //viewport and scissor
@@ -2562,7 +2661,7 @@ namespace Cutlass
                 }
                 else
                 {
-                    const VkExtent3D &extent = rdsto.mExtent.value();
+                    const VkExtent3D &extent = rpo.mExtent.value();
                     viewport.x = 0;
                     viewport.y = 0;
                     viewport.width = static_cast<float>(extent.width);
@@ -2583,8 +2682,8 @@ namespace Cutlass
                 {
                     scissor.offset = {0, 0};
                     scissor.extent =
-                        {rdsto.mExtent.value().width,
-                         rdsto.mExtent.value().height};
+                        {rpo.mExtent.value().width,
+                         rpo.mExtent.value().height};
                 }
 
                 vpsci.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -2736,7 +2835,7 @@ namespace Cutlass
                 VkDescriptorSetLayoutCreateInfo descLayoutci{};
                 std::vector<VkDescriptorSetLayoutBinding> bindings;
 
-                rpo.layout = info.SRDesc.layout;
+                gpo.layout = info.SRDesc.layout;
 
                 for (const auto &ubBinding : info.SRDesc.layout.getUniformBufferBindings())
                 {
@@ -2775,7 +2874,7 @@ namespace Cutlass
                         return result;
                     }
 
-                    rpo.mDescriptorSetLayout = descriptorSetLayout;
+                    gpo.mDescriptorSetLayout = descriptorSetLayout;
                 }
             }
 
@@ -2812,7 +2911,7 @@ namespace Cutlass
                         std::cerr << "failed to create Descriptor Pool\n";
                         return result;
                     }
-                    rpo.mDescriptorPool = descriptorPool;
+                    gpo.mDescriptorPool = descriptorPool;
                 }
             }
 
@@ -2820,7 +2919,7 @@ namespace Cutlass
                 VkPipelineLayoutCreateInfo ci{};
                 ci.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
                 ci.setLayoutCount = 1;
-                VkDescriptorSetLayout dslayout = rpo.mDescriptorSetLayout.value();
+                VkDescriptorSetLayout dslayout = gpo.mDescriptorSetLayout.value();
                 ci.pSetLayouts = &dslayout;
 
                 {
@@ -2832,7 +2931,7 @@ namespace Cutlass
                         return result;
                     }
 
-                    rpo.mPipelineLayout = pipelineLayout;
+                    gpo.mPipelineLayout = pipelineLayout;
                 }
             }
 
@@ -2848,8 +2947,8 @@ namespace Cutlass
                 ci.pMultisampleState = &msci;
                 ci.pViewportState = &vpsci;
                 ci.pColorBlendState = &cbci;
-                ci.renderPass = rdsto.mRenderPass.value();
-                ci.layout = rpo.mPipelineLayout.value();
+                ci.renderPass = rpo.mRenderPass.value();
+                ci.layout = gpo.mPipelineLayout.value();
                 {
                     VkPipeline pipeline;
                     result = checkVkResult(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &ci, nullptr, &pipeline));
@@ -2859,7 +2958,7 @@ namespace Cutlass
                         return result;
                     }
 
-                    rpo.mPipeline = pipeline;
+                    gpo.mPipeline = pipeline;
                 }
             }
 
@@ -2868,8 +2967,8 @@ namespace Cutlass
                 vkDestroyShaderModule(mDevice, ssci.module, nullptr);
         }
 
-        handle_out = mNextRPHandle++;
-        mRPMap.emplace(handle_out, rpo);
+        handle_out = mNextGPHandle++;
+        mGPMap.emplace(handle_out, gpo);
 
         return Result::eSuccess;
     }
@@ -2911,7 +3010,7 @@ namespace Cutlass
             {//begin command buffer
                 VkCommandBufferBeginInfo commandBI{};
                 commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-                commandBI.flags = 0;
+                commandBI.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
                 commandBI.pInheritanceInfo = nullptr;
 
                 result = checkVkResult(vkBeginCommandBuffer(co.mCommandBuffers.back(), &commandBI));
@@ -2926,20 +3025,25 @@ namespace Cutlass
             {
                 switch (command.first) //RTTI...
                 {
-                case CommandType::eBeginRenderPipeline:
-                    if (!std::holds_alternative<CmdBeginRenderPipeline>(command.second))
+                case CommandType::eBeginRenderPass:
+                    if (!std::holds_alternative<CmdBeginRenderPass>(command.second))
                         return Result::eFailure;
-                    result = cmdBeginRenderPipeline(co, index, std::get<CmdBeginRenderPipeline>(command.second));
+                    result = cmdBeginRenderPass(co, index, std::get<CmdBeginRenderPass>(command.second));
                     break;
-                case CommandType::eEndRenderPipeline:
-                    if (!std::holds_alternative<CmdEndRenderPipeline>(command.second))
+                case CommandType::eEndRenderPass:
+                    if (!std::holds_alternative<CmdEndRenderPass>(command.second))
                         return Result::eFailure;
-                    result = cmdEndRenderPipeline(co, std::get<CmdEndRenderPipeline>(command.second));
+                    result = cmdEndRenderPass(co, std::get<CmdEndRenderPass>(command.second));
                     break;
                 case CommandType::ePresent:
                     if (!std::holds_alternative<CmdPresent>(command.second))
                         return Result::eFailure;
                     co.mPresentFlag = true;
+                    break;
+                case CommandType::eBindGraphicsPipeline:
+                    if (!std::holds_alternative<CmdBindGraphicsPipeline>(command.second))
+                        return Result::eFailure;
+                    result = cmdBindGraphicsPipeline(co, std::get<CmdBindGraphicsPipeline>(command.second));
                     break;
                 case CommandType::eBindVB:
                     if (!std::holds_alternative<CmdBindVB>(command.second))
@@ -3004,6 +3108,148 @@ namespace Cutlass
         return createCommandBuffer(std::vector<CommandList>(1, commandList), handle_out);
     }
 
+    Result Context::rewriteCommandBuffer(const std::vector<CommandList>& commandLists, const HCommandBuffer& handle)
+    {
+        if (!mIsInitialized)
+        {
+            std::cerr << "context did not initialize yet!\n";
+            return Result::eFailure;
+        }
+        
+        Result result = Result::eSuccess;
+        
+        result = destroyCommandBuffer(handle);
+        if(Result::eSuccess != result)
+        {
+            std::cerr << "Failed to destroy command buffer!\n";
+            return result;
+        }
+
+        CommandObject co;
+        co.mPresentFlag = false; //事前設定
+
+        uint32_t index = 0;
+        //get internal(public) command info vector
+        for (const auto& commandList : commandLists)
+        {
+            {
+                VkCommandBufferAllocateInfo ai{};
+                ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+                ai.commandPool = mCommandPool;
+                ai.commandBufferCount = 1;
+                ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+                co.mCommandBuffers.emplace_back();
+                result = checkVkResult(vkAllocateCommandBuffers(mDevice, &ai, &co.mCommandBuffers.back()));
+                if (Result::eSuccess != result)
+                {
+                    std::cerr << "Failed to allocate command buffers!\n";
+                    return result;
+                }
+            }
+
+            const auto& cmdData = commandList.getInternalCommandData();
+
+            {//begin command buffer
+                VkCommandBufferBeginInfo commandBI{};
+                commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+                commandBI.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+                commandBI.pInheritanceInfo = nullptr;
+
+                result = checkVkResult(vkBeginCommandBuffer(co.mCommandBuffers.back(), &commandBI));
+                if (result != Result::eSuccess)
+                {
+                    std::cerr << "Failed to begin command buffer!\n";
+                    return result;
+                }
+            }
+
+            for (const auto& command : cmdData)
+            {
+                switch (command.first) //RTTI...
+                {
+                case CommandType::eBeginRenderPass:
+                    if (!std::holds_alternative<CmdBeginRenderPass>(command.second))
+                        return Result::eFailure;
+                    result = cmdBeginRenderPass(co, index, std::get<CmdBeginRenderPass>(command.second));
+                    break;
+                case CommandType::eEndRenderPass:
+                    if (!std::holds_alternative<CmdEndRenderPass>(command.second))
+                        return Result::eFailure;
+                    result = cmdEndRenderPass(co, std::get<CmdEndRenderPass>(command.second));
+                    break;
+                case CommandType::ePresent:
+                    if (!std::holds_alternative<CmdPresent>(command.second))
+                        return Result::eFailure;
+                    co.mPresentFlag = true;
+                    break;
+                case CommandType::eBindGraphicsPipeline:
+                    if (!std::holds_alternative<CmdBindGraphicsPipeline>(command.second))
+                        return Result::eFailure;
+                    result = cmdBindGraphicsPipeline(co, std::get<CmdBindGraphicsPipeline>(command.second));
+                    break;
+                case CommandType::eBindVB:
+                    if (!std::holds_alternative<CmdBindVB>(command.second))
+                        return Result::eFailure;
+                    result = cmdBindVB(co, std::get<CmdBindVB>(command.second));
+                    break;
+                case CommandType::eBindIB:
+                    if (!std::holds_alternative<CmdBindIB>(command.second))
+                        return Result::eFailure;
+                    result = cmdBindIB(co, std::get<CmdBindIB>(command.second));
+                    break;
+                case CommandType::eBindSRSet:
+                    if (!std::holds_alternative<CmdBindSRSet>(command.second))
+                        return Result::eFailure;
+                    result = cmdBindSRSet(co, std::get<CmdBindSRSet>(command.second));
+                    break;
+                case CommandType::eRender:
+                    if (!std::holds_alternative<CmdRender>(command.second))
+                        return Result::eFailure;
+                    result = cmdRender(co, std::get<CmdRender>(command.second));
+                    break;
+                case CommandType::eRenderIndexed:
+                    if (!std::holds_alternative<CmdRenderIndexed>(command.second))
+                        return Result::eFailure;
+                    result = cmdRenderIndexed(co, std::get<CmdRenderIndexed>(command.second));
+                    break;
+                case CommandType::eSync:
+                    if (!std::holds_alternative<CmdSync>(command.second))
+                        return Result::eFailure;
+                    result = cmdSync(co, std::get<CmdSync>(command.second));
+                    break;
+                default:
+                    std::cerr << "invalid command!\nrequested command : " << static_cast<int>(command.first) << "\n";
+                    return Result::eFailure;
+                    break;
+                }
+
+                if(result != Result::eSuccess)
+                    return result;
+            }
+
+            {//end command buffer
+                result = checkVkResult(vkEndCommandBuffer(co.mCommandBuffers.back()));
+                if (result != Result::eSuccess)
+                {
+                    std::cerr << "Failed to end command buffer!\n";
+                    return result;
+                }
+            }
+
+            ++index;//next command
+        }
+
+        mCommandBufferMap.at(handle) = co;
+
+        return result;
+
+    }
+
+    Result Context::rewriteCommandBuffer(const CommandList& commandList, const HCommandBuffer& handle)
+    {
+        return rewriteCommandBuffer(std::vector<CommandList>(1, commandList), handle);
+    }
+
     Result Context::releaseShaderResourceSet(const HCommandBuffer& handle)
     {
         Result result = Result::eSuccess;
@@ -3015,46 +3261,45 @@ namespace Cutlass
         }
 
         auto& co = mCommandBufferMap.at(handle);
-        if(mInitializeInfo.debugFlag && mRPMap.count(co.mHRPO.value()) <= 0)
+        if(mInitializeInfo.debugFlag && mGPMap.count(co.mHRPO.value()) <= 0)
         {
             std::cerr << "invalid render pipeline handle!\n";
             return Result::eFailure;
         }
 
-        auto& rpo = mRPMap.at(co.mHRPO.value());
-        if(!rpo.mDescriptorPool)
+        auto& gpo = mGPMap.at(co.mHRPO.value());
+        if(!gpo.mDescriptorPool)
         {
             std::cerr << "this render pipeline didn't have descriptor pool!\n";
             return Result::eFailure;
         }
 
-        result = checkVkResult(vkFreeDescriptorSets(mDevice, rpo.mDescriptorPool.value(), co.mDescriptorSets.size(), co.mDescriptorSets.data()));
+        result = checkVkResult(vkFreeDescriptorSets(mDevice, gpo.mDescriptorPool.value(), co.mDescriptorSets.size(), co.mDescriptorSets.data()));
         if(result != Result::eSuccess)
         {
             std::cerr << "failed to free descriptor set!\n";
             return Result::eFailure;
         }
 
+        co.mDescriptorSets.clear();
+
         return Result::eFailure;
     }
 
-    Result Context::cmdBeginRenderPipeline(CommandObject &co, size_t frameBufferIndex, const CmdBeginRenderPipeline &info)
+    Result Context::cmdBeginRenderPass(CommandObject& co, size_t frameBufferIndex, const CmdBeginRenderPass& info)
     {
         Result result = Result::eSuccess;
 
-        auto &rpo = mRPMap[info.RPHandle];
-        auto &rdsto = mRDSTMap[rpo.mHRenderDST];
+        auto& rpo = mRPMap[info.RDSTHandle];
 
-        co.mHRPO = info.RPHandle;
-        co.mHRenderDST = rpo.mHRenderDST;
+        co.mHRenderPass = info.RDSTHandle;
 
         VkRenderPassBeginInfo bi{};
-
+        
         VkClearValue clearValues[2];
         
-        if(info.clear)
+        if(info.clear && !rpo.mLoadPrevData)
         {
-            
             clearValues[0].color = 
             {
                 info.ccv[0], info.ccv[1], info.ccv[2], info.ccv[3]
@@ -3065,7 +3310,7 @@ namespace Cutlass
                 std::get<0>(info.dcv), std::get<1>(info.dcv)
             };
 
-            if (rdsto.mDepthTestEnable)
+            if (rpo.mDepthTestEnable)
             {
                 bi.clearValueCount = 2;
                 bi.pClearValues = clearValues;
@@ -3083,19 +3328,17 @@ namespace Cutlass
         }
 
         bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        bi.renderPass = rdsto.mRenderPass.value();
+        bi.renderPass = rpo.mRenderPass.value();
         bi.renderArea.offset = { 0, 0 };
-        bi.renderArea.extent = { rdsto.mExtent.value().width, rdsto.mExtent.value().height };
-
+        bi.renderArea.extent = { rpo.mExtent.value().width, rpo.mExtent.value().height };
         auto& command = co.mCommandBuffers.back();
-        bi.framebuffer = rdsto.mFramebuffers[frameBufferIndex % rdsto.mFramebuffers.size()].value();
+        bi.framebuffer = rpo.mFramebuffers[frameBufferIndex % rpo.mFramebuffers.size()].value();
         vkCmdBeginRenderPass(command, &bi, VK_SUBPASS_CONTENTS_INLINE);
-        vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, rpo.mPipeline.value());
         
         return Result::eSuccess;
     }
 
-    Result Context::cmdEndRenderPipeline(CommandObject &co, const CmdEndRenderPipeline &info)
+    Result Context::cmdEndRenderPass(CommandObject &co, const CmdEndRenderPass &info)
     {
 
         vkCmdEndRenderPass(co.mCommandBuffers.back());
@@ -3103,7 +3346,17 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Context::cmdBindVB(CommandObject &co, const CmdBindVB &info)
+    Result Context::cmdBindGraphicsPipeline(CommandObject& co, const CmdBindGraphicsPipeline& info)
+    {
+        auto& gpo = mGPMap[info.RPHandle];
+        co.mHRPO = info.RPHandle;
+        auto& command = co.mCommandBuffers.back();
+        vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, gpo.mPipeline.value());
+
+        return Result::eSuccess;
+    }
+
+    Result Context::cmdBindVB(CommandObject& co, const CmdBindVB& info)
     {
         if (mBufferMap.count(info.VBHandle) <= 0)
             return Result::eFailure;
@@ -3138,9 +3391,9 @@ namespace Cutlass
             return Result::eFailure;
         }
 
-        auto &rpo = mRPMap[co.mHRPO.value()];
+        auto &gpo = mGPMap[co.mHRPO.value()];
 
-        if (!rpo.mDescriptorPool)
+        if (!gpo.mDescriptorPool)
         {
             std::cerr << "descriptor pool is nothing!\n";
             return Result::eFailure;
@@ -3156,9 +3409,9 @@ namespace Cutlass
         {
             VkDescriptorSetAllocateInfo dsai{};
             dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-            dsai.descriptorPool = rpo.mDescriptorPool.value();
+            dsai.descriptorPool = gpo.mDescriptorPool.value();
             dsai.descriptorSetCount = 1;
-            dsai.pSetLayouts = &rpo.mDescriptorSetLayout.value();
+            dsai.pSetLayouts = &gpo.mDescriptorSetLayout.value();
             result = checkVkResult(vkAllocateDescriptorSets(mDevice, &dsai, &co.mDescriptorSets.back()));
             if (result != Result::eSuccess)
             {
@@ -3169,8 +3422,8 @@ namespace Cutlass
             writeDescriptors.clear();
             writeDescriptors.reserve
             (
-                rpo.layout.getUniformBufferBindings().size() +
-                rpo.layout.getCombinedTextureBindings().size()
+                gpo.layout.getUniformBufferBindings().size() +
+                gpo.layout.getCombinedTextureBindings().size()
             );
 
             for (const auto &dub: info.SRSet.getUniformBuffers())
@@ -3210,14 +3463,13 @@ namespace Cutlass
             }
 
             vkUpdateDescriptorSets(mDevice, static_cast<uint32_t>(writeDescriptors.size()), writeDescriptors.data(), 0, nullptr);
-            
         }
 
         vkCmdBindDescriptorSets
         (
                 co.mCommandBuffers.back(),
                 VK_PIPELINE_BIND_POINT_GRAPHICS,
-                rpo.mPipelineLayout.value(),
+                gpo.mPipelineLayout.value(),
                 0,
                 1,
                 &co.mDescriptorSets.back(),
@@ -3262,15 +3514,15 @@ namespace Cutlass
     {
         if(mInitializeInfo.debugFlag)
         {
-            if(!co.mHRenderDST)
+            if(!co.mHRenderPass)
             {
                 std::cerr << "render DST is not registered yet!\n";
                 return Result::eFailure;
             }
         }
 
-        auto &rdsto = mRDSTMap[co.mHRenderDST.value()];
-        auto &htexs = rdsto.colorTargets;
+        auto &rpo = mRPMap[co.mHRenderPass.value()];
+        auto &htexs = rpo.colorTargets;
 
         std::vector<VkImageMemoryBarrier> imbs;
         imbs.reserve(htexs.size());
@@ -3302,7 +3554,7 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    uint32_t Context::getFrameBufferIndex(const HRenderDST& handle) const
+    uint32_t Context::getFrameBufferIndex(const HRenderPass& handle) const
     {
         if (!mIsInitialized)
         {
@@ -3310,13 +3562,13 @@ namespace Cutlass
             return 0;
         }
 
-        if (mRDSTMap.count(handle) <= 0)
+        if (mRPMap.count(handle) <= 0)
         {
             std::cerr << "invalid handle!\n";
             return 0;
         }
 
-        return mRDSTMap.at(handle).mFrameBufferIndex;
+        return mRPMap.at(handle).mFrameBufferIndex;
     }
 
     Result Context::execute(const HCommandBuffer &handle)
@@ -3339,19 +3591,19 @@ namespace Cutlass
         }
 
         auto &co = mCommandBufferMap[handle];
-        if (!co.mHRenderDST)
+        if (!co.mHRenderPass)
         {
-            std::cerr << "renderDST of this command is invalid!\n";
+            std::cerr << "renderPass of this command is invalid!\n";
             return Result::eFailure;
         }
 
-        auto &rdsto = mRDSTMap[co.mHRenderDST.value()];
+        auto &rpo = mRPMap[co.mHRenderPass.value()];
 
-        if (rdsto.mHWindow && co.mPresentFlag)
+        if (rpo.mHWindow && co.mPresentFlag)
         {
-            auto &wo = mWindowMap[rdsto.mHWindow.value()];
+            auto &wo = mWindowMap[rpo.mHWindow.value()];
 
-            result = checkVkResult(vkWaitForFences(mDevice, 1, &rdsto.mFences[wo.mCurrentFrame], VK_TRUE, UINT64_MAX));
+            result = checkVkResult(vkWaitForFences(mDevice, 1, &rpo.mFences[wo.mCurrentFrame], VK_TRUE, UINT64_MAX));
             if (result != Result::eSuccess)
             {
                 std::cerr << "Failed to wait fence!\n";
@@ -3365,9 +3617,9 @@ namespace Cutlass
                     mDevice,
                     wo.mSwapchain.value(),
                     UINT64_MAX,
-                    rdsto.mPresentCompletedSems[wo.mCurrentFrame],
+                    rpo.mPresentCompletedSems[wo.mCurrentFrame],
                     VK_NULL_HANDLE,
-                    &rdsto.mFrameBufferIndex
+                    &rpo.mFrameBufferIndex
                 )
             );
 
@@ -3377,29 +3629,29 @@ namespace Cutlass
                 return result;
             }
 
-            if (rdsto.imagesInFlight[rdsto.mFrameBufferIndex] != VK_NULL_HANDLE)
-                vkWaitForFences(mDevice, 1, &rdsto.imagesInFlight[rdsto.mFrameBufferIndex], VK_TRUE, UINT64_MAX);
-            rdsto.imagesInFlight[rdsto.mFrameBufferIndex] = rdsto.mFences[wo.mCurrentFrame];
+            if (rpo.imagesInFlight[rpo.mFrameBufferIndex] != VK_NULL_HANDLE)
+                vkWaitForFences(mDevice, 1, &rpo.imagesInFlight[rpo.mFrameBufferIndex], VK_TRUE, UINT64_MAX);
+            rpo.imagesInFlight[rpo.mFrameBufferIndex] = rpo.mFences[wo.mCurrentFrame];
 
             //submit command
             VkSubmitInfo submitInfo{};
             VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
             submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
             submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &(co.mCommandBuffers[rdsto.mFrameBufferIndex % co.mCommandBuffers.size()]);
+            submitInfo.pCommandBuffers = &(co.mCommandBuffers[rpo.mFrameBufferIndex % co.mCommandBuffers.size()]);
             submitInfo.pWaitDstStageMask = &waitStageMask;
             submitInfo.waitSemaphoreCount = 1;
-            submitInfo.pWaitSemaphores = &rdsto.mPresentCompletedSems[wo.mCurrentFrame];
+            submitInfo.pWaitSemaphores = &rpo.mPresentCompletedSems[wo.mCurrentFrame];
             submitInfo.signalSemaphoreCount = 1;
-            submitInfo.pSignalSemaphores = &rdsto.mRenderCompletedSems[wo.mCurrentFrame];
-            result = checkVkResult(vkResetFences(mDevice, 1, &rdsto.mFences[wo.mCurrentFrame]));
+            submitInfo.pSignalSemaphores = &rpo.mRenderCompletedSems[wo.mCurrentFrame];
+            result = checkVkResult(vkResetFences(mDevice, 1, &rpo.mFences[wo.mCurrentFrame]));
             if (result != Result::eSuccess)
             {
                 std::cerr << "failed to reset fence!\n";
                 return result;
             }
 
-            result = checkVkResult(vkQueueSubmit(mDeviceQueue, 1, &submitInfo, rdsto.mFences[wo.mCurrentFrame]));
+            result = checkVkResult(vkQueueSubmit(mDeviceQueue, 1, &submitInfo, rpo.mFences[wo.mCurrentFrame]));
             if (result != Result::eSuccess)
             {
                 std::cerr << "failed to submit cmd to queue!\n";
@@ -3411,9 +3663,9 @@ namespace Cutlass
             presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
             presentInfo.swapchainCount = 1;
             presentInfo.pSwapchains = &wo.mSwapchain.value();
-            presentInfo.pImageIndices = &rdsto.mFrameBufferIndex;
+            presentInfo.pImageIndices = &rpo.mFrameBufferIndex;
             presentInfo.waitSemaphoreCount = 1;
-            presentInfo.pWaitSemaphores = &rdsto.mRenderCompletedSems[wo.mCurrentFrame];
+            presentInfo.pWaitSemaphores = &rpo.mRenderCompletedSems[wo.mCurrentFrame];
 
             result = checkVkResult(vkQueuePresentKHR(mDeviceQueue, &presentInfo));
             if (Result::eSuccess != result)
@@ -3426,14 +3678,14 @@ namespace Cutlass
         }
         else
         {
-            result = checkVkResult(vkWaitForFences(mDevice, 1, &rdsto.mFences[0], VK_TRUE, UINT64_MAX));
+            result = checkVkResult(vkWaitForFences(mDevice, 1, &rpo.mFences[0], VK_TRUE, UINT64_MAX));
             if (result != Result::eSuccess)
             {
                 std::cerr << "Failed to wait fence!\n";
                 return result;
             }
             
-            result = checkVkResult(vkResetFences(mDevice, 1, &rdsto.mFences[0]));
+            result = checkVkResult(vkResetFences(mDevice, 1, &rpo.mFences[0]));
             if (result != Result::eSuccess)
             {
                 std::cerr << "failed to reset fence!\n";
@@ -3441,21 +3693,21 @@ namespace Cutlass
             }
  
             //Maybe it will be useless
-            rdsto.mFrameBufferIndex = (rdsto.mFrameBufferIndex + 1) % rdsto.mFramebuffers.size();
+            rpo.mFrameBufferIndex = (rpo.mFrameBufferIndex + 1) % rpo.mFramebuffers.size();
 
             //submit command
             VkSubmitInfo submitInfo{};
             VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
             submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
             submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &(co.mCommandBuffers[rdsto.mFrameBufferIndex % co.mCommandBuffers.size()]);
+            submitInfo.pCommandBuffers = &(co.mCommandBuffers[rpo.mFrameBufferIndex % co.mCommandBuffers.size()]);
             submitInfo.pWaitDstStageMask = &waitStageMask;
             submitInfo.waitSemaphoreCount = 0;
             submitInfo.pWaitSemaphores = nullptr;
             submitInfo.signalSemaphoreCount = 0;
             submitInfo.pSignalSemaphores = nullptr;
 
-            result = checkVkResult(vkQueueSubmit(mDeviceQueue, 1, &submitInfo, rdsto.mFences[0]));
+            result = checkVkResult(vkQueueSubmit(mDeviceQueue, 1, &submitInfo, rpo.mFences[rpo.mFrameBufferIndex]));
             if (result != Result::eSuccess)
             {
                 std::cerr << "failed to submit cmd to queue!\n";

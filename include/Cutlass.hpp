@@ -2,7 +2,8 @@
 
 #include "Command.hpp"
 #include "Shader.hpp"
-#include "RenderPipeline.hpp"
+#include "RenderPass.hpp"
+#include "GraphicsPipeline.hpp"
 #include "Buffer.hpp"
 #include "Texture.hpp"
 #include "Utility.hpp"

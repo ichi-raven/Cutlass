@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Cutlass/Cutlass.hpp>
+#include <Cutlass.hpp>
 #include <glm/glm.hpp>
 
 #include "IComponent.hpp"

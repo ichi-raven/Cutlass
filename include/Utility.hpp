@@ -4,12 +4,12 @@
 
 namespace Cutlass
 {
-    using HWindow = uint32_t;
+    using HWindow = uint16_t;
     using HBuffer = uint32_t;
     using HTexture = uint32_t;
     //using HSampler = uint32_t;
-	using HRenderDST = uint32_t;
-    using HRenderPipeline = uint32_t;
+	using HRenderPass = uint32_t;
+    using HGraphicsPipeline = uint32_t;
     using HCommandBuffer = uint32_t;
 
     enum class Result

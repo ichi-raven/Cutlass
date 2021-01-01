@@ -4,7 +4,7 @@
 
 #include <Engine/Application/Application.hpp>
 
-#include <Cutlass/Cutlass.hpp>
+#include <Cutlass.hpp>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -24,28 +24,28 @@ int main()
 	constexpr uint16_t frameCount = 3;
 
 	//アプリケーション実体作成
-	Engine::Application<SceneList, SceneCommonRegion> app;
+	Engine::Application<SceneList, SceneCommonRegion> app
+	(
+		Cutlass::InitializeInfo("testApp", true), 
+		{Cutlass::WindowInfo(windowWidth, windowHeight, frameCount, "testAppWindow", false, true)}
+	);
 	
+
 	//コンテキスト取得
-	auto& context = app.mCommonRegion->context;
+	//auto& context = app.mCommonRegion->context;
 	
-	{//初期化
-		Cutlass::InitializeInfo ii("testApp", true);
-		if(Cutlass::Result::eSuccess != context.initialize(ii))
-			std::cerr << "Failed to initialize!\n";
-	}
+	// {//初期化
+	// 	Cutlass::InitializeInfo ii("testApp", true);
+	// 	if(Cutlass::Result::eSuccess != context.initialize(ii))
+	// 		std::cerr << "Failed to initialize!\n";
+	// }
 
-	Cutlass::HWindow window;
-	Cutlass::HRenderDST rdst;
-	{//window, 描画対象オブジェクト作成
-		Cutlass::WindowInfo wi(windowWidth, windowHeight, frameCount, "testAppWindow", false, true);
-		if (Cutlass::Result::eSuccess != context.createWindow(wi, window))
-			std::cerr << "Failed to create window!\n";
-
-		if (Cutlass::Result::eSuccess != context.createRenderDST(window, true, rdst))
-			std::cerr << "Failed to create frame buffer!\n";
-
-	}
+	// Cutlass::HWindow window;
+	// {//window作成
+	// 	Cutlass::WindowInfo(windowWidth, windowHeight, frameCount, "testAppWindow", false, true);
+	// 	if (Cutlass::Result::eSuccess != context.createWindow(wi, window))
+	// 		std::cerr << "Failed to create window!\n";
+	// }
 
 	//注意 : 処理順序を変更するとcontextの初期化忘れが発生する可能性があります
 	
@@ -53,8 +53,7 @@ int main()
 	app.mCommonRegion->width = windowWidth;
 	app.mCommonRegion->height = windowHeight;
 	app.mCommonRegion->frameCount = frameCount;
-	app.mCommonRegion->window = window;
-	app.mCommonRegion->frameBuffer = rdst;
+	// app.mCommonRegion->window = window;
 
 	//シーン追加
 	app.addScene<TestScene>(SceneList::eTest);
@@ -67,7 +66,7 @@ int main()
 		std::array<double, 10> times;//10F平均でFPSを計測
 		std::chrono::high_resolution_clock::time_point now, prev = std::chrono::high_resolution_clock::now();
 
-		while (!app.endAll() && !context.shouldClose())
+		while (!app.endAll())
 		{
 			{//frame数, fps表示
                 now = std::chrono::high_resolution_clock::now();
@@ -75,10 +74,6 @@ int main()
                 std::cerr << "now frame : " << frame << "\n";
                 std::cerr << "FPS : " << 1. / (std::accumulate(times.begin(), times.end(), 0.) / 10.) << "\n";
             }
-
-			//入力更新
-			if (Cutlass::Result::eSuccess != context.updateInput())
-				std::cerr << "Failed to update input!\n";
 
 			//アプリケーション更新
 			app.update();
@@ -89,9 +84,6 @@ int main()
             }
 		}
 	}
-
-	//破棄は明示的に
-	context.destroy();
 
 	return 0;
 }

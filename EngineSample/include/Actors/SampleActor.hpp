@@ -9,10 +9,7 @@ class SampleActor : public Engine::IActor<SceneCommonRegion>
     GEN_ACTOR_CLASS(SampleActor, SceneCommonRegion)
     
 public:
-    void render(const Cutlass::HRenderDST& renderDST);
-
+    void render(const Cutlass::HWindow& window);
 private:
-    Cutlass::HRenderPipeline mRenderPass;
-    std::vector<Cutlass::CommandList> mCommandLists;
 
 };

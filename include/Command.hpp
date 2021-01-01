@@ -5,22 +5,27 @@
 #include <queue>
 #include <tuple>
 #include "Utility.hpp"
-#include "RenderPipeline.hpp"
+#include "GraphicsPipeline.hpp"
 
 namespace Cutlass
 {
     using ColorClearValue = std::array<float, 4>;
     using DepthClearValue = std::tuple<float, uint32_t>;
 
-    struct CmdBeginRenderPipeline
+    struct CmdBeginRenderPass
     {
-        HRenderPipeline RPHandle;
+        HRenderPass RDSTHandle;
         ColorClearValue ccv;
         DepthClearValue dcv;
         bool clear;
     };
 
-    struct CmdEndRenderPipeline
+    struct CmdBindGraphicsPipeline
+    {
+        HGraphicsPipeline RPHandle;
+    };
+
+    struct CmdEndRenderPass
     {
 
     };
@@ -67,16 +72,12 @@ namespace Cutlass
         //HRender target;
     };
 
-    //struct CmdSyncBuffer
-    //{
-
-    //};
-
     //コマンド追加時はここ
     enum class CommandType
     {
-        eBeginRenderPipeline,
-        eEndRenderPipeline,
+        eBeginRenderPass,
+        eEndRenderPass,
+        eBindGraphicsPipeline,
         ePresent,
         eBindVB,
         eBindIB,
@@ -84,14 +85,14 @@ namespace Cutlass
         eRenderIndexed,
         eRender,
         eSync,
-        //eSyncBuffer,
     };
 
     //とここ
     using CommandInfoVariant = std::variant
     <
-        CmdBeginRenderPipeline,
-        CmdEndRenderPipeline,
+        CmdBeginRenderPass,
+        CmdEndRenderPass,
+        CmdBindGraphicsPipeline,
         CmdPresent,
         CmdBindVB,
         CmdBindIB,
@@ -107,14 +108,16 @@ namespace Cutlass
     class CommandList
     {
     public:
-        void beginRenderPipeline(const HRenderPipeline& RPHandle, bool clearFlag, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f }, const DepthClearValue dcv = { 1.f, 0 });
-        void beginRenderPipeline(const HRenderPipeline& RPHandle, const DepthClearValue dcv = { 1.f, 0 }, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f });
+        void beginRenderPass(const HRenderPass& RDSTHandle, bool clearFlag, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f }, const DepthClearValue dcv = { 1.f, 0 });
+        void beginRenderPass(const HRenderPass& RDSTHandle, const DepthClearValue dcv = { 1.f, 0 }, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f });
 
-        void endRenderPipeline();
+        void endRenderPass();
+        
         void present();
-        void bindVB(const HBuffer &VBHandle);
-        void bindIB(const HBuffer &IBHandle);
-        void bindSRSet(const ShaderResourceSet &shaderResourceSet);
+        void bindGraphicsPipeline(const HGraphicsPipeline& handle);
+        void bindVertexBuffer(const HBuffer& handle);
+        void bindIndexBuffer(const HBuffer &handle);
+        void bindShaderResourceSet(const ShaderResourceSet &shaderResourceSet);
         void renderIndexed
         (
             uint32_t indexCount,    //いくつインデックスを描画するか

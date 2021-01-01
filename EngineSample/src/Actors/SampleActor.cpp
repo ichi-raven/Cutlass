@@ -3,27 +3,23 @@
 #include <Engine/Components/MeshComponent.hpp>
 
 #include <cassert>
+#include <iostream>
 
 SampleActor::~SampleActor()
 {
 
 }
 
-void SampleActor::init(INIT_ARG_ACTOR(SceneCommonRegion, actors, scr))
+void SampleActor::init()
 {
 	auto mesh = addComponent<Engine::MeshComponent>();
 	auto mesh2 = addComponent<Engine::MeshComponent>();
 	if(!mesh || !mesh2)
 		return;
-	mesh->createCube(scr->context, 1.f);
+	mesh->createCube(*getContext(), 1.f);
 }
 
-void SampleActor::update(UPDATE_ARG_ACTOR(SceneCommonRegion, actors, scr))
+void SampleActor::update()
 {
-	render()
-}
-
-void SampleActor::render(const Cutlass::HRenderDST& renderDST)
-{
-	
+	//render(scr->window);
 }

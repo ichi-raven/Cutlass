@@ -8,11 +8,7 @@
 
 class TestScene : public Engine::Scene<SceneList, SceneCommonRegion>
 {
-public:
-	TestScene();
-
 	GEN_SCENE_HEADER_CLASS
-
 private:
 	void render();
 	

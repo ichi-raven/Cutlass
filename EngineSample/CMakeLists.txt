@@ -16,9 +16,10 @@ include_directories(
 
 file(GLOB_RECURSE SRCS src/*.cpp)
 
+link_directories(../build)
+
 add_executable(App ${SRCS})
 
-link_directories(../)
 
 target_link_libraries(App
    vulkan

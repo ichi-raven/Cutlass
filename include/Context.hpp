@@ -9,7 +9,8 @@
 #include "Utility.hpp"
 #include "Buffer.hpp"
 #include "Texture.hpp"
-#include "RenderPipeline.hpp"
+#include "RenderPass.hpp"
+#include "GraphicsPipeline.hpp"
 #include "Command.hpp"
 #include "Event.hpp"
 
@@ -118,29 +119,33 @@ namespace Cutlass
         Result writeTexture(const void *const pData, const HTexture& handle);
 
         //描画対象オブジェクトをスワップチェインから構築
-        Result createRenderDST(const HWindow& handle, bool depthTestEnable, HRenderDST& handle_out);
-        
-        //描画対象オブジェクトをテクスチャから構築
-        Result createRenderDST(const HTexture& color, HRenderDST& handle_out);
-        Result createRenderDST(const HTexture& color, const HTexture& depth, HRenderDST& handle_out);
-        Result createRenderDST(const std::vector<HTexture>& colors, HRenderDST& handle_out);
-        Result createRenderDST(const std::vector<HTexture>& colors, const HTexture& depth, HRenderDST& handle_out);
+        Result createRenderPass(const HWindow& handle, bool depthTestEnable, HRenderPass& handle_out);
 
-        Result destroyRenderDST(const HRenderDST& handle);
+        //普通に構築
+        Result createRenderPass(const RenderPassCreateInfo& info, HRenderPass& handle_out);
+
+        Result destroyRenderPass(const HRenderPass& handle);
 
         //描画パイプライン構築
-        Result createRenderPipeline(const RenderPipelineInfo& info, HRenderPipeline& handle_out);
-        Result destroyRenderPipeline(const HRenderPipeline& handle);
+        Result createGraphicsPipeline(const GraphicsPipelineInfo& info, HGraphicsPipeline& handle_out);
+        Result destroyGraphicsPipeline(const HGraphicsPipeline& handle);
        
         //描画コマンドバッファを作成
         Result createCommandBuffer(const std::vector<CommandList>& commandLists, HCommandBuffer& handle_out);
         Result createCommandBuffer(const CommandList& commandList, HCommandBuffer& handle_out);
+        //破棄
         Result destroyCommandBuffer(const HCommandBuffer& handle);
-         //現在割り当てられているShaderResourceSetの接続を解除する
+      
+        //現在割り当てられているShaderResourceSetの接続を解除する
         Result releaseShaderResourceSet(const HCommandBuffer& handle);
 
+        //すでに割り当てたコマンドの中身を書き換える
+        Result rewriteCommandBuffer(const std::vector<CommandList>& commandLists, const HCommandBuffer& handle);
+        Result rewriteCommandBuffer(const CommandList& commandList, const HCommandBuffer& handle);
+
+
         //現在処理中のフレームバッファのインデックスを取得(0~frameCount)
-        uint32_t getFrameBufferIndex(const HRenderDST& handle) const;
+        uint32_t getFrameBufferIndex(const HRenderPass& handle) const;
 
         //コマンド実行, バックバッファ表示
         Result execute(const HCommandBuffer& handle);
@@ -154,7 +159,7 @@ namespace Cutlass
         uint32_t getKey(const HWindow& handle, const Key& key) const;
 
         //マウス状態取得
-        Result getMouse(double& x, double& y) const;
+        Result getMouse(double& x, double& y) const;//第1ウィンドウが前提となります
         Result getMouse(const HWindow& handle, double& x, double& y) const;
 
         //ウィンドウ終了通知(指定なしで全てのウィンドウの論理和)
@@ -207,7 +212,7 @@ namespace Cutlass
             VkExtent3D extent;
         };
 
-        struct RenderDSTObject
+        struct RenderPassObject
         {
             std::optional<VkRenderPass> mRenderPass;
             std::vector<std::optional<VkFramebuffer>> mFramebuffers;
@@ -218,6 +223,7 @@ namespace Cutlass
             std::optional<VkExtent3D> mExtent;
             uint32_t mTargetNum;
             bool mDepthTestEnable;
+            bool mLoadPrevData;
             //取得されたスワップチェーンイメージのインデックス、テクスチャレンダリングなどしているときは関係ない
             uint32_t mFrameBufferIndex;
             
@@ -229,7 +235,7 @@ namespace Cutlass
             std::vector<VkSemaphore> mPresentCompletedSems;
         };
 
-        struct RenderPipelineObject
+        struct GraphicsPipelineObject
         {
             //これ不要説濃厚
             std::optional<VkPipelineLayout> mPipelineLayout;
@@ -237,7 +243,7 @@ namespace Cutlass
             std::optional<VkDescriptorSetLayout> mDescriptorSetLayout;
             std::optional<VkDescriptorPool> mDescriptorPool;
             ShaderResourceSetLayout layout; //firstがユニフォームバッファ, シェーダリソースの接続管轄用
-            HRenderDST mHRenderDST;
+            HRenderPass mHRenderPass;
         };
 
         struct CommandObject
@@ -247,8 +253,8 @@ namespace Cutlass
             {}
 
             std::vector<VkCommandBuffer> mCommandBuffers;
-            std::optional<HRenderDST> mHRenderDST;//同じ内容を描画するウィンドウが複数ある場合
-            std::optional<HRenderPipeline> mHRPO;
+            std::optional<HRenderPass> mHRenderPass;//同じ内容を描画するウィンドウが複数ある場合
+            std::optional<HGraphicsPipeline> mHRPO;
             std::vector<VkDescriptorSet> mDescriptorSets;
             bool mPresentFlag;
         };
@@ -268,8 +274,12 @@ namespace Cutlass
         inline Result searchGraphicsQueueIndex();
         inline uint32_t getMemoryTypeIndex(uint32_t requestBits, VkMemoryPropertyFlags requestProps) const;
 
-        inline Result createSyncObjects(RenderDSTObject &rdsto);
+        inline Result createSyncObjects(RenderPassObject &rdsto);
         
+        //描画対象オブジェクトをテクスチャから構築
+        inline Result createRenderPass(const std::vector<HTexture>& colors, const std::optional<TextureUsage>& initialUsage, HRenderPass& handle_out);
+        inline Result createRenderPass(const std::vector<HTexture>& colors, const HTexture& depth, const std::optional<TextureUsage>& initialUsage, HRenderPass& handle_out);
+
         inline Result enableDebugReport();
         inline Result disableDebugReport();
         inline Result setImageMemoryBarrier(VkCommandBuffer command, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
@@ -277,8 +287,9 @@ namespace Cutlass
         inline Result createShaderModule(const Shader &shader, const VkShaderStageFlagBits &stage, VkPipelineShaderStageCreateInfo *pSSCI);
 
         //各コマンド関数
-        inline Result cmdBeginRenderPipeline(CommandObject& co, size_t frameBufferIndex, const CmdBeginRenderPipeline& info);
-        inline Result cmdEndRenderPipeline(CommandObject &co, const CmdEndRenderPipeline& info);
+        inline Result cmdBeginRenderPass(CommandObject& co, size_t frameBufferIndex, const CmdBeginRenderPass& info);
+        inline Result cmdEndRenderPass(CommandObject &co, const CmdEndRenderPass& info);
+        inline Result cmdBindGraphicsPipeline(CommandObject &co, const CmdBindGraphicsPipeline& info);
         inline Result cmdBindVB(CommandObject &co, const CmdBindVB &info);
         inline Result cmdBindIB(CommandObject& co, const CmdBindIB &info);
         inline Result cmdBindSRSet(CommandObject& co, const CmdBindSRSet &info);
@@ -293,14 +304,14 @@ namespace Cutlass
         HWindow                 mNextWindowHandle;
         HBuffer                 mNextBufferHandle;
         HTexture                mNextTextureHandle;
-		HRenderDST				mNextRenderDSTHandle;
-        HRenderPipeline         mNextRPHandle;
+		HRenderPass				mNextRenderPassHandle;
+        HGraphicsPipeline       mNextGPHandle;
         HCommandBuffer          mNextCBHandle;
         std::unordered_map<HWindow, WindowObject>                   mWindowMap;
         std::unordered_map<HBuffer, BufferObject>					mBufferMap;
         std::unordered_map<HTexture, ImageObject>					mImageMap;
-        std::unordered_map<HRenderPipeline, RenderPipelineObject>	mRPMap;
-		std::unordered_map<HRenderDST, RenderDSTObject>				mRDSTMap;
+        std::unordered_map<HGraphicsPipeline, GraphicsPipelineObject>	mGPMap;
+		std::unordered_map<HRenderPass, RenderPassObject>				mRPMap;
         std::unordered_map<HCommandBuffer, CommandObject>           mCommandBufferMap;
 
         //Vulkan API

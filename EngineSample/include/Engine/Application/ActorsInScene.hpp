@@ -23,30 +23,37 @@ namespace Engine
 		}
 
 		//呼ばずに実行すると壊れるぞ!(そもそもここ関連の部分を弄らないでください)
-		void setNewCommonRegion(const std::shared_ptr<SceneCommonRegion>& sceneCommonRegion)
+		void setInternalData
+		(
+			std::shared_ptr<SceneCommonRegion> const sceneCommonRegion,
+			const std::shared_ptr<Cutlass::Context>& context,
+			const std::vector<Cutlass::HWindow>& hwindows
+		)
 		{
 			mCommonRegion = sceneCommonRegion;
+			mContext = context;
+			mHWindows = hwindows;
 		}
 
 		template<typename Actor>
 		std::shared_ptr<Actor> addActor(const std::string& actorName)
 		{
-			auto tmp = std::make_shared<Actor>();
-			tmp->template init(*this, mCommonRegion);
+			auto tmp = std::make_shared<Actor>(*this, mCommonRegion, mContext, mHWindows);
+			tmp->init();
 			mActors.emplace(actorName, tmp);
 			mActorsVec.emplace_back(tmp);
 			return tmp;
 		}
 
-		template<typename Actor, typename... Args>
-		std::shared_ptr<Actor> addActor(const std::string& actorName, Args... constructArgs)
-		{
-			auto tmp = std::make_shared<Actor>(constructArgs...);
-			tmp->template init(*this, mCommonRegion);
-			mActors.emplace(actorName, tmp);
-			mActorsVec.emplace_back(tmp);
-			return tmp;
-		}
+		// template<typename Actor, typename... Args>
+		// std::shared_ptr<Actor> addActor(const std::string& actorName, Args... constructArgs)
+		// {
+		// 	auto tmp = std::make_shared<Actor>(constructArgs...);
+		// 	tmp->init(*this, mCommonRegion);
+		// 	mActors.emplace(actorName, tmp);
+		// 	mActorsVec.emplace_back(tmp);
+		// 	return tmp;
+		// }
 
 		void removeActor(const std::string& actorName)
 		{
@@ -64,16 +71,17 @@ namespace Engine
 			return (iter != mActors.end()) ? std::make_optional(std::dynamic_pointer_cast<RequiredActor>(iter->second)) : std::nullopt;
 		}
 
-		void forEachActor(const std::function<void(std::shared_ptr<IActor<SceneCommonRegion>> actor)>& proc)
+		void forEachActors(const std::function<void(std::shared_ptr<IActor<SceneCommonRegion>> actor)>& proc)
 		{
 			std::for_each(mActorsVec.begin(), mActorsVec.end(), proc);
 		}
 
 		//全てのアクタに対しての初期化処理, リセットしたいときとか
-		void init()
+		void clearActors()
 		{
-			for(auto& actor : mActorsVec)
-				actor->init(*this, mCommonRegion);
+			mActors.clear();
+			mActorsVec.clear();
+			mRemovedActors.clear();
 		}
 
 		//全てのアクタに対しての更新処理、Scene::updateActorsを呼べばユーザは呼ぶ必要はありません
@@ -89,7 +97,7 @@ namespace Engine
 					return true;
 				}
 
-				actor->updateAll(*this, mCommonRegion);
+				actor->updateAll();
 				return false;
 			});
 
@@ -101,6 +109,11 @@ namespace Engine
 		std::unordered_map<std::string, std::shared_ptr<IActor<SceneCommonRegion>>> mActors;
 		std::vector<std::shared_ptr<IActor<SceneCommonRegion>>> mActorsVec;
 		std::queue<std::shared_ptr<IActor<SceneCommonRegion>>> mRemovedActors;
+		
 		std::shared_ptr<SceneCommonRegion> mCommonRegion;
+		
+		//Cutlass
+		std::shared_ptr<Cutlass::Context> mContext;
+		std::vector<Cutlass::HWindow> mHWindows;
 	};
 };

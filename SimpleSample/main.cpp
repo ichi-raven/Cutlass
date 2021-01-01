@@ -106,7 +106,6 @@ int main()
 
     //コンテキスト取得
     Context context;
-
     {
         InitializeInfo ii("test", true);
         if (Result::eSuccess != context.initialize(ii))
@@ -170,19 +169,25 @@ int main()
             std::cout << "Failed to create render target texture!\n";
     }
 
-    HRenderDST texDST;
-    {//テクスチャ用描画先オブジェクト作成
-        if (Result::eSuccess != context.createRenderDST({ target }, texDST))
+    HRenderPass texPass;
+    {//テクスチャ用描画パス作成
+        if (Result::eSuccess != context.createRenderPass(RenderPassCreateInfo(target), texPass))
             std::cout << "Failed to create texture renderDST\n";
     }
 
-    HRenderDST renderDST;
-    {//ウィンドウ用描画先オブジェクト作成
-        if (Result::eSuccess != context.createRenderDST(window, true, renderDST))
+    HRenderPass texPass2;
+    {//テクスチャ用描画パス作成(非クリア)
+        if (Result::eSuccess != context.createRenderPass(RenderPassCreateInfo(target, TextureUsage::eColorTarget), texPass2))
+            std::cout << "Failed to create texture renderDST\n";
+    }
+
+    HRenderPass windowPass;
+    {//ウィンドウ用描画パス作成
+        if (Result::eSuccess != context.createRenderPass(RenderPassCreateInfo(window), windowPass))
             std::cout << "Failed to create renderDST\n";
     }
 
-    HRenderPipeline renderPipeline, renderPipeline2, presentPipeline;
+    HGraphicsPipeline renderPipeline, renderPipeline2, presentPipeline;
     {//テクスチャ描画用パス、ウィンドウ描画用パスを定義
 
         //頂点レイアウト定義
@@ -196,41 +201,41 @@ int main()
         ShaderResourceDesc SRDesc;
         SRDesc.layout.allocForUniformBuffer(0);
         SRDesc.layout.allocForCombinedTexture(1);
-        SRDesc.setCount = 1;
+        SRDesc.setCount = 2;
 
-        RenderPipelineInfo rpi
+        GraphicsPipelineInfo rpi
         (
             vl,
             ColorBlend::eDefault,
             Topology::eTriangleList,
             RasterizerState(PolygonMode::eFill, CullMode::eBack, FrontFace::eClockwise, 1.f),
             MultiSampleState::eDefault,
-            DepthStencilState::eDepth,
+            DepthStencilState::eNone,
             Shader("../Shaders/TexturedCube/vert.spv", "main"),
             Shader("../Shaders/TexturedCube/frag.spv", "main"),
             SRDesc,
-            texDST
+            texPass
         );
 
-        RenderPipelineInfo rpi2
+        GraphicsPipelineInfo rpi2
         (
             vl,
             ColorBlend::eDefault,
             Topology::eTriangleList,
             RasterizerState(PolygonMode::eFill, CullMode::eBack, FrontFace::eClockwise, 1.f),
             MultiSampleState::eDefault,
-            DepthStencilState::eDepth,
+            DepthStencilState::eNone,
             Shader("../Shaders/TexturedCube/vert.spv", "main"),
             Shader("../Shaders/TexturedCube/frag2.spv", "main"),
             SRDesc,
-            texDST
+            texPass2
         );
 
-        if (Result::eSuccess != context.createRenderPipeline(rpi, renderPipeline))
+        if (Result::eSuccess != context.createGraphicsPipeline(rpi, renderPipeline))
             std::cout << "Failed to create render pipeline!\n";
 
-        if (Result::eSuccess != context.createRenderPipeline(rpi2, renderPipeline2))
-            std::cout << "Failed to create render pipeline!\n";  
+        if (Result::eSuccess != context.createGraphicsPipeline(rpi2, renderPipeline2))
+            std::cout << "Failed to create render pipeline!\n"; 
     }
 
     {
@@ -238,26 +243,25 @@ int main()
         SRDesc.layout.allocForCombinedTexture(0);
         SRDesc.setCount = frameCount;
 
-        RenderPipelineInfo rpi
+        GraphicsPipelineInfo rpi
         (
             ColorBlend::eDefault,
             Topology::eTriangleStrip,
             RasterizerState(),
             MultiSampleState::eDefault,
-            DepthStencilState::eDepth,
+            DepthStencilState::eNone,
             Shader("../Shaders/present/vert.spv", "main"),
             Shader("../Shaders/present/frag.spv", "main"),
             SRDesc,
-            renderDST
+            windowPass
         );
 
-        if (Result::eSuccess != context.createRenderPipeline(rpi, presentPipeline))
+        if (Result::eSuccess != context.createGraphicsPipeline(rpi, presentPipeline))
             std::cout << "Failed to create present pipeline!\n";  
     }
 
     ShaderResourceSet renderSet, renderSet2;
     {//テクスチャレンダリングパスのリソースセット
-
         renderSet.setUniformBuffer(0, renderUB);
         renderSet.setCombinedTexture(1, texture);
 
@@ -268,42 +272,47 @@ int main()
     std::vector<ShaderResourceSet> presentSets(frameCount);
     {//ウィンドウに描画するパスのリソースセット
         for (size_t i = 0; i < presentSets.size(); ++i)
-        {
             presentSets[i].setCombinedTexture(0, target);
-        }
     }
 
     CommandList renderCL, renderCL2;
     std::vector<CommandList> presentCL(frameCount);
 
     {//コマンドリストを作成
-        ColorClearValue ccv{ 0, 0, 0.5f, 1.f};
+        ColorClearValue ccv{ 1, 1, 0.5f, 0.f };
+        ColorClearValue ccv2{1, 0.5f, 1, 0.f };
         DepthClearValue dcv(1.f, 0);
-
-        renderCL.bindVB(vertexBuffer);
-        renderCL.bindIB(indexBuffer);
+        {
+            renderCL.bindVertexBuffer(vertexBuffer);
+            renderCL.bindIndexBuffer(indexBuffer);
+            
+            renderCL.beginRenderPass(texPass, true, ccv, dcv);
+            renderCL.bindGraphicsPipeline(renderPipeline);
+            renderCL.bindShaderResourceSet(renderSet);
+            renderCL.renderIndexed(indices.size(), 1, 0, 0, 0);
+            renderCL.endRenderPass();
+            //renderCL.sync();
+        }
         
-        renderCL.beginRenderPipeline(renderPipeline, false, ccv, dcv);
-        renderCL.bindSRSet(renderSet);
-        renderCL.renderIndexed(indices.size(), 1, 0, 0, 0);
-        renderCL.endRenderPipeline();
-        renderCL.sync();
-        
-        renderCL2.bindVB(vertexBuffer);
-        renderCL2.bindIB(indexBuffer);
-        
-        renderCL2.beginRenderPipeline(renderPipeline2, false);
-        renderCL2.bindSRSet(renderSet2);
-        renderCL2.renderIndexed(indices.size(), 1, 0, 0, 0);
-        renderCL2.endRenderPipeline();
-        renderCL2.sync();
+        {
+            renderCL2.bindVertexBuffer(vertexBuffer);
+            renderCL2.bindIndexBuffer(indexBuffer);
+            
+            renderCL2.beginRenderPass(texPass2, true, ccv, dcv);
+            renderCL2.bindGraphicsPipeline(renderPipeline2);
+            renderCL2.bindShaderResourceSet(renderSet2);
+            renderCL2.renderIndexed(indices.size(), 1, 0, 0, 0);
+            renderCL2.endRenderPass();
+            renderCL2.sync();
+        }
 
         for(size_t i = 0; i < presentCL.size(); ++i)
         {
-            presentCL[i].beginRenderPipeline(presentPipeline, true, ccv, dcv);
-            presentCL[i].bindSRSet(presentSets[i]);
+            presentCL[i].beginRenderPass(windowPass, true, ccv, dcv);
+            presentCL[i].bindGraphicsPipeline(presentPipeline);
+            presentCL[i].bindShaderResourceSet(presentSets[i]);
             presentCL[i].render(4, 1, 0, 0);
-            presentCL[i].endRenderPipeline();
+            presentCL[i].endRenderPass();
             presentCL[i].present();
         }
     }
@@ -311,12 +320,14 @@ int main()
     HCommandBuffer renderCB, renderCB2, presentCB;
     {//リストからGPUでバッファを構築
         if (Result::eSuccess != context.createCommandBuffer(renderCL, renderCB))
-            std::cout << "Failed to create command buffer\n";
+                std::cout << "Failed to create command buffer\n";
         if (Result::eSuccess != context.createCommandBuffer(renderCL2, renderCB2))
-            std::cout << "Failed to create command buffer\n";
+                std::cout << "Failed to create command buffer\n";
         if (Result::eSuccess != context.createCommandBuffer(presentCL, presentCB))
             std::cout << "Failed to create command buffer\n";
     }
+
+    //context.destroyCommandBuffer(renderCB);
 
     {//メインループ
         int frame = 0;
@@ -331,6 +342,9 @@ int main()
         //ウィンドウ破棄の通知もしくはEscキーで終了
         while (!context.shouldClose() && !context.getKey(Key::Escape))
         {
+            // if (Result::eSuccess != context.rewriteCommandBuffer(renderCL, renderCB))
+            //     std::cout << "Failed to create command buffer\n";
+
             //入出力更新
             if (Result::eSuccess != context.updateInput())
                 std::cerr << "Failed to handle event!\n";
@@ -367,7 +381,7 @@ int main()
                 ubo.proj = glm::perspective(glm::radians(45.f), 1.f * width / height, 1.f, 100.f);
                 ubo.proj[1][1] *= -1;
 
-                uint32_t frameIndex = context.getFrameBufferIndex(renderDST);
+                uint32_t frameIndex = context.getFrameBufferIndex(windowPass);
                 if (Result::eSuccess != context.writeBuffer(sizeof(Uniform), &ubo, renderUB))
                     std::cout << "Failed to write uniform buffer!\n";
                 ubo.world = glm::translate(glm::identity<glm::mat4>(), glm::vec3(2, 2, 2));
