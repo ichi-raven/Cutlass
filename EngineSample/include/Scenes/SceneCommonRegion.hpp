@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-struct SceneCommonRegion
+struct MyCommonRegion
 {
 	uint16_t width;
 	uint16_t height;

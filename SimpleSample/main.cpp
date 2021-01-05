@@ -183,7 +183,7 @@ int main()
 
     HRenderPass windowPass;
     {//ウィンドウ用描画パス作成
-        if (Result::eSuccess != context.createRenderPass(RenderPassCreateInfo(window), windowPass))
+        if (Result::eSuccess != context.createRenderPass(window, true, windowPass))
             std::cout << "Failed to create renderDST\n";
     }
 

@@ -11,49 +11,38 @@
 //Scene内のアクタを分離して各アクタに配布しやすいようにする
 namespace Engine
 {
-	template<typename SceneCommonRegion>
+	class System;
+
+	template<typename CommonRegion>
 	class ActorsInScene
 	{
 	public:
 
-		ActorsInScene()
+		ActorsInScene() = delete;
+
+		ActorsInScene
+		(
+			std::shared_ptr<CommonRegion> const commonRegion,
+			const std::shared_ptr<Cutlass::Context>& context,
+			const std::shared_ptr<System> system
+		)
+		: mCommonRegion(commonRegion)
+		, mContext(context)
+		, mSystem(system)
 		{
 			//チューニング対象?
 			mActorsVec.reserve(7);
 		}
 
-		//呼ばずに実行すると壊れるぞ!(そもそもここ関連の部分を弄らないでください)
-		void setInternalData
-		(
-			std::shared_ptr<SceneCommonRegion> const sceneCommonRegion,
-			const std::shared_ptr<Cutlass::Context>& context,
-			const std::vector<Cutlass::HWindow>& hwindows
-		)
-		{
-			mCommonRegion = sceneCommonRegion;
-			mContext = context;
-			mHWindows = hwindows;
-		}
-
 		template<typename Actor>
 		std::shared_ptr<Actor> addActor(const std::string& actorName)
 		{
-			auto tmp = std::make_shared<Actor>(*this, mCommonRegion, mContext, mHWindows);
+			auto tmp = std::make_shared<Actor>(*this, mCommonRegion, mContext, mSystem);
 			tmp->init();
 			mActors.emplace(actorName, tmp);
 			mActorsVec.emplace_back(tmp);
 			return tmp;
 		}
-
-		// template<typename Actor, typename... Args>
-		// std::shared_ptr<Actor> addActor(const std::string& actorName, Args... constructArgs)
-		// {
-		// 	auto tmp = std::make_shared<Actor>(constructArgs...);
-		// 	tmp->init(*this, mCommonRegion);
-		// 	mActors.emplace(actorName, tmp);
-		// 	mActorsVec.emplace_back(tmp);
-		// 	return tmp;
-		// }
 
 		void removeActor(const std::string& actorName)
 		{
@@ -71,7 +60,7 @@ namespace Engine
 			return (iter != mActors.end()) ? std::make_optional(std::dynamic_pointer_cast<RequiredActor>(iter->second)) : std::nullopt;
 		}
 
-		void forEachActors(const std::function<void(std::shared_ptr<IActor<SceneCommonRegion>> actor)>& proc)
+		void forEachActors(const std::function<void(std::shared_ptr<IActor<CommonRegion>> actor)>& proc)
 		{
 			std::for_each(mActorsVec.begin(), mActorsVec.end(), proc);
 		}
@@ -81,7 +70,8 @@ namespace Engine
 		{
 			mActors.clear();
 			mActorsVec.clear();
-			mRemovedActors.clear();
+			//queueをclear
+			std::swap(std::queue<std::shared_ptr<IActor<CommonRegion>>>(), mRemovedActors);
 		}
 
 		//全てのアクタに対しての更新処理、Scene::updateActorsを呼べばユーザは呼ぶ必要はありません
@@ -89,7 +79,7 @@ namespace Engine
 		{
 			//ついでに削除しちゃう
 			auto&& end = mActorsVec.end();
-			auto&& itr = std::remove_if(mActorsVec.begin(), end, [&](std::shared_ptr<IActor<SceneCommonRegion>>& actor)
+			auto&& itr = std::remove_if(mActorsVec.begin(), end, [&](std::shared_ptr<IActor<CommonRegion>>& actor)
 			{
 				if(!mRemovedActors.empty() && actor == mRemovedActors.back())
 				{
@@ -106,14 +96,13 @@ namespace Engine
 		}
 
 	private:
-		std::unordered_map<std::string, std::shared_ptr<IActor<SceneCommonRegion>>> mActors;
-		std::vector<std::shared_ptr<IActor<SceneCommonRegion>>> mActorsVec;
-		std::queue<std::shared_ptr<IActor<SceneCommonRegion>>> mRemovedActors;
+		std::unordered_map<std::string, std::shared_ptr<IActor<CommonRegion>>> mActors;
+		std::vector<std::shared_ptr<IActor<CommonRegion>>> mActorsVec;
+		std::queue<std::shared_ptr<IActor<CommonRegion>>> mRemovedActors;
 		
-		std::shared_ptr<SceneCommonRegion> mCommonRegion;
+		std::shared_ptr<CommonRegion> mCommonRegion;
 		
-		//Cutlass
 		std::shared_ptr<Cutlass::Context> mContext;
-		std::vector<Cutlass::HWindow> mHWindows;
+		std::shared_ptr<System> mSystem;
 	};
 };

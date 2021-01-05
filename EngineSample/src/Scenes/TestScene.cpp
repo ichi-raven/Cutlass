@@ -8,6 +8,10 @@
 #include <cassert>
 #include <iostream>
 
+TestScene::~TestScene()
+{
+	
+}
 
 void TestScene::init()
 {

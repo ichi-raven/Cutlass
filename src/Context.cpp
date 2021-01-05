@@ -1031,6 +1031,20 @@ namespace Cutlass
         return result;
     }
 
+    Result Context::getWindowSize(const HWindow& handle, uint32_t& width, uint32_t& height)
+    {
+        if(mInitializeInfo.debugFlag && mWindowMap.count(handle) <= 0)
+        {
+            std::cerr << "Invalid window handle!\n";
+            return Result::eFailure;
+        }
+        auto& wo = mWindowMap[handle];
+        width = wo.mSwapchainExtent.width;
+        height = wo.mSwapchainExtent.height;
+        return Result::eSuccess;
+    }
+
+
     Result Context::createBuffer(const BufferInfo &info, HBuffer& handle_out)
     {
         Result result = Result::eFailure;
@@ -1855,15 +1869,11 @@ namespace Cutlass
 
     Result Context::createRenderPass(const RenderPassCreateInfo& info, HRenderPass& handle_out)
     {
-        if(info.window)
-            return createRenderPass(info.window.value(), info.windowDepthTestEnable, handle_out);
+
+        if(info.depthTarget)
+            return createRenderPass(info.colorTargets, info.depthTarget.value(), info.initialUsage, handle_out);
         else
-        {
-            if(info.depthTarget)
-                return createRenderPass(info.colorTargets, info.depthTarget.value(), info.initialUsage, handle_out);
-            else
-                return createRenderPass(info.colorTargets, info.initialUsage, handle_out);
-        }
+            return createRenderPass(info.colorTargets, info.initialUsage, handle_out);
 
         return Result::eFailure;
     }

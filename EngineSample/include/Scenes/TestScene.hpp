@@ -4,13 +4,10 @@
 #include "SceneCommonRegion.hpp"
 #include "SceneList.hpp"
 
-#include <Engine/System/BaseRenderer.hpp>
-
-class TestScene : public Engine::Scene<SceneList, SceneCommonRegion>
+class TestScene : public Engine::Scene<SceneList, MyCommonRegion>
 {
-	GEN_SCENE_HEADER_CLASS
+	GEN_SCENE(TestScene, SceneList, MyCommonRegion)
+
 private:
 	void render();
-	
-	Engine::BaseRenderer mRenderer;
 };

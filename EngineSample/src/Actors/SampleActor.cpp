@@ -5,6 +5,8 @@
 #include <cassert>
 #include <iostream>
 
+#include <Engine/System/System.hpp>
+
 SampleActor::~SampleActor()
 {
 
@@ -21,5 +23,5 @@ void SampleActor::init()
 
 void SampleActor::update()
 {
-	//render(scr->window);
+	
 }

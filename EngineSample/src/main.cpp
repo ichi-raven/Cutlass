@@ -24,28 +24,11 @@ int main()
 	constexpr uint16_t frameCount = 3;
 
 	//アプリケーション実体作成
-	Engine::Application<SceneList, SceneCommonRegion> app
+	Engine::Application<SceneList, MyCommonRegion> app
 	(
 		Cutlass::InitializeInfo("testApp", true), 
 		{Cutlass::WindowInfo(windowWidth, windowHeight, frameCount, "testAppWindow", false, true)}
 	);
-	
-
-	//コンテキスト取得
-	//auto& context = app.mCommonRegion->context;
-	
-	// {//初期化
-	// 	Cutlass::InitializeInfo ii("testApp", true);
-	// 	if(Cutlass::Result::eSuccess != context.initialize(ii))
-	// 		std::cerr << "Failed to initialize!\n";
-	// }
-
-	// Cutlass::HWindow window;
-	// {//window作成
-	// 	Cutlass::WindowInfo(windowWidth, windowHeight, frameCount, "testAppWindow", false, true);
-	// 	if (Cutlass::Result::eSuccess != context.createWindow(wi, window))
-	// 		std::cerr << "Failed to create window!\n";
-	// }
 
 	//注意 : 処理順序を変更するとcontextの初期化忘れが発生する可能性があります
 	
@@ -53,7 +36,6 @@ int main()
 	app.mCommonRegion->width = windowWidth;
 	app.mCommonRegion->height = windowHeight;
 	app.mCommonRegion->frameCount = frameCount;
-	// app.mCommonRegion->window = window;
 
 	//シーン追加
 	app.addScene<TestScene>(SceneList::eTest);
@@ -63,12 +45,12 @@ int main()
 
 	{//メインループ
 		uint32_t frame = 0;
-		std::array<double, 10> times;//10F平均でFPSを計測
+		std::array<float, 10> times;//10f平均でfpsを計測
 		std::chrono::high_resolution_clock::time_point now, prev = std::chrono::high_resolution_clock::now();
 
 		while (!app.endAll())
 		{
-			{//frame数, fps表示
+			{//frame数, fps
                 now = std::chrono::high_resolution_clock::now();
                 times[frame % 10] = app.mCommonRegion->deltatime = std::chrono::duration_cast<std::chrono::microseconds>(now - prev).count() / 1000000.;
                 std::cerr << "now frame : " << frame << "\n";

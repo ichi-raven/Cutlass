@@ -99,6 +99,7 @@ namespace Cutlass
 
         //ウィンドウ作成・破棄
         Result createWindow(const WindowInfo& info, HWindow& handle_out);
+        Result getWindowSize(const HWindow& handle, uint32_t& width, uint32_t& height);
         Result destroyWindow(const HWindow& handle);
 
         //バッファ作成・破棄
@@ -142,7 +143,6 @@ namespace Cutlass
         //すでに割り当てたコマンドの中身を書き換える
         Result rewriteCommandBuffer(const std::vector<CommandList>& commandLists, const HCommandBuffer& handle);
         Result rewriteCommandBuffer(const CommandList& commandList, const HCommandBuffer& handle);
-
 
         //現在処理中のフレームバッファのインデックスを取得(0~frameCount)
         uint32_t getFrameBufferIndex(const HRenderPass& handle) const;
@@ -276,7 +276,7 @@ namespace Cutlass
 
         inline Result createSyncObjects(RenderPassObject &rdsto);
         
-        //描画対象オブジェクトをテクスチャから構築
+        //描画パスをテクスチャから構築
         inline Result createRenderPass(const std::vector<HTexture>& colors, const std::optional<TextureUsage>& initialUsage, HRenderPass& handle_out);
         inline Result createRenderPass(const std::vector<HTexture>& colors, const HTexture& depth, const std::optional<TextureUsage>& initialUsage, HRenderPass& handle_out);
 

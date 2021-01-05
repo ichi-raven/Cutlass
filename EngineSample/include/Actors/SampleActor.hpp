@@ -4,12 +4,12 @@
 
 #include "../Engine/Actors/IActor.hpp"
 
-class SampleActor : public Engine::IActor<SceneCommonRegion>
+class SampleActor : public Engine::IActor<MyCommonRegion>
 {
-    GEN_ACTOR_CLASS(SampleActor, SceneCommonRegion)
+    GEN_ACTOR(SampleActor, MyCommonRegion)
     
 public:
-    void render(const Cutlass::HWindow& window);
-private:
 
+private:
+    
 };

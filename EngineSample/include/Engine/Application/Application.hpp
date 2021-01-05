@@ -1,24 +1,12 @@
 //前方宣言のみ
 namespace Engine
 {
-template<typename Key_t, typename CommonRegion>
-class Application;
+	template<typename Key_t, typename CommonRegion>
+	class Application;
 
-template<typename Key_t, typename CommonRegion>
-class Scene;
+	template<typename Key_t, typename CommonRegion>
+	class Scene;
 }
-
-//init, update, render, endの宣言がめんどくさい人用
-#define GEN_SCENE_HEADER_CLASS  \
-public: \
-virtual void init() override final;\
-virtual void update() override final;\
-private:
-
-#define GEN_SCENE_HEADER_STRUCT \
-virtual void init() override final;\
-virtual void update() override final;\
-
 
 //#ifndef _Application_Scene_IMPL//実装部は一度だけの展開
 //#define _Application_Scene_IMPL
@@ -35,6 +23,20 @@ virtual void update() override final;\
 #include <Cutlass.hpp>
 
 #include "ActorsInScene.hpp"
+#include "../System/System.hpp"
+
+#include "../System/Renderer.hpp"
+#include "../System/Loader.hpp"
+
+//自作Sceneの定義にはこれを使ってください
+//ヘッダに書けばオーバーロードすべき関数の定義はすべて完了します
+#define GEN_SCENE(SCENE_TYPE, KEY_TYPE, COMMONREGION_TYPE)  \
+public: \
+SCENE_TYPE(Engine::Application<KEY_TYPE, COMMONREGION_TYPE>* application, std::shared_ptr<COMMONREGION_TYPE> commonRegion,std::shared_ptr<Cutlass::Context> context, std::shared_ptr<Engine::System> system) : Scene(application, commonRegion, context, system){}\
+virtual ~SCENE_TYPE() override;\
+virtual void init() override;\
+virtual void update() override;\
+private:
 
 namespace Engine
 {
@@ -47,20 +49,25 @@ namespace Engine
 
 	public://メソッド宣言部
 
-		Scene()
-		: mApplication(nullptr)
-		, mIsSetData(false)
+		Scene() = delete;
+
+		Scene
+		(
+			Application_t* application, 
+			std::shared_ptr<CommonRegion> commonRegion,
+			std::shared_ptr<Cutlass::Context> context,
+			std::shared_ptr<System> system
+		)
+		: mApplication(application)
+		, mCommonRegion(commonRegion)
+		, mContext(context)
+		, mSystem(system)
+		, mActors(commonRegion, context, system)
 		{
-			//コンストラクタです
+
 		}
 
-		// Scene(Application_t* application, const std::shared_ptr<CommonRegion>& commonRegion)
-		// : mApplication(application)
-		// , mCommonRegion(commonRegion)
-		// , mActors(ActorsInScene(commonRegion))
-		// {
-
-		// }
+		virtual ~Scene(){};
 
 		virtual void init() = 0;
 
@@ -68,7 +75,6 @@ namespace Engine
 
 		inline void initAll()
 		{
-			assert(mIsSetData);
 			init();
 		}
 
@@ -76,21 +82,6 @@ namespace Engine
 		{
 			update();
 			mActors.update();
-		}
-
-		void setInternalData
-		(
-			Application_t* application, 
-			std::shared_ptr<CommonRegion> commonRegion,
-			std::shared_ptr<Cutlass::Context> context,
-			const std::vector<Cutlass::HWindow>& windows
-		)
-		{
-			mApplication = application;
-			mCommonRegion = commonRegion;
-			mContext = context;
-			mActors.setInternalData(commonRegion, context, windows);
-			mIsSetData = true;
 		}
 
 	protected://子以外呼ばなくていいです
@@ -144,22 +135,22 @@ namespace Engine
 			return mContext;
 		}
 
-		const std::vector<Cutlass::HWindow>& getHWindows() const
+		std::shared_ptr<System> const getSystem() const
 		{
-			return mWindows;
+			return mSystem;
 		}
 
 	private://メンバ変数
-		bool mIsSetData;
 
 		std::shared_ptr<CommonRegion> mCommonRegion;
-		//std::unique_ptr<BaseRenderer> mRenderer;
 		Application_t* mApplication;//コンストラクタにてnullptrで初期化
 		ActorsInScene<CommonRegion> mActors;
 
+		std::shared_ptr<System> mSystem;
+		
 		//Cutlass
 		std::shared_ptr<Cutlass::Context> mContext;
-		std::vector<Cutlass::HWindow> mWindows;
+		std::vector<Cutlass::HWindow> mHWindows;
 	};
 
 	template<typename Key_t, typename CommonRegion>
@@ -172,6 +163,7 @@ namespace Engine
 
 	public://メソッド宣言部
 
+		template<typename T>
 		Application(const Cutlass::InitializeInfo& initializeInfo, const std::initializer_list<Cutlass::WindowInfo>& windowInfos)
 		 : mCommonRegion(std::make_shared<CommonRegion>())
 		 , mEndFlag(false)
@@ -183,13 +175,12 @@ namespace Engine
 					std::cerr << "Failed to initialize cutlass context!\n";
 			}
 
-			mWindows.reserve(windowInfos.size());
+			mHWindows.reserve(windowInfos.size());
 			for(const auto& wi : windowInfos)
-			{//window作成
-				mWindows.emplace_back();
-				if (Cutlass::Result::eSuccess != mContext->createWindow(wi, mWindows.back()))
+				if (Cutlass::Result::eSuccess != mContext->createWindow(wi, mHWindows.emplace_back()))
 					std::cerr << "Failed to create window!\n";
-			}
+
+			initSystem();
 		}
 
 		Application(const Cutlass::InitializeInfo&& initializeInfo, const std::initializer_list<Cutlass::WindowInfo>&& windowInfos)
@@ -203,13 +194,23 @@ namespace Engine
 					std::cerr << "Failed to initialize cutlass context!\n";
 			}
 
-			mWindows.reserve(windowInfos.size());
+			mHWindows.reserve(windowInfos.size());
 			for(const auto& wi : windowInfos)
-			{//window作成
-				mWindows.emplace_back();
-				if (Cutlass::Result::eSuccess != mContext->createWindow(wi, mWindows.back()))
+				if (Cutlass::Result::eSuccess != mContext->createWindow(wi, mHWindows.emplace_back()))
 					std::cerr << "Failed to create window!\n";
-			}
+
+			initSystem();
+		}
+
+		//Systemを差し替える場合に使ってください
+		//System内の各親を継承していない場合多分壊れます
+		template<typename InheritedRenderer = Renderer, typename InheritedLoader = Loader>
+		void initSystem()
+		{
+			//ApplicationごとにSystem内部を選べれば色々できると思う
+			mSystem = std::make_shared<System>();
+			mSystem->renderer = std::make_unique<InheritedRenderer>(mContext, mHWindows);
+			mSystem->loader = std::make_unique<InheritedLoader>();
 		}
 
 		//Noncopyable, Nonmoveable
@@ -268,8 +269,8 @@ namespace Engine
 				[&]()
 				{
 					//auto m = std::make_shared<DerivedScene>(this, mCommonRegion);//
-					auto m = std::make_shared<DerivedScene>();
-					m->setInternalData(this, mCommonRegion, mContext, mWindows);
+					auto m = std::make_shared<DerivedScene>(this, mCommonRegion, mContext, mSystem);
+					//m->setInternalData(this, mCommonRegion, mContext, mHWindows);
 					m->initAll();
 
 					return m;
@@ -319,9 +320,12 @@ namespace Engine
 			return mEndFlag || mContext->shouldClose();
 		}
 
-	public://共有データはアクセスできるべき
+	public:
 		std::shared_ptr<CommonRegion> mCommonRegion;
-
+		std::shared_ptr<System> mSystem;
+		//Cutlass
+		std::shared_ptr<Cutlass::Context> mContext;
+		std::vector<Cutlass::HWindow> mHWindows;
 	private:
 
 		std::unordered_map<Key_t, Factory_t> mScenesFactory;
@@ -329,10 +333,6 @@ namespace Engine
 		std::optional<std::pair<Key_t, Scene_t>> mCache;
 		std::optional<Key_t> mFirstSceneKey;//nulloptで初期化
 		bool mEndFlag;
-
-		//Cutlass
-		std::shared_ptr<Cutlass::Context> mContext;
-		std::vector<Cutlass::HWindow> mWindows;
 	};
 };
 
