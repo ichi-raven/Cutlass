@@ -210,6 +210,7 @@ namespace Cutlass
             VkFormat format;
             TextureUsage usage;
             VkExtent3D extent;
+            VkImageSubresourceRange range;
         };
 
         struct RenderPassObject
@@ -282,7 +283,7 @@ namespace Cutlass
 
         inline Result enableDebugReport();
         inline Result disableDebugReport();
-        inline Result setImageMemoryBarrier(VkCommandBuffer command, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
+        inline Result setImageMemoryBarrier(VkCommandBuffer command, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, VkImageAspectFlags aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT);
 
         inline Result createShaderModule(const Shader &shader, const VkShaderStageFlagBits &stage, VkPipelineShaderStageCreateInfo *pSSCI);
 

@@ -1192,7 +1192,10 @@ namespace Cutlass
                 io.mSizeOfChannel = 1;
                 break;
             case ResourceType::eFloat32:
-                io.format = VK_FORMAT_R32_SFLOAT;
+                if(info.usage == TextureUsage::eDepthStencilTarget)
+                    io.format = VK_FORMAT_D32_SFLOAT;
+                else
+                    io.format = VK_FORMAT_R32_SFLOAT;
                 io.mSizeOfChannel = 4;
                 break;
             case ResourceType::eUint32:
@@ -1283,10 +1286,10 @@ namespace Cutlass
                 ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
                 break;
             case TextureUsage::eColorTarget:
-                ci.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+                ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
                 break;
             case TextureUsage::eDepthStencilTarget:
-                ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+                ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
                 break;
                 // case TextureUsage::eUnordered: 
                 //     ci.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
@@ -1347,6 +1350,7 @@ namespace Cutlass
         }
         // bind memory
         vkBindImageMemory(mDevice, io.mImage.value(), io.mMemory.value(), 0);
+      
 
         {
             //view
@@ -1379,12 +1383,16 @@ namespace Cutlass
             switch (info.usage)
             {
             case TextureUsage::eDepthStencilTarget:
-                ci.subresourceRange = {
-                    VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
+                ci.subresourceRange = io.range = 
+                {
+                    VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1
+                };
                 break;
             default:
-                ci.subresourceRange = {
-                    VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+                ci.subresourceRange = io.range = 
+                {
+                    VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1
+                };
                 break;
             }
 
@@ -1666,7 +1674,7 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Context::setImageMemoryBarrier(VkCommandBuffer command, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout)
+    Result Context::setImageMemoryBarrier(VkCommandBuffer command, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, VkImageAspectFlags aspectFlags)
     {
 
         if (!mIsInitialized)
@@ -1681,7 +1689,7 @@ namespace Cutlass
         imb.newLayout = newLayout;
         imb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         imb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        imb.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+        imb.subresourceRange = { aspectFlags, 0, 1, 0, 1};
         imb.image = image;
 
         //final stage that write to resource in pipelines
@@ -2161,8 +2169,10 @@ namespace Cutlass
                 adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
             }
 
-            arVec.back().attachment = 0;
+            adVec.back().format = io.format;
+            adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
             adVec.back().finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            arVec.back().attachment = 0;
             arVec.back().layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         }
 
@@ -2178,7 +2188,7 @@ namespace Cutlass
 
         adVec.back().format = depthBuffer.format;
         adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
-        adVec.back().loadOp =  VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        adVec.back().loadOp =  VK_ATTACHMENT_LOAD_OP_CLEAR;
         adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
         adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         adVec.back().finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -2216,6 +2226,8 @@ namespace Cutlass
             const auto& img = mImageMap[tex];
             ivVec.emplace_back(img.mView.value());
         }
+        //depth buffer
+        ivVec.emplace_back(depthBuffer.mView.value());
 
         fbci.pAttachments = ivVec.data();
         {
@@ -3300,6 +3312,7 @@ namespace Cutlass
     {
         Result result = Result::eSuccess;
 
+        auto& command = co.mCommandBuffers.back();
         auto& rpo = mRPMap[info.RDSTHandle];
 
         co.mHRenderPass = info.RDSTHandle;
@@ -3307,44 +3320,70 @@ namespace Cutlass
         VkRenderPassBeginInfo bi{};
         
         VkClearValue clearValues[2];
-        
-        if(info.clear && !rpo.mLoadPrevData)
+
+        clearValues[0].color = 
         {
-            clearValues[0].color = 
-            {
-                info.ccv[0], info.ccv[1], info.ccv[2], info.ccv[3]
-            };
+            info.ccv[0], info.ccv[1], info.ccv[2], info.ccv[3]
+        };
 
-            clearValues[1].depthStencil = 
-            {
-                std::get<0>(info.dcv), std::get<1>(info.dcv)
-            };
+        clearValues[1].depthStencil = 
+        {
+            std::get<0>(info.dcv), std::get<1>(info.dcv)
+        };
 
-            if (rpo.mDepthTestEnable)
-            {
-                bi.clearValueCount = 2;
-                bi.pClearValues = clearValues;
-            }
-            else
-            {
-                bi.clearValueCount = 1;
-                bi.pClearValues = clearValues;
-            }
+        if (rpo.mDepthTestEnable)
+        {
+            bi.clearValueCount = 2;
+            bi.pClearValues = clearValues;
         }
-        else
+
+        if (!rpo.mHWindow && info.clear)
         {
-            bi.clearValueCount = 0;
-            bi.pClearValues = nullptr;
+            VkImageMemoryBarrier imb;
+
+            imb.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            imb.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            imb.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            imb.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            imb.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            imb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            imb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            imb.subresourceRange = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 };
+
+            std::vector<VkImageMemoryBarrier> imbs;
+            imbs.reserve(rpo.colorTargets.size() + 1);
+            if (rpo.depthTargets)
+            {
+                auto& io = mImageMap[rpo.depthTargets.value()];
+                setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, io.range.aspectMask);
+                vkCmdClearDepthStencilImage(command, io.mImage.value(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearValues[1].depthStencil, 1, &io.range);
+                setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, io.range.aspectMask);
+
+                imb.image = io.mImage.value();
+                imbs.emplace_back(imb);
+            }
+
+            imb.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            imb.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+            if(!rpo.mLoadPrevData)
+            for (const auto& img : rpo.colorTargets)
+            {
+                auto& io = mImageMap[img];
+                setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+                vkCmdClearColorImage(command, io.mImage.value(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearValues[0].color, 1, &io.range);
+                setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+            }
+
         }
 
         bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         bi.renderPass = rpo.mRenderPass.value();
         bi.renderArea.offset = { 0, 0 };
         bi.renderArea.extent = { rpo.mExtent.value().width, rpo.mExtent.value().height };
-        auto& command = co.mCommandBuffers.back();
         bi.framebuffer = rpo.mFramebuffers[frameBufferIndex % rpo.mFramebuffers.size()].value();
         vkCmdBeginRenderPass(command, &bi, VK_SUBPASS_CONTENTS_INLINE);
-        
+
         return Result::eSuccess;
     }
 
@@ -3534,33 +3573,17 @@ namespace Cutlass
         auto &rpo = mRPMap[co.mHRenderPass.value()];
         auto &htexs = rpo.colorTargets;
 
-        std::vector<VkImageMemoryBarrier> imbs;
-        imbs.reserve(htexs.size());
-        for (const auto &htex : htexs)
+        for (const auto& ht : htexs)
         {
-            imbs.emplace_back();
-            imbs.back().sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-            imbs.back().srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            imbs.back().dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-            imbs.back().oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            imbs.back().newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imbs.back().srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            imbs.back().dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            imbs.back().image = mImageMap[htex].mImage.value();
-            imbs.back().subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };//ここやばめ
+            auto& io = mImageMap[ht];
+            setImageMemoryBarrier
+            (
+                co.mCommandBuffers.back(),
+                io.mImage.value(),
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+            );
         }
-
-        vkCmdPipelineBarrier
-        (
-            co.mCommandBuffers.back(), 
-            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-            VK_DEPENDENCY_BY_REGION_BIT,
-            0, nullptr,
-            0, nullptr,
-            static_cast<uint32_t>(htexs.size()), imbs.data()
-        );
-
         return Result::eSuccess;
     }
 
