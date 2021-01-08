@@ -1284,12 +1284,15 @@ namespace Cutlass
             {
             case TextureUsage::eShaderResource:
                 ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+                io.currentLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                 break;
             case TextureUsage::eColorTarget:
                 ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+                io.currentLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
                 break;
             case TextureUsage::eDepthStencilTarget:
                 ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+                io.currentLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
                 break;
                 // case TextureUsage::eUnordered: 
                 //     ci.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
@@ -1706,6 +1709,9 @@ namespace Cutlass
             imb.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
             srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
             break;
+        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+            imb.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            break;
         }
 
         switch (newLayout)
@@ -1830,6 +1836,7 @@ namespace Cutlass
             io.mView = imageView;
         }
 
+        io.currentLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         io.usage = TextureUsage::eDepthStencilTarget;
         mImageMap.emplace(mNextTextureHandle, io);
         wo.mHDepthBuffer = mNextTextureHandle++;
@@ -2126,7 +2133,7 @@ namespace Cutlass
 
         rpo.mHWindow = std::nullopt;
         rpo.colorTargets = colorTargets;
-
+        rpo.depthTarget = depthTarget;
         VkRenderPassCreateInfo ci{};
         ci.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
         std::vector<VkAttachmentDescription> adVec;
@@ -3337,36 +3344,16 @@ namespace Cutlass
             bi.pClearValues = clearValues;
         }
 
-        if (!rpo.mHWindow && info.clear)
+        if (!rpo.mHWindow && info.clear && !rpo.mLoadPrevData)
         {
-            VkImageMemoryBarrier imb;
-
-            imb.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-            imb.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            imb.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-            imb.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-            imb.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-            imb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            imb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            imb.subresourceRange = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 };
-
-            std::vector<VkImageMemoryBarrier> imbs;
-            imbs.reserve(rpo.colorTargets.size() + 1);
-            if (rpo.depthTargets)
+            if (rpo.depthTarget)
             {
-                auto& io = mImageMap[rpo.depthTargets.value()];
+                auto& io = mImageMap[rpo.depthTarget.value()];
                 setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, io.range.aspectMask);
                 vkCmdClearDepthStencilImage(command, io.mImage.value(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearValues[1].depthStencil, 1, &io.range);
                 setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, io.range.aspectMask);
-
-                imb.image = io.mImage.value();
-                imbs.emplace_back(imb);
             }
 
-            imb.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            imb.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-            if(!rpo.mLoadPrevData)
             for (const auto& img : rpo.colorTargets)
             {
                 auto& io = mImageMap[img];
@@ -3576,12 +3563,18 @@ namespace Cutlass
         for (const auto& ht : htexs)
         {
             auto& io = mImageMap[ht];
+
+            //switch (io.currentLayout)
+            //{
+            //    case 
+            //}
+
             setImageMemoryBarrier
             (
                 co.mCommandBuffers.back(),
                 io.mImage.value(),
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
             );
         }
         return Result::eSuccess;

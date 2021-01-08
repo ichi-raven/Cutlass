@@ -209,6 +209,7 @@ namespace Cutlass
             uint32_t mSizeOfChannel;
             VkFormat format;
             TextureUsage usage;
+            VkImageLayout currentLayout;
             VkExtent3D extent;
             VkImageSubresourceRange range;
         };
@@ -218,7 +219,7 @@ namespace Cutlass
             std::optional<VkRenderPass> mRenderPass;
             std::vector<std::optional<VkFramebuffer>> mFramebuffers;
             std::vector<HTexture> colorTargets;
-            std::optional<HTexture> depthTargets;
+            std::optional<HTexture> depthTarget;
             std::optional<HWindow> mHWindow;
             DepthStencilState mDSs;
             std::optional<VkExtent3D> mExtent;
@@ -289,13 +290,13 @@ namespace Cutlass
 
         //各コマンド関数
         inline Result cmdBeginRenderPass(CommandObject& co, size_t frameBufferIndex, const CmdBeginRenderPass& info);
-        inline Result cmdEndRenderPass(CommandObject &co, const CmdEndRenderPass& info);
-        inline Result cmdBindGraphicsPipeline(CommandObject &co, const CmdBindGraphicsPipeline& info);
-        inline Result cmdBindVB(CommandObject &co, const CmdBindVB &info);
-        inline Result cmdBindIB(CommandObject& co, const CmdBindIB &info);
-        inline Result cmdBindSRSet(CommandObject& co, const CmdBindSRSet &info);
-        inline Result cmdRenderIndexed(CommandObject& co, const CmdRenderIndexed &info);
-        inline Result cmdRender(CommandObject& co, const CmdRender &info);
+        inline Result cmdEndRenderPass(CommandObject& co, const CmdEndRenderPass& info);
+        inline Result cmdBindGraphicsPipeline(CommandObject& co, const CmdBindGraphicsPipeline& info);
+        inline Result cmdBindVB(CommandObject &co, const CmdBindVB& info);
+        inline Result cmdBindIB(CommandObject& co, const CmdBindIB& info);
+        inline Result cmdBindSRSet(CommandObject& co, const CmdBindSRSet& info);
+        inline Result cmdRenderIndexed(CommandObject& co, const CmdRenderIndexed& info);
+        inline Result cmdRender(CommandObject& co, const CmdRender& info);
         inline Result cmdSync(CommandObject& co, const CmdSync& info);
 
         //ユーザ指定
