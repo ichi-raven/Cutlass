@@ -104,7 +104,7 @@ int main()
 
     //-----------------------------------------------------
 
-    //コンテキスト取得
+    //コンテクスト作成
     Context context;
     {
         InitializeInfo ii("test", true);
@@ -163,28 +163,36 @@ int main()
 
     HTexture target;
     {//描画先用テクスチャ作成
-        TextureInfo ti;
-        ti.setRTTex2D(width, height, ResourceType::eUNormVec4);
+        TextureInfo ti(width, height);
+        //ti.setRTTex2DColor(width, height);
         if (Result::eSuccess != context.createTexture(ti, target))
+            std::cout << "Failed to create render target texture!\n";
+    }
+
+    HTexture depthTarget;
+    {//デプスバッファ用テクスチャ作成
+        TextureInfo ti;
+        ti.setRTTex2DDepth(width, height);
+        if (Result::eSuccess != context.createTexture(ti, depthTarget))
             std::cout << "Failed to create render target texture!\n";
     }
 
     HRenderPass texPass;
     {//テクスチャ用描画パス作成
-        if (Result::eSuccess != context.createRenderPass(RenderPassCreateInfo(target), texPass))
-            std::cout << "Failed to create texture renderDST\n";
+        if (Result::eSuccess != context.createRenderPass(RenderPassCreateInfo(target, depthTarget), texPass))
+            std::cout << "Failed to create texture renderpass\n";
     }
 
     HRenderPass texPass2;
     {//テクスチャ用描画パス作成(非クリア)
-        if (Result::eSuccess != context.createRenderPass(RenderPassCreateInfo(target, TextureUsage::eColorTarget), texPass2))
-            std::cout << "Failed to create texture renderDST\n";
+        if (Result::eSuccess != context.createRenderPass(RenderPassCreateInfo(target, depthTarget,true), texPass2))
+            std::cout << "Failed to create texture renderpass\n";
     }
 
     HRenderPass windowPass;
     {//ウィンドウ用描画パス作成
         if (Result::eSuccess != context.createRenderPass(window, true, windowPass))
-            std::cout << "Failed to create renderDST\n";
+            std::cout << "Failed to create renderpass\n";
     }
 
     HGraphicsPipeline renderPipeline, renderPipeline2, presentPipeline;
@@ -210,7 +218,7 @@ int main()
             Topology::eTriangleList,
             RasterizerState(PolygonMode::eFill, CullMode::eBack, FrontFace::eClockwise, 1.f),
             MultiSampleState::eDefault,
-            DepthStencilState::eNone,
+            DepthStencilState::eDepth,
             Shader("../Shaders/TexturedCube/vert.spv", "main"),
             Shader("../Shaders/TexturedCube/frag.spv", "main"),
             SRDesc,
@@ -224,7 +232,7 @@ int main()
             Topology::eTriangleList,
             RasterizerState(PolygonMode::eFill, CullMode::eBack, FrontFace::eClockwise, 1.f),
             MultiSampleState::eDefault,
-            DepthStencilState::eNone,
+            DepthStencilState::eDepth,
             Shader("../Shaders/TexturedCube/vert.spv", "main"),
             Shader("../Shaders/TexturedCube/frag2.spv", "main"),
             SRDesc,
@@ -279,8 +287,8 @@ int main()
     std::vector<CommandList> presentCL(frameCount);
 
     {//コマンドリストを作成
-        ColorClearValue ccv{ 1, 1, 0.5f, 0.f };
-        ColorClearValue ccv2{1, 0.5f, 1, 0.f };
+        ColorClearValue ccv{ 0, 0, 1.f, 1.f };
+        ColorClearValue ccv2{0, 0.5f, 0, 1.f };
         DepthClearValue dcv(1.f, 0);
         {
             renderCL.bindVertexBuffer(vertexBuffer);
@@ -291,24 +299,23 @@ int main()
             renderCL.bindShaderResourceSet(renderSet);
             renderCL.renderIndexed(indices.size(), 1, 0, 0, 0);
             renderCL.endRenderPass();
-            //renderCL.sync();
         }
         
         {
             renderCL2.bindVertexBuffer(vertexBuffer);
             renderCL2.bindIndexBuffer(indexBuffer);
             
-            renderCL2.beginRenderPass(texPass2, true, ccv, dcv);
+            renderCL2.beginRenderPass(texPass2, false);
             renderCL2.bindGraphicsPipeline(renderPipeline2);
             renderCL2.bindShaderResourceSet(renderSet2);
             renderCL2.renderIndexed(indices.size(), 1, 0, 0, 0);
             renderCL2.endRenderPass();
-            renderCL2.sync();
         }
 
         for(size_t i = 0; i < presentCL.size(); ++i)
         {
-            presentCL[i].beginRenderPass(windowPass, true, ccv, dcv);
+            presentCL[i].readBarrier(target);
+            presentCL[i].beginRenderPass(windowPass, true, ccv2, dcv);
             presentCL[i].bindGraphicsPipeline(presentPipeline);
             presentCL[i].bindShaderResourceSet(presentSets[i]);
             presentCL[i].render(4, 1, 0, 0);
@@ -327,8 +334,6 @@ int main()
             std::cout << "Failed to create command buffer\n";
     }
 
-    //context.destroyCommandBuffer(renderCB);
-
     {//メインループ
         int frame = 0;
 
@@ -342,9 +347,6 @@ int main()
         //ウィンドウ破棄の通知もしくはEscキーで終了
         while (!context.shouldClose() && !context.getKey(Key::Escape))
         {
-            // if (Result::eSuccess != context.rewriteCommandBuffer(renderCL, renderCB))
-            //     std::cout << "Failed to create command buffer\n";
-
             //入出力更新
             if (Result::eSuccess != context.updateInput())
                 std::cerr << "Failed to handle event!\n";
@@ -355,7 +357,7 @@ int main()
                 std::cout << "now frame : " << frame << "\n";
                 std::cout << "fps : " << 1. / (std::accumulate(times.begin(), times.end(), 0.) / 10.) << "\n";
                 double x, y;
-                context.getMouse(x, y);
+                context.getMousePos(x, y);
                 std::cout << "mouse x: " << x << " y: " << y << "\n";
             }
 
@@ -376,7 +378,7 @@ int main()
 
             {//UBO書き込み
                 Uniform ubo;
-                ubo.world = glm::rotate(glm::identity<glm::mat4>(), glm::radians(3.f * frame), glm::vec3(0, 1.f, 0));
+                ubo.world = glm::rotate(glm::identity<glm::mat4>(), glm::radians(5.f * frame), glm::vec3(0, 1.f, 0));
                 ubo.view = glm::lookAtRH(pos, pos + glm::vec3(0, 0, -10.f), glm::vec3(0, 1.f, 0));
                 ubo.proj = glm::perspective(glm::radians(45.f), 1.f * width / height, 1.f, 100.f);
                 ubo.proj[1][1] *= -1;
@@ -387,8 +389,6 @@ int main()
                 ubo.world = glm::translate(glm::identity<glm::mat4>(), glm::vec3(2, 2, 2));
                 if (Result::eSuccess != context.writeBuffer(sizeof(Uniform), &ubo, renderUB2))
                     std::cout << "Failed to write uniform buffer!\n";
-                // if (Result::eSuccess != context.writeBuffer(sizeof(Uniform), &ubo, presentUBs[(frameIndex + 1) % frameCount]))
-                //     std::cout << "Failed to write uniform buffer!\n";
             }
 
             //コマンド実行
@@ -397,8 +397,7 @@ int main()
             if (Result::eSuccess != context.execute(renderCB2))
                 std::cerr << "Failed to execute command!\n";
             if (Result::eSuccess != context.execute(presentCB))
-               std::cerr << "Failed to execute command!\n";
-
+                std::cerr << "Failed to execute command!\n";
             {//更新
                 ++frame;
                 prev = now;

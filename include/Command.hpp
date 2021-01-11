@@ -14,7 +14,7 @@ namespace Cutlass
 
     struct CmdBeginRenderPass
     {
-        HRenderPass RDSTHandle;
+        HRenderPass RPHandle;
         ColorClearValue ccv;
         DepthClearValue dcv;
         bool clear;
@@ -69,7 +69,7 @@ namespace Cutlass
 
     struct CmdSync
     {
-        //HRender target;
+        HTexture hTexture;
     };
 
     //コマンド追加時はここ
@@ -108,8 +108,8 @@ namespace Cutlass
     class CommandList
     {
     public:
-        void beginRenderPass(const HRenderPass& RDSTHandle, bool clearFlag, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f }, const DepthClearValue dcv = { 1.f, 0 });
-        void beginRenderPass(const HRenderPass& RDSTHandle, const DepthClearValue dcv = { 1.f, 0 }, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f });
+        void beginRenderPass(const HRenderPass& RPHandle, bool clearFlag, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f }, const DepthClearValue dcv = { 1.f, 0 });
+        void beginRenderPass(const HRenderPass& RPHandle, const DepthClearValue dcv = { 1.f, 0 }, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f });
 
         void endRenderPass();
         
@@ -133,7 +133,8 @@ namespace Cutlass
             uint32_t vertexOffset,  //描画し終わった頂点だけずらす、普通は0
             uint32_t firstInstance //インスタシング描画しないなら0
         );
-        void sync();
+
+        void readBarrier(const HTexture& handle);
 
         //現在のCommandListに接続する
         void append(CommandList& commandList);

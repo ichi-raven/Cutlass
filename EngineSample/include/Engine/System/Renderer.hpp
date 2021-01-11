@@ -54,8 +54,14 @@ namespace Engine
         //ウィンドウ描画パス 
         std::vector<Cutlass::HRenderPass> mPresentPasses;
 
+        struct SceneData
+        {
+            glm::mat4 world;
+            glm::mat4 view;
+            glm::mat4 proj;
+        };
 
-        struct RenderInfo
+        struct RenderGeom
         {
             std::shared_ptr<MeshComponent> mesh;
             std::shared_ptr<MaterialComponent> material;
@@ -64,14 +70,15 @@ namespace Engine
             
             std::vector<Cutlass::HBuffer> sceneCB;
             std::vector<Cutlass::HBuffer> materialCB;
-
-            std::optional<Cutlass::HCommandBuffer> commandBuffer;
+            
+            Cutlass::HGraphicsPipeline pipeline;
+            std::optional<Cutlass::CommandList> commandBuffer;
         };
 
         std::optional<std::shared_ptr<CameraComponent>> mCamera;
         std::vector<std::shared_ptr<LightComponent>> mLights;
 
-        std::vector<RenderInfo> mRenderInfos;
+        std::vector<RenderGeom> mRenderGeoms;
         
     };
 };

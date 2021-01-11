@@ -159,8 +159,8 @@ namespace Cutlass
         uint32_t getKey(const HWindow& handle, const Key& key) const;
 
         //マウス状態取得
-        Result getMouse(double& x, double& y) const;//第1ウィンドウが前提となります
-        Result getMouse(const HWindow& handle, double& x, double& y) const;
+        Result getMousePos(double& x, double& y) const;//第1ウィンドウが前提となります
+        Result getMousePos(const HWindow& handle, double& x, double& y) const;
 
         //ウィンドウ終了通知(指定なしで全てのウィンドウの論理和)
         bool shouldClose() const;
@@ -279,8 +279,8 @@ namespace Cutlass
         inline Result createSyncObjects(RenderPassObject &rdsto);
         
         //描画パスをテクスチャから構築
-        inline Result createRenderPass(const std::vector<HTexture>& colors, const std::optional<TextureUsage>& initialUsage, HRenderPass& handle_out);
-        inline Result createRenderPass(const std::vector<HTexture>& colors, const HTexture& depth, const std::optional<TextureUsage>& initialUsage, HRenderPass& handle_out);
+        inline Result createRenderPass(const std::vector<HTexture>& colors, const bool loadPrevData, HRenderPass& handle_out);
+        inline Result createRenderPass(const std::vector<HTexture>& colors, const HTexture& depth, const bool loadPrevData, HRenderPass& handle_out);
 
         inline Result enableDebugReport();
         inline Result disableDebugReport();

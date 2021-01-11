@@ -66,10 +66,20 @@ namespace Cutlass
         mCommands.emplace_back(CommandType::eRender, CmdRender{vertexCount, instanceCount, vertexOffset, firstInstance});
     }
 
-    void CommandList::sync()
+    // void CommandList::readBarrierAll()
+    // {
+    //     mCommands.emplace_back(CommandType::eSync, CmdSync{true, std::nullopt});//, std::nullopt});
+    // }
+
+    void CommandList::readBarrier(const HTexture& handle)
     {
-        mCommands.emplace_back(CommandType::eSync, CmdSync{});
+        mCommands.emplace_back(CommandType::eSync, CmdSync{handle});//, std::nullopt});
     }
+
+    // void CommandList::readBarrier(const HBuffer& handle)
+    // {
+    //     mCommands.emplace_back(CommandType::eSync, CmdSync{true, std::nullopt, handle});
+    // }
 
     void CommandList::append(CommandList& commandList)
     {

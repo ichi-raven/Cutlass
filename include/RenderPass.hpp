@@ -9,17 +9,16 @@
 
 namespace Cutlass
 {
-    //当然ながら, initialUsageを指定した場合はクリアは実行されません
     struct RenderPassCreateInfo
     {
         RenderPassCreateInfo
         (
             const HTexture& colorTarget,
             const HTexture& depthTarget,
-            const TextureUsage& initialUsage
+            const bool loadPrevData = false
         )
         : depthTarget(depthTarget)
-        , initialUsage(initialUsage)
+        , loadPrevData(loadPrevData)
         {
             colorTargets.emplace_back(colorTarget);
         }
@@ -27,27 +26,9 @@ namespace Cutlass
         RenderPassCreateInfo
         (
             const HTexture& colorTarget,
-            const HTexture& depthTarget
+            const bool loadPrevData = false
         )
-        : depthTarget(depthTarget)
-        {
-            colorTargets.emplace_back(colorTarget);
-        }
-
-        RenderPassCreateInfo
-        (
-            const HTexture& colorTarget,
-            const TextureUsage& initialUsage
-        )
-        : initialUsage(initialUsage)
-        {
-            colorTargets.emplace_back(colorTarget);
-        }
-
-        RenderPassCreateInfo
-        (
-            const HTexture& colorTarget
-        )
+        : loadPrevData(loadPrevData)
         {
             colorTargets.emplace_back(colorTarget);
         }
@@ -56,11 +37,11 @@ namespace Cutlass
         (
             const std::vector<HTexture>& colorTargets,
             const HTexture& depthTarget,
-            const TextureUsage& initialUsage
+            const bool loadPrevData = false
         )
         : colorTargets(colorTargets)
         , depthTarget(depthTarget)
-        , initialUsage(initialUsage)
+        , loadPrevData(loadPrevData)
         {
 
         }
@@ -68,10 +49,12 @@ namespace Cutlass
         RenderPassCreateInfo
         (
             const std::initializer_list<HTexture>& colorTargets,
-            const HTexture& depthTarget
+            const HTexture& depthTarget,
+            const bool loadPrevData = false
         )
         : colorTargets(colorTargets)
         , depthTarget(depthTarget)
+        , loadPrevData(loadPrevData)
         {
 
         }
@@ -79,25 +62,27 @@ namespace Cutlass
         RenderPassCreateInfo
         (
             const std::vector<HTexture>& colorTargets,
-            const TextureUsage& initialUsage
+            const bool loadPrevData = false
         )
         : colorTargets(colorTargets)
-        , initialUsage(initialUsage)
+        , loadPrevData(loadPrevData)
         {
 
         }
 
         RenderPassCreateInfo
         (
-            const std::initializer_list<HTexture>& colorTargets
+            const std::initializer_list<HTexture>& colorTargets,
+            const bool loadPrevData = false
         )
         : colorTargets(colorTargets)
+        , loadPrevData(loadPrevData)
         {
-
+            
         }
 
         std::vector<HTexture> colorTargets;
         std::optional<HTexture> depthTarget;
-        std::optional<TextureUsage> initialUsage;
+        bool loadPrevData;
     };
 }

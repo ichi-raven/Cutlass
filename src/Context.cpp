@@ -169,7 +169,7 @@ namespace Cutlass
         if (VK_SUCCESS != vkDeviceWaitIdle(mDevice))
             std::cerr << "Failed to wait device idol\n";
 
-        for (auto &e : mBufferMap)
+        for (auto& e : mBufferMap)
         {
             if (e.second.mBuffer)
                 vkDestroyBuffer(mDevice, e.second.mBuffer.value(), nullptr);
@@ -179,7 +179,7 @@ namespace Cutlass
         std::cerr << "destroyed user allocated buffers(size : " << mBufferMap.size() << ")\n";
         mBufferMap.clear();
 
-        for (auto &e : mImageMap)
+        for (auto& e : mImageMap)
         {
             if (e.second.mView)
                 vkDestroyImageView(mDevice, e.second.mView.value(), nullptr);
@@ -200,23 +200,23 @@ namespace Cutlass
         std::cerr << "destroyed user allocated sampler\n";
         mImageMap.clear();
 
-        for (auto &e : mRPMap)
+        for (auto& e : mRPMap)
         {
-            for (auto &f : e.second.mFences)
+            for (auto& f : e.second.mFences)
                 vkDestroyFence(mDevice, f, nullptr);
-            for (const auto &pcSem : e.second.mPresentCompletedSems)
+            for (const auto& pcSem : e.second.mPresentCompletedSems)
                 vkDestroySemaphore(mDevice, pcSem, nullptr);
-            for (const auto &rcSem : e.second.mRenderCompletedSems)
+            for (const auto& rcSem : e.second.mRenderCompletedSems)
                 vkDestroySemaphore(mDevice, rcSem, nullptr);
 
-            for (auto &f : e.second.mFramebuffers)
+            for (auto& f : e.second.mFramebuffers)
                 vkDestroyFramebuffer(mDevice, f.value(), nullptr);
 
             if (e.second.mRenderPass)
                 vkDestroyRenderPass(mDevice, e.second.mRenderPass.value(), nullptr);
         }
 
-        for (auto &e : mGPMap)
+        for (auto& e : mGPMap)
         {
             if (e.second.mDescriptorSetLayout)
                 vkDestroyDescriptorSetLayout(mDevice, e.second.mDescriptorSetLayout.value(), nullptr);
@@ -228,7 +228,7 @@ namespace Cutlass
                 vkDestroyPipeline(mDevice, e.second.mPipeline.value(), nullptr);
         }
 
-        for (auto &e : mCommandBufferMap)
+        for (auto& e : mCommandBufferMap)
         {
             vkFreeCommandBuffers(mDevice, mCommandPool, uint32_t(e.second.mCommandBuffers.size()), e.second.mCommandBuffers.data());
         }
@@ -244,13 +244,13 @@ namespace Cutlass
         vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
         std::cerr << "destroyed command pool\n";
 
-        for (auto &so : mWindowMap)
+        for (auto& so : mWindowMap)
         {
-            // for (auto &f : so.second.mFences)
+            // for (auto& f : so.second.mFences)
             //     vkDestroyFence(mDevice, f, nullptr);
-            // for (const auto &pcSem : so.second.mPresentCompletedSems)
+            // for (const auto& pcSem : so.second.mPresentCompletedSems)
             //     vkDestroySemaphore(mDevice, pcSem, nullptr);
-            // for (const auto &rcSem : so.second.mRenderCompletedSems)
+            // for (const auto& rcSem : so.second.mRenderCompletedSems)
             //     vkDestroySemaphore(mDevice, rcSem, nullptr);
 
             if (so.second.mSwapchain)
@@ -512,7 +512,7 @@ namespace Cutlass
                 return result;
             }
 
-            for (const auto &v : props)
+            for (const auto& v : props)
             {
                 extensions.push_back(v.extensionName);
             }
@@ -577,7 +577,7 @@ namespace Cutlass
         std::cerr << "Physical Device number : " << physDevs.size() << "\n";
 
         //select suitable device
-        for (const auto &pd : physDevs)
+        for (const auto& pd : physDevs)
         {
             std::optional<uint32_t> indices;
 
@@ -588,7 +588,7 @@ namespace Cutlass
             vkGetPhysicalDeviceQueueFamilyProperties(pd, &queueFamilyCount, queueFamilies.data());
 
             int i = 0;
-            for (const auto &queueFamily : queueFamilies)
+            for (const auto& queueFamily : queueFamilies)
             {
                 if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
                     indices = i;
@@ -662,7 +662,7 @@ namespace Cutlass
             devQueueCI.pQueuePriorities = &defaultQueuePriority;
 
             std::vector<const char *> extensions;
-            for (const auto &v : devExtProps)
+            for (const auto& v : devExtProps)
             {
                 if (strcmp(v.extensionName, "VK_KHR_buffer_device_address"))
                     extensions.push_back(v.extensionName);
@@ -762,7 +762,7 @@ namespace Cutlass
         }
 
         // search matched format
-        for (const auto &f : formats)
+        for (const auto& f : formats)
         {
             if (f.format == format)
             {
@@ -793,7 +793,7 @@ namespace Cutlass
             return Result::eFailure;
         }
 
-        auto &extent = wo.mSurfaceCaps.currentExtent;
+        auto& extent = wo.mSurfaceCaps.currentExtent;
         if (extent.width <= 0u || extent.height <= 0u)
         {
             // ignore invalid param and use window size
@@ -892,6 +892,7 @@ namespace Cutlass
             io.mIsHostVisible = false;
             io.extent = {wo.mSwapchainExtent.width, wo.mSwapchainExtent.height, static_cast<uint32_t>(1)};
             io.format = wo.mSurfaceFormat.format;
+            io.currentLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
             wo.mHSwapchainImages.emplace_back(mNextTextureHandle++);
             mImageMap.emplace(wo.mHSwapchainImages.back(), io);
@@ -940,7 +941,7 @@ namespace Cutlass
         {
             if (requestBits & 1)
             {
-                const auto &types = mPhysMemProps.memoryTypes[i];
+                const auto& types = mPhysMemProps.memoryTypes[i];
                 if ((types.propertyFlags & requestProps) == requestProps)
                 {
                     result = i;
@@ -1210,6 +1211,7 @@ namespace Cutlass
             case ResourceType::eUNormVec2:
                 io.format = VK_FORMAT_R8G8_UNORM;
                 io.mSizeOfChannel = 2;
+                break;
             case ResourceType::eF32Vec2:
                 io.format = VK_FORMAT_R32G32_SFLOAT;
                 io.mSizeOfChannel = 8;
@@ -1226,6 +1228,7 @@ namespace Cutlass
             case ResourceType::eUNormVec3:
                 io.format = VK_FORMAT_R8G8B8_UNORM;
                 io.mSizeOfChannel = 3;
+                break;
             case ResourceType::eF32Vec3:
                 io.format = VK_FORMAT_R32G32B32_SFLOAT;
                 io.mSizeOfChannel = 12;
@@ -1242,6 +1245,7 @@ namespace Cutlass
             case ResourceType::eUNormVec4:
                 io.format = VK_FORMAT_R8G8B8A8_UNORM;
                 io.mSizeOfChannel = 4;
+                break;
             case ResourceType::eF32Vec4:
                 io.format = VK_FORMAT_R32G32B32A32_SFLOAT;
                 io.mSizeOfChannel = 16;
@@ -1288,15 +1292,16 @@ namespace Cutlass
                 break;
             case TextureUsage::eColorTarget:
                 ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-                io.currentLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                io.currentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
                 break;
             case TextureUsage::eDepthStencilTarget:
                 ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-                io.currentLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                io.currentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
                 break;
-                // case TextureUsage::eUnordered: 
-                //     ci.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-                //     break;
+            case TextureUsage::eUnordered:
+                ci.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+                io.currentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                break;
             default:
                 std::cerr << "invalid usage!\n";
                 return Result::eFailure;
@@ -1472,6 +1477,7 @@ namespace Cutlass
             }
 
             io.extent = {uint32_t(width), uint32_t(height), 1};
+            io.currentLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
             // image
             ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -1815,15 +1821,16 @@ namespace Cutlass
             ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
             ci.format = io.format;
             ci.components =
-                {
-                    VK_COMPONENT_SWIZZLE_R,
-                    VK_COMPONENT_SWIZZLE_G,
-                    VK_COMPONENT_SWIZZLE_B,
-                    VK_COMPONENT_SWIZZLE_A,
-                };
+            {
+                VK_COMPONENT_SWIZZLE_R,
+                VK_COMPONENT_SWIZZLE_G,
+                VK_COMPONENT_SWIZZLE_B,
+                VK_COMPONENT_SWIZZLE_A,
+            };
             ci.subresourceRange =
-                {
-                    VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
+            {
+                VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1
+            };
 
             VkImageView imageView;
             result = checkVkResult(vkCreateImageView(mDevice, &ci, nullptr, &imageView));
@@ -1886,9 +1893,9 @@ namespace Cutlass
     {
 
         if(info.depthTarget)
-            return createRenderPass(info.colorTargets, info.depthTarget.value(), info.initialUsage, handle_out);
+            return createRenderPass(info.colorTargets, info.depthTarget.value(), info.loadPrevData, handle_out);
         else
-            return createRenderPass(info.colorTargets, info.initialUsage, handle_out);
+            return createRenderPass(info.colorTargets, info.loadPrevData, handle_out);
 
         return Result::eFailure;
     }
@@ -1916,7 +1923,7 @@ namespace Cutlass
         }
 
         rpo.mHWindow = handle;
-        auto &swapchain = mWindowMap[handle];
+        auto& swapchain = mWindowMap[handle];
 
         {
             VkExtent3D extent;
@@ -1935,7 +1942,7 @@ namespace Cutlass
 
             adVec.reserve(2);
 
-            const auto &rdst = swapchain.mHSwapchainImages[0]; //only for info
+            const auto& rdst = swapchain.mHSwapchainImages[0]; //only for info
 
             if (mImageMap.count(rdst) <= 0)
             {
@@ -1943,7 +1950,7 @@ namespace Cutlass
                 return Result::eFailure;
             }
 
-            auto &io = mImageMap[rdst];
+            auto& io = mImageMap[rdst];
             adVec.emplace_back();
             adVec.back().format = io.format;
             adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
@@ -1972,7 +1979,7 @@ namespace Cutlass
             {
                 adVec.emplace_back();
 
-                auto &depthBuffer = mImageMap[swapchain.mHDepthBuffer];
+                auto& depthBuffer = mImageMap[swapchain.mHDepthBuffer];
                 adVec.back().format = depthBuffer.format;
                 adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
                 adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -2016,11 +2023,11 @@ namespace Cutlass
 
         if (depthTestEnable)
         {
-            const auto &depth = mImageMap[swapchain.mHDepthBuffer];
+            const auto& depth = mImageMap[swapchain.mHDepthBuffer];
             fbci.attachmentCount = 2;
-            for (auto &h : swapchain.mHSwapchainImages)
+            for (auto& h : swapchain.mHSwapchainImages)
             {
-                const auto &img = mImageMap[h];
+                const auto& img = mImageMap[h];
                 std::array<VkImageView, 2> ivArr = {img.mView.value(), depth.mView.value()};
                 fbci.pAttachments = ivArr.data();
 
@@ -2037,7 +2044,7 @@ namespace Cutlass
         else
         {
             fbci.attachmentCount = 1;
-            for (auto &h : swapchain.mHSwapchainImages)
+            for (auto& h : swapchain.mHSwapchainImages)
             {
                 fbci.pAttachments = &mImageMap[h].mView.value();
 
@@ -2061,12 +2068,7 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    // Result Context::createRenderPass(const HTexture& color, bool loadPrevData, HRenderPass& handle_out)
-    // {
-    //     return createRenderPass(std::vector(1, color), handle_out);
-    // }
-
-    Result Context::createRenderPass(const std::vector<HTexture>& colorTargets, const HTexture& depthTarget, const std::optional<TextureUsage>& initialUsage, HRenderPass& handle_out)
+    Result Context::createRenderPass(const std::vector<HTexture>& colorTargets, const HTexture& depthTarget, const bool loadPrevData, HRenderPass& handle_out)
     {
         if (!mIsInitialized)
         {
@@ -2078,7 +2080,7 @@ namespace Cutlass
         RenderPassObject rpo;
         rpo.mFrameBufferIndex = 0;
         rpo.mDepthTestEnable = true;
-        rpo.mLoadPrevData = initialUsage.has_value();
+        rpo.mLoadPrevData = loadPrevData;
 
         if (mInitializeInfo.debugFlag) //for debug mode
         {
@@ -2092,7 +2094,7 @@ namespace Cutlass
                 auto& io = mImageMap[tex];
 
                 //usage check
-                if (io.usage != TextureUsage::eColorTarget)
+                if (io.usage != TextureUsage::eColorTarget && io.usage != TextureUsage::eUnordered)
                 {
                     std::cerr << "invalid texture usage\n";
                     return Result::eFailure;
@@ -2117,7 +2119,7 @@ namespace Cutlass
             auto& io = mImageMap[depthTarget];
             if (io.usage != TextureUsage::eDepthStencilTarget)
             {
-                std::cerr << "invalid texture usage\n";
+                std::cerr << "invalid texture usage!\n";
                 return Result::eFailure;
             }
 
@@ -2150,21 +2152,22 @@ namespace Cutlass
             if (!rpo.mExtent)
                 rpo.mExtent = io.extent;
 
-            if(initialUsage)
+            if(loadPrevData)
             {
                 adVec.back().loadOp =  VK_ATTACHMENT_LOAD_OP_LOAD;
                 adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
-                switch(initialUsage.value())
+                switch(io.currentLayout)
                 {
-                    case TextureUsage::eColorTarget:
+                    case VK_IMAGE_LAYOUT_UNDEFINED:
+                    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
                         adVec.back().initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
                     break;
-                    case TextureUsage::eShaderResource:
+                    case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
                         adVec.back().initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                     break;
                     default:
-                        std::cerr << "invalid usage of initial render target!\n";
+                        std::cerr << "invalid initial image layout!\n";
                         return Result::eFailure;
                     break;
                 }
@@ -2193,11 +2196,20 @@ namespace Cutlass
         adVec.emplace_back();
         auto& depthBuffer = mImageMap[depthTarget];
 
+        if(loadPrevData)
+        {
+            adVec.back().loadOp =  VK_ATTACHMENT_LOAD_OP_LOAD;
+            adVec.back().initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        }
+        else
+        {
+            adVec.back().loadOp =  VK_ATTACHMENT_LOAD_OP_CLEAR;
+            adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        }
+
         adVec.back().format = depthBuffer.format;
         adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
-        adVec.back().loadOp =  VK_ATTACHMENT_LOAD_OP_CLEAR;
         adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         adVec.back().finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         depthAr.attachment = 1;
         depthAr.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -2255,12 +2267,7 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    // Result Context::createRenderPass(const HTexture& colorTarget, const HTexture& depthTarget, bool loadPrevData, HRenderPass& handle_out)
-    // {
-    //     return createRenderPass(std::vector(1, colorTarget), depthTarget, handle_out);
-    // }
-
-    Result Context::createRenderPass(const std::vector<HTexture> &colorTargets, const std::optional<TextureUsage>& initialUsage, HRenderPass &handle_out)
+    Result Context::createRenderPass(const std::vector<HTexture> &colorTargets, const bool loadPrevData, HRenderPass &handle_out)
     {
 
         if (!mIsInitialized)
@@ -2273,18 +2280,18 @@ namespace Cutlass
         RenderPassObject rpo;
         rpo.mFrameBufferIndex = 0;
         rpo.mDepthTestEnable = false;
-        rpo.mLoadPrevData = initialUsage.has_value();
+        rpo.mLoadPrevData = loadPrevData;
 
         if (mInitializeInfo.debugFlag) //for debug mode
         {
-            for (auto &tex : colorTargets)
+            for (auto& tex : colorTargets)
             {
                 if (mImageMap.count(tex) <= 0)
                 {
                     std::cerr << "invalid texture handle\n";
                     return Result::eFailure;
                 }
-                auto &io = mImageMap[tex];
+                auto& io = mImageMap[tex];
 
                 //usage check
                 if (io.usage != TextureUsage::eColorTarget && io.usage != TextureUsage::eDepthStencilTarget)
@@ -2314,9 +2321,9 @@ namespace Cutlass
         std::optional<HTexture> hDepthBuffer = std::nullopt;
 
         //Renderpass, Framebuffer
-        for (auto &tex : colorTargets)
+        for (auto& tex : colorTargets)
         {
-            auto &io = mImageMap[tex];
+            auto& io = mImageMap[tex];
             adVec.emplace_back();
             arVec.emplace_back();
 
@@ -2326,21 +2333,22 @@ namespace Cutlass
             adVec.back().format = io.format;
             adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
             
-            if(initialUsage)
+            if(loadPrevData)
             {
                 adVec.back().loadOp =  VK_ATTACHMENT_LOAD_OP_LOAD;
                 adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
                 
-                switch(initialUsage.value())
+                 switch(io.currentLayout)
                 {
-                    case TextureUsage::eColorTarget:
+                    case VK_IMAGE_LAYOUT_UNDEFINED:
+                    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
                         adVec.back().initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
                     break;
-                    case TextureUsage::eShaderResource:
+                    case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
                         adVec.back().initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                     break;
                     default:
-                        std::cerr << "invalid usage of initial render target!\n";
+                        std::cerr << "invalid initial image layout!\n";
                         return Result::eFailure;
                     break;
                 }
@@ -2389,9 +2397,10 @@ namespace Cutlass
 
         fbci.attachmentCount = rpo.mTargetNum = static_cast<uint32_t>(adVec.size());
         std::vector<VkImageView> ivVec;
-        for (auto &tex : colorTargets)
+        ivVec.reserve(colorTargets.size());
+        for (auto& tex : colorTargets)
         {
-            const auto &img = mImageMap[tex];
+            const auto& img = mImageMap[tex];
             ivVec.emplace_back(img.mView.value());
         }
 
@@ -2495,7 +2504,7 @@ namespace Cutlass
             return Result::eFailure;
         }
 
-        RenderPassObject rpo = mRPMap[info.renderPass];
+        RenderPassObject& rpo = mRPMap[info.renderPass];
         gpo.mHRenderPass = info.renderPass;
 
         //pWO
@@ -2759,6 +2768,7 @@ namespace Cutlass
                 default:
                     std::cerr << "invalid polygon mode!\n";
                     return Result::eFailure;
+                    break;
                 }
 
                 switch (info.rasterizerState.cullMode)
@@ -2775,6 +2785,7 @@ namespace Cutlass
                 default:
                     std::cerr << "invalid culling mode!\n";
                     return Result::eFailure;
+                    break;
                 }
 
                 switch (info.rasterizerState.frontFace)
@@ -2788,6 +2799,7 @@ namespace Cutlass
                 default:
                     std::cerr << "invalid front face mode!\n";
                     return Result::eFailure;
+                    break;
                 }
 
                 rci.lineWidth = info.rasterizerState.lineWidth;
@@ -2866,10 +2878,10 @@ namespace Cutlass
 
                 gpo.layout = info.SRDesc.layout;
 
-                for (const auto &ubBinding : info.SRDesc.layout.getUniformBufferBindings())
+                for (const auto& ubBinding : info.SRDesc.layout.getUniformBufferBindings())
                 {
                     bindings.emplace_back();
-                    auto &b = bindings.back();
+                    auto& b = bindings.back();
 
                     b.binding = ubBinding;
                     b.descriptorCount = 1;
@@ -2878,10 +2890,10 @@ namespace Cutlass
                     b.stageFlags = VK_SHADER_STAGE_ALL;
                 }
 
-                for (const auto &ctBinding : info.SRDesc.layout.getCombinedTextureBindings())
+                for (const auto& ctBinding : info.SRDesc.layout.getCombinedTextureBindings())
                 {
                     bindings.emplace_back();
-                    auto &b = bindings.back();
+                    auto& b = bindings.back();
 
                     b.binding = ctBinding;
                     b.descriptorCount = 1;
@@ -2992,7 +3004,7 @@ namespace Cutlass
             }
 
             //won't be used
-            for (auto &ssci : ssciArr)
+            for (auto& ssci : ssciArr)
                 vkDestroyShaderModule(mDevice, ssci.module, nullptr);
         }
 
@@ -3271,7 +3283,6 @@ namespace Cutlass
         mCommandBufferMap.at(handle) = co;
 
         return result;
-
     }
 
     Result Context::rewriteCommandBuffer(const CommandList& commandList, const HCommandBuffer& handle)
@@ -3320,9 +3331,9 @@ namespace Cutlass
         Result result = Result::eSuccess;
 
         auto& command = co.mCommandBuffers.back();
-        auto& rpo = mRPMap[info.RDSTHandle];
+        auto& rpo = mRPMap[info.RPHandle];
 
-        co.mHRenderPass = info.RDSTHandle;
+        co.mHRenderPass = info.RPHandle;
 
         VkRenderPassBeginInfo bi{};
         
@@ -3349,20 +3360,43 @@ namespace Cutlass
             if (rpo.depthTarget)
             {
                 auto& io = mImageMap[rpo.depthTarget.value()];
-                setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, io.range.aspectMask);
+                setImageMemoryBarrier(command, io.mImage.value(), io.currentLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, io.range.aspectMask);
                 vkCmdClearDepthStencilImage(command, io.mImage.value(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearValues[1].depthStencil, 1, &io.range);
-                setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, io.range.aspectMask);
+                setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, io.range.aspectMask);
+                io.currentLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             }
 
             for (const auto& img : rpo.colorTargets)
             {
                 auto& io = mImageMap[img];
-                setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+                setImageMemoryBarrier(command, io.mImage.value(), io.currentLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
                 vkCmdClearColorImage(command, io.mImage.value(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearValues[0].color, 1, &io.range);
                 setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+                io.currentLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            }
+        }
+        else
+        {
+            if (rpo.depthTarget)
+            {
+                auto& io = mImageMap[rpo.depthTarget.value()];
+                if(io.currentLayout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+                {
+                    setImageMemoryBarrier(command, io.mImage.value(), io.currentLayout, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, io.range.aspectMask);
+                    io.currentLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                }
             }
 
+            for (const auto& img : rpo.colorTargets)
+            {
+                auto& io = mImageMap[img];
+                if(io.currentLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+                    continue;
+                setImageMemoryBarrier(command, io.mImage.value(), io.currentLayout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+                io.currentLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            }
         }
+        
 
         bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         bi.renderPass = rpo.mRenderPass.value();
@@ -3396,7 +3430,7 @@ namespace Cutlass
     {
         if (mBufferMap.count(info.VBHandle) <= 0)
             return Result::eFailure;
-        auto &vbo = mBufferMap[info.VBHandle];
+        auto& vbo = mBufferMap[info.VBHandle];
 
         VkDeviceSize offsets[] = {0};
 
@@ -3409,7 +3443,7 @@ namespace Cutlass
     {
         if (mBufferMap.count(info.IBHandle) <= 0)
             return Result::eFailure;
-        auto &ibo = mBufferMap[info.IBHandle];
+        auto& ibo = mBufferMap[info.IBHandle];
 
 
         vkCmdBindIndexBuffer(co.mCommandBuffers.back(), ibo.mBuffer.value(), 0, VK_INDEX_TYPE_UINT32);
@@ -3427,7 +3461,7 @@ namespace Cutlass
             return Result::eFailure;
         }
 
-        auto &gpo = mGPMap[co.mHRPO.value()];
+        auto& gpo = mGPMap[co.mHRPO.value()];
 
         if (!gpo.mDescriptorPool)
         {
@@ -3462,9 +3496,9 @@ namespace Cutlass
                 gpo.layout.getCombinedTextureBindings().size()
             );
 
-            for (const auto &dub: info.SRSet.getUniformBuffers())
+            for (const auto& dub: info.SRSet.getUniformBuffers())
             {
-                auto &ubo = mBufferMap[dub.second];
+                auto& ubo = mBufferMap[dub.second];
                 dbi_vec.emplace_back();
                 dbi_vec.back().buffer = ubo.mBuffer.value();
                 dbi_vec.back().offset = 0;
@@ -3480,13 +3514,14 @@ namespace Cutlass
                 writeDescriptors.back().dstSet = co.mDescriptorSets.back();
             }
 
-            for (const auto &dct : info.SRSet.getCombinedTextures())
+            for (const auto& dct : info.SRSet.getCombinedTextures())
             {
-                auto &cto = mImageMap[dct.second];
+                auto& cto = mImageMap[dct.second];
+                
                 dii_vec.emplace_back();
                 dii_vec.back().imageView = cto.mView.value();
                 dii_vec.back().sampler = cto.mSampler.value();
-                dii_vec.back().imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                dii_vec.back().imageLayout = cto.currentLayout;
 
                 writeDescriptors.emplace_back(VkWriteDescriptorSet{});
                 writeDescriptors.back().sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -3503,14 +3538,14 @@ namespace Cutlass
 
         vkCmdBindDescriptorSets
         (
-                co.mCommandBuffers.back(),
-                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                gpo.mPipelineLayout.value(),
-                0,
-                1,
-                &co.mDescriptorSets.back(),
-                0,
-                nullptr
+            co.mCommandBuffers.back(),
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            gpo.mPipelineLayout.value(),
+            0,
+            1,
+            &co.mDescriptorSets.back(),
+            0,
+            nullptr
         );
         
         return Result::eSuccess;
@@ -3533,7 +3568,6 @@ namespace Cutlass
 
     Result Context::cmdRender(CommandObject &co, const CmdRender &info)
     {
-
         vkCmdDraw
         (
             co.mCommandBuffers.back(),
@@ -3548,35 +3582,26 @@ namespace Cutlass
 
     Result Context::cmdSync(CommandObject& co, const CmdSync& info)
     {
+
         if(mInitializeInfo.debugFlag)
         {
-            if(!co.mHRenderPass)
+            if(mImageMap.count(info.hTexture) <= 0)
             {
-                std::cerr << "render DST is not registered yet!\n";
+                std::cerr << "invalid texture handle!\n";
                 return Result::eFailure;
             }
         }
 
-        auto &rpo = mRPMap[co.mHRenderPass.value()];
-        auto &htexs = rpo.colorTargets;
+        auto& io = mImageMap[info.hTexture];
+        setImageMemoryBarrier
+        (
+            co.mCommandBuffers.back(),
+            io.mImage.value(),
+            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        );
+        io.currentLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-        for (const auto& ht : htexs)
-        {
-            auto& io = mImageMap[ht];
-
-            //switch (io.currentLayout)
-            //{
-            //    case 
-            //}
-
-            setImageMemoryBarrier
-            (
-                co.mCommandBuffers.back(),
-                io.mImage.value(),
-                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-            );
-        }
         return Result::eSuccess;
     }
 
@@ -3616,18 +3641,18 @@ namespace Cutlass
             }
         }
 
-        auto &co = mCommandBufferMap[handle];
+        auto& co = mCommandBufferMap[handle];
         if (!co.mHRenderPass)
         {
             std::cerr << "renderPass of this command is invalid!\n";
             return Result::eFailure;
         }
 
-        auto &rpo = mRPMap[co.mHRenderPass.value()];
+        auto& rpo = mRPMap[co.mHRenderPass.value()];
 
         if (rpo.mHWindow && co.mPresentFlag)
         {
-            auto &wo = mWindowMap[rpo.mHWindow.value()];
+            auto& wo = mWindowMap[rpo.mHWindow.value()];
 
             result = checkVkResult(vkWaitForFences(mDevice, 1, &rpo.mFences[wo.mCurrentFrame], VK_TRUE, UINT64_MAX));
             if (result != Result::eSuccess)
@@ -3781,7 +3806,7 @@ namespace Cutlass
         return glfwGetKey(wo.mpWindow.value(), static_cast<int>(key));
     }
 
-    Result Context::getMouse(double& x, double& y) const
+    Result Context::getMousePos(double& x, double& y) const
     {
         for(const auto& wo : mWindowMap)
         {
@@ -3794,10 +3819,12 @@ namespace Cutlass
         }
         
         // all windows were not focused
+        x = 0;
+        y = 0;
         return Result::eFailure;
     }
 
-    Result Context::getMouse(const HWindow& handle, double& x, double& y) const
+    Result Context::getMousePos(const HWindow& handle, double& x, double& y) const
     {
         if (mInitializeInfo.debugFlag && mWindowMap.count(handle) <= 0)
         {
