@@ -76,7 +76,7 @@ namespace Cutlass
     {
         if(mIsInitialized)
         {
-            std::cerr << "You forgot destroy context explicitly!\n";
+            std::cerr << "You forgot destroying context explicitly!\n";
             destroy();
         }
     }
@@ -86,7 +86,7 @@ namespace Cutlass
         mInitializeInfo = initializeInfo;
         Result result;
 
-        std::cerr << "initialize started...\n";
+        std::cerr << "initializing started...\n";
 
         //GLFW initialization
 
@@ -959,7 +959,7 @@ namespace Cutlass
         Result result = Result::eSuccess;
         WindowObject wo;
         wo.mMaxFrameNum = info.frameCount;
-        wo.mMaxFrameInFlight = info.frameCount - 1;
+        wo.mMaxFrameInFlight = std::max(1, static_cast<int>(info.frameCount) - 1);
         wo.mCurrentFrame = 0;
 
         if(!mIsInitialized)
@@ -2294,9 +2294,9 @@ namespace Cutlass
                 auto& io = mImageMap[tex];
 
                 //usage check
-                if (io.usage != TextureUsage::eColorTarget && io.usage != TextureUsage::eDepthStencilTarget)
+                if (io.usage != TextureUsage::eColorTarget && io.usage != TextureUsage::eUnordered)
                 {
-                    std::cerr << "invalid texture usage\n";
+                    std::cerr << "invalid texture usage!\n";
                     return Result::eFailure;
                 }
 

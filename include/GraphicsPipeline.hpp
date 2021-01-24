@@ -91,23 +91,30 @@ namespace Cutlass
         eBoth,
     };
 
-    using VertexElement = std::pair<ResourceType, std::string>;
+    using VertexElement = std::pair<ResourceType, std::string_view>;
 
     struct VertexLayout
     {
+        VertexLayout(){}
+
+        VertexLayout(std::initializer_list<VertexElement> elements)
+        : layouts(elements)
+        {}
+
         std::vector<VertexElement> layouts;
 
-        void set(const ResourceType &type, const std::string &name)
+        void set(const ResourceType &type, const std::string_view &name)
         {
             layouts.emplace_back(std::pair(type, name));
         }
     };
 
+
     struct  GraphicsPipelineInfo
     {
-         GraphicsPipelineInfo() {}
+        GraphicsPipelineInfo() {}
 
-         GraphicsPipelineInfo
+        GraphicsPipelineInfo
         (
             const ColorBlend& colorBlend,
             const Topology& topology,

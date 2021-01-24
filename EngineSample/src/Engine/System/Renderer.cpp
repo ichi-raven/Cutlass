@@ -37,9 +37,9 @@ namespace Engine
 
     }
 
-    void Renderer::regist(const std::shared_ptr<MeshComponent> const mesh, const std::shared_ptr<MaterialComponent> const material)
+    void Renderer::regist(const std::shared_ptr<MeshComponent> mesh, const std::shared_ptr<MaterialComponent> material)
     {
-        auto&& tmp = mRenderGeoms.emplace_back();
+        auto&& tmp = mRenderInfos.emplace_back();
         tmp.mesh = mesh;
         tmp.material = material;
         //迷っている
@@ -50,22 +50,21 @@ namespace Engine
 
     void Renderer::buildScene()
     {
-
-        for(auto& geom : mRenderGeoms)
+        for(auto& geom : mRenderInfos)
         {
-            GraphicsPipelineInfo gpi
-            (
-                geom.mesh->getVertexLayout(),
-                ColorBlend::eDefault,
-                Topology::eTriangleList,
-                RasterizerState(PolygonMode::eFill, CullMode::eBack, FrontFace::eClockwise, 1.f),
-                MultiSampleState::eDefault,
-                DepthStencilState::eDepth,
-                Shader("../Shaders/TexturedCube/vert.spv", "main"),
-                Shader("../Shaders/TexturedCube/frag.spv", "main"),
-                SRDesc,
-                texPass
-            );
+        //     GraphicsPipelineInfo gpi
+        //     (
+        //         geom.mesh->getVertexLayout(),
+        //         ColorBlend::eDefault,
+        //         Topology::eTriangleList,
+        //         RasterizerState(PolygonMode::eFill, CullMode::eBack, FrontFace::eClockwise, 1.f),
+        //         MultiSampleState::eDefault,
+        //         DepthStencilState::eDepth,
+        //         Shader("../Shaders/TexturedCube/vert.spv", "main"),
+        //         Shader("../Shaders/TexturedCube/frag.spv", "main"),
+        //         SRDesc,
+        //         texPass
+        //     );
         }
     }
 
@@ -73,7 +72,7 @@ namespace Engine
     {
         //毎フレームRenderPipeline実体, CommandBuffer実体を構築して描画する
         //Cameraが無けりゃ描画はできません
-        std::cerr << "updated!\n";
+        
     }
 
 }

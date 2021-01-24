@@ -2,6 +2,8 @@
 
 #include <Cutlass.hpp>
 
+#include <glm/glm.hpp>
+
 #include <vector>
 
 #include "../Actors/IActor.hpp"
@@ -28,13 +30,13 @@ namespace Engine
 
         virtual ~Renderer();
 
-        virtual void regist(const std::shared_ptr<MeshComponent> const mesh, const std::shared_ptr<MaterialComponent> const material);
+        virtual void regist(const std::shared_ptr<MeshComponent> mesh, const std::shared_ptr<MaterialComponent> material);
 
-        virtual void addLight(std::shared_ptr<LightComponent> light);
-        virtual void removeLight(std::shared_ptr<LightComponent> light);
+        // virtual void addLight(std::shared_ptr<LightComponent> light);
+        // virtual void removeLight(std::shared_ptr<LightComponent> light);
 
-        //このカメラになる
-        virtual void setCamera(std::shared_ptr<CameraComponent> camera);
+        // //このカメラになる
+        // virtual void setCamera(std::shared_ptr<CameraComponent> camera);
 
         //現在設定されている情報から描画用シーンをビルドする
         virtual void buildScene();
@@ -61,7 +63,7 @@ namespace Engine
             glm::mat4 proj;
         };
 
-        struct RenderGeom
+        struct RenderInfo
         {
             std::shared_ptr<MeshComponent> mesh;
             std::shared_ptr<MaterialComponent> material;
@@ -78,7 +80,7 @@ namespace Engine
         std::optional<std::shared_ptr<CameraComponent>> mCamera;
         std::vector<std::shared_ptr<LightComponent>> mLights;
 
-        std::vector<RenderGeom> mRenderGeoms;
+        std::vector<RenderInfo> mRenderInfos;
         
     };
 };

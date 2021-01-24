@@ -25,8 +25,6 @@ namespace Engine
 #include "ActorsInScene.hpp"
 #include "../System/System.hpp"
 
-#include "../System/Renderer.hpp"
-#include "../System/Loader.hpp"
 
 //自作Sceneの定義にはこれを使ってください
 //ヘッダに書けばオーバーロードすべき関数の定義はすべて完了します
@@ -229,14 +227,8 @@ namespace Engine
 			mFirstSceneKey = firstSceneKey;
 			mEndFlag = false;
 
-			if (!mFirstSceneKey.has_value())
-			{
-	#ifdef _DEBUG
-				assert(!"the first key does not exist!");
-	#endif //_DEBUG
-				//release時は止めない
-				return;
-			}
+			//開始シーンが設定されてない
+			assert(mFirstSceneKey);
 
 			mCurrent.first = mFirstSceneKey.value();
 			mCurrent.second = mScenesFactory[mFirstSceneKey.value()]();
@@ -244,14 +236,19 @@ namespace Engine
 
 		void update()
 		{
+			#ifdef _DEBUG
 			//入力更新
 			if (Cutlass::Result::eSuccess != mContext->updateInput())
 				std::cerr << "Failed to update input!\n";
+			#else
+				 mContext->updateInput();
+			#endif
+
 			//全体更新
 			mCurrent.second->updateAll();
 		}
 
-		template<typename DerivedScene>
+		template<typename InheritedScene>
 		void addScene(const Key_t& key)
 		{
 			if (mScenesFactory.find(key) != mScenesFactory.end())
@@ -268,9 +265,7 @@ namespace Engine
 				key,
 				[&]()
 				{
-					//auto m = std::make_shared<DerivedScene>(this, mCommonRegion);//
-					auto m = std::make_shared<DerivedScene>(this, mCommonRegion, mContext, mSystem);
-					//m->setInternalData(this, mCommonRegion, mContext, mHWindows);
+					auto&& m = std::make_shared<InheritedScene>(this, mCommonRegion, mContext, mSystem);
 					m->initAll();
 
 					return m;
@@ -278,26 +273,18 @@ namespace Engine
 			);
 
 			if (!mFirstSceneKey)//まだ値がなかったら
-			{
 				mFirstSceneKey = key;
-			}
+			
 		}
 
 		void changeScene(const Key_t& dstSceneKey, bool cachePrevScene = false)
 		{
-			if (mScenesFactory.find(dstSceneKey) == mScenesFactory.end())
-			{
-	#ifdef _DEBUG
-				assert(!"this key does not exist!");
-	#endif //_DEBUG
-				//release時は止めない
-				return;
-			}
+			//そのシーンはない
+			assert(mScenesFactory.find(dstSceneKey) != mScenesFactory.end());
 
 			if (cachePrevScene)
 				mCache = mCurrent;
 			
-
 			if (mCache && dstSceneKey == mCache.value().first)
 			{
 				mCurrent = mCache.value();
@@ -321,11 +308,13 @@ namespace Engine
 		}
 
 	public:
+
 		std::shared_ptr<CommonRegion> mCommonRegion;
 		std::shared_ptr<System> mSystem;
 		//Cutlass
 		std::shared_ptr<Cutlass::Context> mContext;
 		std::vector<Cutlass::HWindow> mHWindows;
+
 	private:
 
 		std::unordered_map<Key_t, Factory_t> mScenesFactory;
@@ -333,6 +322,7 @@ namespace Engine
 		std::optional<std::pair<Key_t, Scene_t>> mCache;
 		std::optional<Key_t> mFirstSceneKey;//nulloptで初期化
 		bool mEndFlag;
+		
 	};
 };
 

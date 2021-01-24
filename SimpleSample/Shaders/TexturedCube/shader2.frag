@@ -12,6 +12,6 @@ layout(location = 0) out vec4 outColor;
 
 void main() 
 {
-    outColor = vec4(0.3f, 0.3f, 1.f, 1.f);
+    outColor = vec4(fragColor, 1.f);
     return;
 }

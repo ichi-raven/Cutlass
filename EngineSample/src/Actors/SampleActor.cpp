@@ -6,6 +6,9 @@
 #include <iostream>
 
 #include <Engine/System/System.hpp>
+#include <Engine/Application/ActorsInScene.hpp>
+
+#include <Actors/SampleActor2.hpp>
 
 SampleActor::~SampleActor()
 {
@@ -19,6 +22,8 @@ void SampleActor::init()
 	if(!mesh || !mesh2)
 		return;
 	mesh->createCube(*getContext(), 1.f);
+
+	assert(getActors().getActor<SampleActor2>("SampleActor2"));
 }
 
 void SampleActor::update()

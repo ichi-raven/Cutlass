@@ -15,8 +15,8 @@ TestScene::~TestScene()
 
 void TestScene::init()
 {
-	addActor<SampleActor>("SampleActor");
 	addActor<SampleActor2>("SampleActor2");
+	addActor<SampleActor>("SampleActor");
 }
 
 void TestScene::update()
@@ -25,7 +25,7 @@ void TestScene::update()
 
 	std::cout << "deltatime : " << getCommonRegion()->deltatime << "\n";
 
-	//終わる
+	//Escキーで終わる
 	if(context->getKey(Cutlass::Key::Escape))
 		exitApplication();
 	

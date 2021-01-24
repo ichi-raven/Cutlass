@@ -51,4 +51,5 @@ namespace Cutlass
         bool isHostVisible;
         size_t size;
     };
+
 };

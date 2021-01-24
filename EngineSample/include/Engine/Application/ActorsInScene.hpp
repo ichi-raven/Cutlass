@@ -1,3 +1,9 @@
+namespace Engine
+{
+	template<typename CommonRegion>
+	class ActorsinScene;
+};
+
 #pragma once
 
 #include <unordered_map>
@@ -31,13 +37,13 @@ namespace Engine
 		, mSystem(system)
 		{
 			//チューニング対象?
-			mActorsVec.reserve(7);
+			mActorsVec.reserve(5);
 		}
 
 		template<typename Actor>
 		std::shared_ptr<Actor> addActor(const std::string& actorName)
 		{
-			auto tmp = std::make_shared<Actor>(*this, mCommonRegion, mContext, mSystem);
+			auto&& tmp = std::make_shared<Actor>(*this, mCommonRegion, mContext, mSystem);
 			tmp->init();
 			mActors.emplace(actorName, tmp);
 			mActorsVec.emplace_back(tmp);
@@ -74,7 +80,7 @@ namespace Engine
 			std::swap(std::queue<std::shared_ptr<IActor<CommonRegion>>>(), mRemovedActors);
 		}
 
-		//全てのアクタに対しての更新処理、Scene::updateActorsを呼べばユーザは呼ぶ必要はありません
+		//全てのアクタに対しての更新処理、ユーザは呼ぶ必要はありません
 		void update()
 		{
 			//ついでに削除しちゃう
