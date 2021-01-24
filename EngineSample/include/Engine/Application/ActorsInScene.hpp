@@ -35,9 +35,18 @@ namespace Engine
 		: mCommonRegion(commonRegion)
 		, mContext(context)
 		, mSystem(system)
+		, mBeforeActorNum(0)
 		{
 			//チューニング対象?
 			mActorsVec.reserve(5);
+		}
+
+		void lateinitActors()
+		{
+			for(size_t i = 0; i < mActorsVec.size(); ++i)
+			{
+				mActorsVec[i]->lateinit();
+			}
 		}
 
 		template<typename Actor>
@@ -83,6 +92,12 @@ namespace Engine
 		//全てのアクタに対しての更新処理、ユーザは呼ぶ必要はありません
 		void update()
 		{
+			uint32_t diff = mActorsVec.size() - mBeforeActorNum;
+			if(diff > 0)
+				for(auto& itr = mActorsVec.end() - diff - 1; itr != mActorsVec.end(); ++itr)
+					itr->lateinit();
+			
+
 			//ついでに削除しちゃう
 			auto&& end = mActorsVec.end();
 			auto&& itr = std::remove_if(mActorsVec.begin(), end, [&](std::shared_ptr<IActor<CommonRegion>>& actor)
@@ -99,6 +114,7 @@ namespace Engine
 
 			//削除
 			mActorsVec.erase(itr, end);
+			mBeforeActorNum = mActorsVec.size();
 		}
 
 	private:
@@ -110,5 +126,6 @@ namespace Engine
 		
 		std::shared_ptr<Cutlass::Context> mContext;
 		std::shared_ptr<System> mSystem;
+		uint32_t mBeforeActorNum;
 	};
 };

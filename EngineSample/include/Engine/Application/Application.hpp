@@ -74,6 +74,7 @@ namespace Engine
 		inline void initAll()
 		{
 			init();
+			mActors.lateinitActors();
 		}
 
 		void updateAll()

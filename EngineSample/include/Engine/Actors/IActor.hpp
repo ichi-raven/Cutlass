@@ -7,14 +7,6 @@
 
 #include "../Components/IComponent.hpp"
 
-//アクタのクラスのヘッダにこれを書けばヘッダが自動生成できます
-// #define GEN_ACTOR_CLASS(CLASSNAME, COMMONREGION_TYPE) \
-// public:\
-// virtual ~CLASSNAME() final override;\
-// virtual void init([[maybe_unused]] Engine::ActorsInScene<COMMONREGION_TYPE>& actors, [[maybe_unused]] std::shared_ptr<COMMONREGION_TYPE> commonRegion) final override;\
-// virtual void update([[maybe_unused]] Engine::ActorsInScene<COMMONREGION_TYPE>& actors, [[maybe_unused]] std::shared_ptr<COMMONREGION_TYPE> commonRegion) final override;\
-// private:
-
 //これをクラス宣言部に書けば、継承した関数はすべて定義されます
 //使用例はSampleActor等を参照してください
 #define GEN_ACTOR(ACTOR_TYPE, COMMONREGION_TYPE) \
@@ -32,9 +24,6 @@ ACTOR_TYPE(Engine::ActorsInScene<COMMONREGION_TYPE>& actors, std::shared_ptr<COM
 virtual ~ACTOR_TYPE() override;\
 private:
 
-//init, updateの引数自動生成(COMMONREGION_TYPE...共有領域の型, ARG_***...引数名)
-// #define INIT_ARG_ACTOR(COMMONREGION_TYPE, ARG_ACTORS, ARG_COMMONREGION) [[maybe_unused]] Engine::ActorsInScene<COMMONREGION_TYPE>& ARG_ACTORS, [[maybe_unused]] std::shared_ptr<COMMONREGION_TYPE> ARG_COMMONREGION
-// #define UPDATE_ARG_ACTOR(COMMONREGION_TYPE, ARG_ACTORS, ARG_COMMONREGION) [[maybe_unused]] Engine::ActorsInScene<COMMONREGION_TYPE>& ARG_ACTORS, [[maybe_unused]] std::shared_ptr<COMMONREGION_TYPE> ARG_COMMONREGION
 
 namespace Engine
 {
@@ -75,9 +64,11 @@ namespace Engine
         virtual ~IActor(){};
 
         virtual void init() = 0;
+        //lateinitは、Scene::initで相互に参照を取るActorを作成するときに使用します
+        //initなどでどうしようもないときは使ってください
+        virtual void lateinit(){}
+        
         virtual void update() = 0;
-        // virtual void init([[maybe_unused]] ActorsInScene<CommonRegion>& actors, [[maybe_unused]] std::shared_ptr<CommonRegion> commonRegion) = 0;//注意 : 他アクタは取得できますが、望む情報が得られない可能性があります
-        // virtual void update([[maybe_unused]] ActorsInScene<CommonRegion>& actors, [[maybe_unused]] std::shared_ptr<CommonRegion> commonRegion) = 0;
 
         void updateAll()
         {
