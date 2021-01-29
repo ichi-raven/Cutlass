@@ -34,7 +34,7 @@ int main()
 {
     //定数
     constexpr uint32_t frameCount = 3;
-    constexpr uint32_t width = 800, height = 600;
+    constexpr uint32_t width = 1000, height = 800;
     
     //-----------------------------------------ジオメトリ定義(立方体)
     const float k = 1.0f;
@@ -116,7 +116,7 @@ int main()
 
    HWindow window;
     {//ウィンドウ作成
-        WindowInfo wi(width, height, frameCount, "CutlassTest", false, true);
+        WindowInfo wi(width, height, frameCount, "CutlassTest", false, false);
         if (Result::eSuccess != context.createWindow(wi, window))
             std::cout << "Failed to create window!";
     }
@@ -220,7 +220,7 @@ int main()
             Topology::eTriangleList,
             RasterizerState(PolygonMode::eFill, CullMode::eBack, FrontFace::eClockwise, 1.f),
             MultiSampleState::eDefault,
-            DepthStencilState::eNone,
+            DepthStencilState::eDepth,
             Shader("../Shaders/TexturedCube/vert2.spv", "main"),
             Shader("../Shaders/TexturedCube/frag2.spv", "main"),
             SRDesc,
@@ -249,20 +249,28 @@ int main()
     }
 
     {
+        VertexLayout vl;
+        vl.set(ResourceType::eF32Vec3, "pos");
+        vl.set(ResourceType::eF32Vec3, "color");
+        vl.set(ResourceType::eF32Vec3, "normal");
+        vl.set(ResourceType::eF32Vec2, "UV");
+
         ShaderResourceDesc SRDesc;
-        SRDesc.layout.allocForCombinedTexture(0);
-        SRDesc.setCount = frameCount;
+        SRDesc.layout.allocForUniformBuffer(0);
+        SRDesc.layout.allocForCombinedTexture(1);
+        SRDesc.setCount = 2 * frameCount;
 
         //頂点レイアウト定義
         GraphicsPipelineInfo rpi
         (
+            vl,
             ColorBlend::eDefault,
-            Topology::eTriangleStrip,
-            RasterizerState(),
+            Topology::eTriangleList,
+            RasterizerState(PolygonMode::eFill, CullMode::eBack, FrontFace::eClockwise, 1.f),
             MultiSampleState::eDefault,
-            DepthStencilState::eDepth,
-            Shader("../Shaders/present/vert.spv", "main"),
-            Shader("../Shaders/present/frag.spv", "main"),
+            DepthStencilState::eNone,
+            Shader("../Shaders/TexturedCube/vert.spv", "main"),
+            Shader("../Shaders/TexturedCube/frag.spv", "main"),
             SRDesc,
             windowPass
         );
@@ -284,7 +292,8 @@ int main()
     {//ウィンドウに描画するパスのリソースセット
         for (size_t i = 0; i < presentSets.size(); ++i)
         {
-            presentSets[i].setCombinedTexture(0, target);
+            presentSets[i].setUniformBuffer(0, presentUBs[i]);
+            presentSets[i].setCombinedTexture(1, texture);
         }
     }
 
@@ -322,11 +331,13 @@ int main()
             presentCL[i].bindVertexBuffer(vertexBuffer);
             presentCL[i].bindIndexBuffer(indexBuffer);
 
-            presentCL[i].readBarrier(target);
+            //presentCL[i].readBarrier(target);
             presentCL[i].beginRenderPass(windowPass, true, ccv2, dcv);
             presentCL[i].bindGraphicsPipeline(presentPipeline);
             presentCL[i].bindShaderResourceSet(presentSets[i]);
-            presentCL[i].render(4, 1, 0, 0);
+            for(int time = 0; time < 200; ++time)
+                presentCL[i].renderIndexed(indices.size(), 10, 0, 0, 0);
+            //presentCL[i].render(4, 1, 0, 0);
             presentCL[i].endRenderPass();
             presentCL[i].present();
         }
@@ -364,11 +375,12 @@ int main()
             {//各種情報表示
                 now = std::chrono::high_resolution_clock::now();
                 time += times[frame % 10] = std::chrono::duration_cast<std::chrono::microseconds>(now - prev).count() / 1000000.;
-                std::cerr << "now frame : " << frame << "\n";
-                std::cerr << "fps : " << 1. / (std::accumulate(times.begin(), times.end(), 0.) / 10.) << "\n";
-                context.getMousePos(x, y);
-                std::cerr << "mouse x: " << x << " y: " << y << "\n";
             }
+            //     std::cerr << "now frame : " << frame << "\n";
+            //     std::cerr << "fps : " << 1. / (std::accumulate(times.begin(), times.end(), 0.) / 10.) << "\n";
+            //     context.getMousePos(x, y);
+            //     std::cerr << "mouse x: " << x << " y: " << y << "\n";
+            // }
 
             {//カメラを移動してみる
                 if (context.getKey(Key::W))
@@ -387,21 +399,21 @@ int main()
 
             {//UBO書き込み
                 Uniform ubo;
-                ubo.world = glm::rotate(glm::identity<glm::mat4>(), glm::radians(2.f * frame), glm::vec3(0, 1.f, 0));
+                ubo.world = glm::rotate(glm::identity<glm::mat4>(), glm::radians(1.f * frame), glm::vec3(0, 1.f, 0));
                 ubo.view = glm::lookAtRH(pos, pos + glm::vec3(0, 0, -10.f), glm::vec3(0, 1.f, 0));
                 ubo.proj = glm::perspective(glm::radians(45.f), 1.f * width / height, 1.f, 100.f);
                 ubo.proj[1][1] *= -1;
 
                 uint32_t frameIndex = context.getFrameBufferIndex(windowPass);
-                if (Result::eSuccess != context.writeBuffer(sizeof(Uniform), &ubo, renderUB))
+                if (Result::eSuccess != context.writeBuffer(sizeof(Uniform), &ubo, presentUBs[(frameIndex) % frameCount]))
                     std::cout << "Failed to write uniform buffer!\n";
             }
 
             //コマンド実行
-            if (Result::eSuccess != context.execute(contourCB))
-                std::cerr << "Failed to execute command!\n";
-            if (Result::eSuccess != context.execute(renderCB))
-                std::cerr << "Failed to execute command!\n";
+            // if (Result::eSuccess != context.execute(contourCB))
+            //     std::cerr << "Failed to execute command!\n";
+            // if (Result::eSuccess != context.execute(renderCB))
+            //     std::cerr << "Failed to execute command!\n";
             if (Result::eSuccess != context.execute(presentCB))
                 std::cerr << "Failed to execute command!\n";
             {//更新

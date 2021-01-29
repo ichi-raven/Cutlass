@@ -3350,10 +3350,13 @@ namespace Cutlass
         };
 
         if (rpo.mDepthTestEnable)
-        {
+        
             bi.clearValueCount = 2;
-            bi.pClearValues = clearValues;
-        }
+        else
+            bi.clearValueCount = 1;
+
+        bi.pClearValues = clearValues;
+        
 
         if (!rpo.mHWindow && info.clear && !rpo.mLoadPrevData)
         {

@@ -20,9 +20,12 @@ layout(location = 2) out vec2 fragUV;
 layout(location = 3) out vec3 debugPos;
 
 
-void main() 
+void main()
 {
     vec4 inPos =  vec4(inPosition, 1.0);
+    float tmp1 = (gl_InstanceIndex % 2 == 0 ? (gl_InstanceIndex + 1) * 1.5 : -gl_InstanceIndex * 1.5);
+    float tmp2 = (gl_InstanceIndex % 2 == 0 ? (gl_InstanceIndex + 1) * 1.5 : -gl_InstanceIndex * 1.5);
+    inPos += vec4(tmp1, tmp1, 0, 0);
     //inPos.z -= 10;
     fragColor = inColor;
     fragUV = inUV;
