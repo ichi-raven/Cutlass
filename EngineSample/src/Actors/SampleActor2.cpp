@@ -13,12 +13,17 @@ SampleActor2::~SampleActor2()
 
 }
 
-void SampleActor2::init()
+void SampleActor2::awake()
 {
 	auto mesh = addComponent<Engine::MeshComponent>();
 	if(!mesh)
 		return;
 	mesh->createCube(*getContext(), 1.f);
+}
+
+void SampleActor2::init()
+{
+	assert(getActor<SampleActor>("SampleActor"));
 }
 
 void SampleActor2::update()

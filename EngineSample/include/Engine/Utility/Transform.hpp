@@ -12,16 +12,20 @@ namespace Engine
         Transform();
 
         void setPos(const glm::vec3& pos);
+        const glm::vec3& getPos() const;
+        
         void setVel(const glm::vec3& vel);
+        const glm::vec3& getVel() const;
+        
         void setAcc(const glm::vec3& acc);
+        const glm::vec3& getAcc() const;
+        
         void setScale(const glm::vec3& scale);
+        const glm::vec3& getScale() const;
+        
         void setRotation(const glm::vec3& rotAxis, float angle);
         void setRotationDeg(const glm::vec3& rotAxis, float angle_deg);
 
-        const glm::vec3& getPos() const;
-        const glm::vec3& getVel() const;
-        const glm::vec3& getAcc() const;
-        const glm::vec3& getScale() const;
         const glm::vec3& getRotAxis() const;
         const float getRotAngle() const;
         const float getRotAngleDeg() const;

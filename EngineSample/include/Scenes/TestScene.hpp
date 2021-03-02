@@ -10,4 +10,6 @@ class TestScene : public Engine::Scene<SceneList, MyCommonRegion>
 
 private:
 	void render();
+
+	std::shared_ptr<SampleActor> mSampleActor;
 };

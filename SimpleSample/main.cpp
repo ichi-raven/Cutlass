@@ -116,7 +116,7 @@ int main()
 
    HWindow window;
     {//ウィンドウ作成
-        WindowInfo wi(width, height, frameCount, "CutlassTest", false, false);
+        WindowInfo wi(width, height, frameCount, "CutlassTest", false, true);
         if (Result::eSuccess != context.createWindow(wi, window))
             std::cout << "Failed to create window!";
     }
@@ -141,20 +141,13 @@ int main()
             std::cout << "Failed to write index buffer!\n";
     }
 
-    HBuffer renderUB, renderUB2;
-    std::vector<HBuffer> presentUBs(frameCount);
+    HBuffer renderUB;
     {//ユニフォームバッファ作成
         BufferInfo bi;
         bi.setUniformBuffer<Uniform>();
         
         if (Result::eSuccess != context.createBuffer(bi, renderUB))
             std::cout << "Failed to create uniform\n";
-        if (Result::eSuccess != context.createBuffer(bi, renderUB2))
-            std::cout << "Failed to create uniform\n";
-        
-        for (auto& ub : presentUBs)
-            if (Result::eSuccess != context.createBuffer(bi, ub))
-                std::cout << "Failed to create uniform\n";
     }
 
     HTexture texture;
@@ -182,7 +175,7 @@ int main()
     HRenderPass contourPass;
     {//テクスチャ用描画パス作成
         if (Result::eSuccess != context.createRenderPass(RenderPassCreateInfo(target), contourPass))
-            std::cout << "Failed to create texture renderpass\n";
+            std::cout << "Failed to create contour renderpass\n";
     }
 
     HRenderPass texPass;
@@ -211,7 +204,7 @@ int main()
         ShaderResourceDesc SRDesc;
         SRDesc.layout.allocForUniformBuffer(0);
         SRDesc.layout.allocForCombinedTexture(1);
-        SRDesc.setCount = 2 * frameCount;
+        SRDesc.setCount = 1;
 
         GraphicsPipelineInfo rpi
         (
@@ -249,28 +242,19 @@ int main()
     }
 
     {
-        VertexLayout vl;
-        vl.set(ResourceType::eF32Vec3, "pos");
-        vl.set(ResourceType::eF32Vec3, "color");
-        vl.set(ResourceType::eF32Vec3, "normal");
-        vl.set(ResourceType::eF32Vec2, "UV");
-
         ShaderResourceDesc SRDesc;
-        SRDesc.layout.allocForUniformBuffer(0);
-        SRDesc.layout.allocForCombinedTexture(1);
-        SRDesc.setCount = 2 * frameCount;
+        SRDesc.layout.allocForCombinedTexture(0);
+        SRDesc.setCount = frameCount;
 
-        //頂点レイアウト定義
         GraphicsPipelineInfo rpi
         (
-            vl,
             ColorBlend::eDefault,
-            Topology::eTriangleList,
-            RasterizerState(PolygonMode::eFill, CullMode::eBack, FrontFace::eClockwise, 1.f),
+            Topology::eTriangleStrip,
+            RasterizerState(PolygonMode::eFill, CullMode::eNone, FrontFace::eClockwise, 1.f),
             MultiSampleState::eDefault,
             DepthStencilState::eNone,
-            Shader("../Shaders/TexturedCube/vert.spv", "main"),
-            Shader("../Shaders/TexturedCube/frag.spv", "main"),
+            Shader("../Shaders/present/vert.spv", "main"),
+            Shader("../Shaders/present/frag.spv", "main"),
             SRDesc,
             windowPass
         );
@@ -292,8 +276,7 @@ int main()
     {//ウィンドウに描画するパスのリソースセット
         for (size_t i = 0; i < presentSets.size(); ++i)
         {
-            presentSets[i].setUniformBuffer(0, presentUBs[i]);
-            presentSets[i].setCombinedTexture(1, texture);
+            presentSets[i].setCombinedTexture(0, target);
         }
     }
 
@@ -304,6 +287,7 @@ int main()
         ColorClearValue ccv{ 0, 0, 1.f, 1.f };
         ColorClearValue ccv2{0.3, 0.3, 0.3, 1.f };
         DepthClearValue dcv(1.f, 0);
+
         {
             contourCL.bindVertexBuffer(vertexBuffer);
             contourCL.bindIndexBuffer(indexBuffer);
@@ -328,16 +312,14 @@ int main()
 
         for(size_t i = 0; i < presentCL.size(); ++i)
         {
-            presentCL[i].bindVertexBuffer(vertexBuffer);
-            presentCL[i].bindIndexBuffer(indexBuffer);
+            ShaderResourceSet SRSet;
+            SRSet.setCombinedTexture(0, target);
 
-            //presentCL[i].readBarrier(target);
-            presentCL[i].beginRenderPass(windowPass, true, ccv2, dcv);
+            presentCL[i].readBarrier(target);
+            presentCL[i].beginRenderPass(windowPass, true, ccv, dcv);
             presentCL[i].bindGraphicsPipeline(presentPipeline);
-            presentCL[i].bindShaderResourceSet(presentSets[i]);
-            for(int time = 0; time < 200; ++time)
-                presentCL[i].renderIndexed(indices.size(), 10, 0, 0, 0);
-            //presentCL[i].render(4, 1, 0, 0);
+            presentCL[i].bindShaderResourceSet(SRSet);
+            presentCL[i].render(4, 1, 0, 0);
             presentCL[i].endRenderPass();
             presentCL[i].present();
         }
@@ -346,9 +328,9 @@ int main()
     HCommandBuffer contourCB, renderCB, presentCB;
     {//リストからGPUでバッファを構築
         if (Result::eSuccess != context.createCommandBuffer(contourCL, contourCB))
-                std::cout << "Failed to create command buffer\n";
+            std::cout << "Failed to create command buffer\n";
         if (Result::eSuccess != context.createCommandBuffer(renderCL, renderCB))
-                std::cout << "Failed to create command buffer\n";
+            std::cout << "Failed to create command buffer\n";
         if (Result::eSuccess != context.createCommandBuffer(presentCL, presentCB))
             std::cout << "Failed to create command buffer\n";
     }
@@ -363,7 +345,7 @@ int main()
         //カメラの移動スピード、座標
         constexpr double speed = 0.5f;
         glm::vec3 pos(0, 0, 10.f);
-        double x, y;
+        double x = 0, y = 0;
 
         //ウィンドウ破棄の通知もしくはEscキーで終了
         while (!context.shouldClose() && !context.getKey(Key::Escape))
@@ -375,12 +357,12 @@ int main()
             {//各種情報表示
                 now = std::chrono::high_resolution_clock::now();
                 time += times[frame % 10] = std::chrono::duration_cast<std::chrono::microseconds>(now - prev).count() / 1000000.;
+            
+                std::cerr << "now frame : " << frame << "\n";
+                std::cerr << "fps : " << 1. / (std::accumulate(times.begin(), times.end(), 0.) / 10.) << "\n";
+                context.getMousePos(x, y);
+                std::cerr << "mouse x: " << x << " y: " << y << "\n";
             }
-            //     std::cerr << "now frame : " << frame << "\n";
-            //     std::cerr << "fps : " << 1. / (std::accumulate(times.begin(), times.end(), 0.) / 10.) << "\n";
-            //     context.getMousePos(x, y);
-            //     std::cerr << "mouse x: " << x << " y: " << y << "\n";
-            // }
 
             {//カメラを移動してみる
                 if (context.getKey(Key::W))
@@ -399,21 +381,21 @@ int main()
 
             {//UBO書き込み
                 Uniform ubo;
-                ubo.world = glm::rotate(glm::identity<glm::mat4>(), glm::radians(1.f * frame), glm::vec3(0, 1.f, 0));
+                ubo.world = glm::rotate(glm::identity<glm::mat4>(), glm::radians(2.f * frame), glm::vec3(0, 1.f, 0));
                 ubo.view = glm::lookAtRH(pos, pos + glm::vec3(0, 0, -10.f), glm::vec3(0, 1.f, 0));
-                ubo.proj = glm::perspective(glm::radians(45.f), 1.f * width / height, 1.f, 100.f);
+                ubo.proj = glm::perspective(glm::radians(45.f), 1.f * width / height, 1.f, 1000.f);
                 ubo.proj[1][1] *= -1;
 
                 uint32_t frameIndex = context.getFrameBufferIndex(windowPass);
-                if (Result::eSuccess != context.writeBuffer(sizeof(Uniform), &ubo, presentUBs[(frameIndex) % frameCount]))
+                if (Result::eSuccess != context.writeBuffer(sizeof(Uniform), &ubo, renderUB))
                     std::cout << "Failed to write uniform buffer!\n";
             }
 
             //コマンド実行
-            // if (Result::eSuccess != context.execute(contourCB))
-            //     std::cerr << "Failed to execute command!\n";
-            // if (Result::eSuccess != context.execute(renderCB))
-            //     std::cerr << "Failed to execute command!\n";
+            if (Result::eSuccess != context.execute(contourCB))
+                std::cerr << "Failed to execute command!\n";
+            if (Result::eSuccess != context.execute(renderCB))
+                std::cerr << "Failed to execute command!\n";
             if (Result::eSuccess != context.execute(presentCB))
                 std::cerr << "Failed to execute command!\n";
             {//更新

@@ -20,7 +20,7 @@ namespace Engine
     public:
         Renderer() = delete;
 
-        Renderer(std::shared_ptr<Cutlass::Context> context, const std::vector<Cutlass::HWindow>& hwindows);
+        Renderer(std::shared_ptr<Cutlass::Context> context, const std::vector<Cutlass::HWindow>& hwindows, const uint16_t frameCount = 3);
 
         //Noncopyable, Nonmoveable
         Renderer(const Renderer&) = delete;
@@ -30,13 +30,15 @@ namespace Engine
 
         virtual ~Renderer();
 
-        virtual void regist(const std::shared_ptr<MeshComponent> mesh, const std::shared_ptr<MaterialComponent> material);
+        virtual void regist(const std::shared_ptr<MeshComponent>& mesh, const std::shared_ptr<MaterialComponent>& material);
 
-        // virtual void addLight(std::shared_ptr<LightComponent> light);
-        // virtual void removeLight(std::shared_ptr<LightComponent> light);
+        virtual void addLight(std::shared_ptr<LightComponent> light);
 
-        // //このカメラになる
-        // virtual void setCamera(std::shared_ptr<CameraComponent> camera);
+        //TODO
+        //virtual void addPostEffect();
+
+        //このカメラになる
+        virtual void setCamera(std::shared_ptr<CameraComponent> camera);
 
         //現在設定されている情報から描画用シーンをビルドする
         virtual void buildScene();
@@ -49,12 +51,25 @@ namespace Engine
         std::vector<Cutlass::HWindow> mHWindows;
 
     private:
+        const uint16_t mFrameCount;
+
         //描画対象・描画パス
         //テクスチャレンダリングパス
-        std::vector<Cutlass::HTexture> mRTTexs;
-        std::vector<Cutlass::HRenderPass> mTexPasses;
-        //ウィンドウ描画パス 
-        std::vector<Cutlass::HRenderPass> mPresentPasses;
+        std::vector<Cutlass::HTexture> mRTTexs;        
+        enum class RenderPassList
+        {
+            eTex,
+        };
+        std::unordered_map<RenderPassList, Cutlass::HRenderPass> mTexPasses;
+        
+        //ウィンドウ描画は複数パスが必要
+        struct WindowPass
+        {
+            Cutlass::HRenderPass renderPass;
+            Cutlass::HGraphicsPipeline graphicsPipeline;
+        };
+        std::vector<WindowPass> mPresentPasses;
+        std::vector<Cutlass::HCommandBuffer> mPresentCBs;
 
         struct SceneData
         {
@@ -67,20 +82,18 @@ namespace Engine
         {
             std::shared_ptr<MeshComponent> mesh;
             std::shared_ptr<MaterialComponent> material;
-            Cutlass::HBuffer vertexBuffer;
-            Cutlass::HBuffer indexBuffer;
             
-            std::vector<Cutlass::HBuffer> sceneCB;
-            std::vector<Cutlass::HBuffer> materialCB;
+            std::optional<Cutlass::HBuffer> sceneCB;
+            std::optional<Cutlass::HBuffer> lightCB;
             
             Cutlass::HGraphicsPipeline pipeline;
-            std::optional<Cutlass::CommandList> commandBuffer;
         };
 
         std::optional<std::shared_ptr<CameraComponent>> mCamera;
         std::vector<std::shared_ptr<LightComponent>> mLights;
 
         std::vector<RenderInfo> mRenderInfos;
-        
+
+        std::vector<Cutlass::HCommandBuffer> mCommandBuffers;
     };
 };

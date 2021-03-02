@@ -29,8 +29,6 @@ int main()
 		Cutlass::InitializeInfo("testApp", true), 
 		{Cutlass::WindowInfo(windowWidth, windowHeight, frameCount, "testAppWindow", false, true)}
 	);
-
-	//注意 : 処理順序を変更するとcontextの初期化忘れが発生する可能性があります
 	
 	//情報セット
 	app.mCommonRegion->width = windowWidth;

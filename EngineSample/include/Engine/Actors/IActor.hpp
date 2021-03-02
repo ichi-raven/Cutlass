@@ -4,6 +4,7 @@
 #include <memory>
 #include <unordered_map>
 #include <Cutlass.hpp>
+#include <iostream>
 
 #include "../Components/IComponent.hpp"
 
@@ -11,8 +12,9 @@
 //使用例はSampleActor等を参照してください
 #define GEN_ACTOR(ACTOR_TYPE, COMMONREGION_TYPE) \
 public:\
-ACTOR_TYPE(Engine::ActorsInScene<COMMONREGION_TYPE>& actors, std::shared_ptr<COMMONREGION_TYPE> const sceneCommonRegion, std::shared_ptr<Cutlass::Context> const context, std::shared_ptr<Engine::System> system):IActor(actors, sceneCommonRegion, context, system){}\
+ACTOR_TYPE(Engine::ActorsInScene<COMMONREGION_TYPE>& actors, const std::shared_ptr<COMMONREGION_TYPE>& sceneCommonRegion, const std::shared_ptr<Cutlass::Context>& context, const std::shared_ptr<Engine::System>& system):IActor(actors, sceneCommonRegion, context, system){awake();}\
 virtual ~ACTOR_TYPE() override;\
+virtual void awake() override;\
 virtual void init() override;\
 virtual void update() override;\
 private:
@@ -20,7 +22,7 @@ private:
 //コンストラクタとデストラクタのみVer.
 #define GEN_ACTOR_CONSTRUCTOR_DESTRUCTOR(ACTOR_TYPE, COMMONREGION_TYPE) \
 public:\
-ACTOR_TYPE(Engine::ActorsInScene<COMMONREGION_TYPE>& actors, std::shared_ptr<COMMONREGION_TYPE> const sceneCommonRegion, std::shared_ptr<Cutlass::Context> const context, std::shared_ptr<Engine::System> system):IActor(actors, sceneCommonRegion, context, system){}\
+ACTOR_TYPE(Engine::ActorsInScene<COMMONREGION_TYPE>& actors, const std::shared_ptr<COMMONREGION_TYPE>& sceneCommonRegion, const std::shared_ptr<Cutlass::Context>& context, const std::shared_ptr<Engine::System>& system):IActor(actors, sceneCommonRegion, context, system){awake();}\
 virtual ~ACTOR_TYPE() override;\
 private:
 
@@ -52,7 +54,7 @@ namespace Engine
         , mSystem(system)
         {
             //これも大して影響ないとは思うけどチューニングしたら速いかも知れない
-            mComponentsVec.reserve(5);
+            mComponentsVec.reserve(3);
         }
 
         //Noncopyable, Nonmovable
@@ -63,10 +65,11 @@ namespace Engine
 
         virtual ~IActor(){};
 
+        //構築
+        virtual void awake() = 0;
+
+        //初期化(他の参照等をとる)
         virtual void init() = 0;
-        //lateinitは、Scene::initで相互に参照を取るActorを作成するときに使用します
-        //initなどでどうしようもないときは使ってください
-        virtual void lateinit(){}
         
         virtual void update() = 0;
 
@@ -74,7 +77,8 @@ namespace Engine
         {
             update();
             for (auto& component : mComponentsVec)
-                component->update();
+                if(component->getUpdateFlag())
+                    component->update();
         }
 
         //なければnullopt, 同型のComponentのうち最も前のものを返します
@@ -128,17 +132,29 @@ namespace Engine
             return mActors;
         }
 
-        std::shared_ptr<CommonRegion> const getCommonRegion() const
+        template<typename RequiredActor>
+	    std::optional<std::shared_ptr<RequiredActor>> getActor(std::string_view actorName)
+        {
+            return mActors.template getActor<RequiredActor>(actorName);
+        }
+        
+        template<typename Actor>
+		std::shared_ptr<Actor> addActor(std::string_view actorName, bool autoInit = false)
+		{
+            mActors.template addActor<Actor>(actorName, autoInit);
+        }
+
+        const std::shared_ptr<CommonRegion>& getCommonRegion() const
 		{
 			return mCommonRegion;
 		}
 
-		std::shared_ptr<Cutlass::Context> const getContext() const
+		const std::shared_ptr<Cutlass::Context>& getContext() const
 		{
 			return mContext;
 		}
 
-		std::shared_ptr<System> const getSystem() const
+		const std::shared_ptr<System>& getSystem() const
         {
             return mSystem;
         }

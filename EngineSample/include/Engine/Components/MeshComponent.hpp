@@ -23,20 +23,14 @@ namespace Engine
 
         //VertexLayoutはMeshごとに固定です
         //上の型を変えたときに変えてください
-        static const Cutlass::VertexLayout& getVertexLayout()
+        static Cutlass::VertexLayout getVertexLayout()
         {
-            //なかったら構築
-            if(!meshVL)
-            {
-                Cutlass::VertexLayout vl;
-                vl.set(Cutlass::ResourceType::eF32Vec3, "position");
-                vl.set(Cutlass::ResourceType::eF32Vec3, "color");
-                vl.set(Cutlass::ResourceType::eF32Vec3, "normal");
-                vl.set(Cutlass::ResourceType::eF32Vec2, "uv");
-                meshVL = vl;
-            }
-
-            return meshVL.value();
+            Cutlass::VertexLayout vl;
+            vl.set(Cutlass::ResourceType::eF32Vec3, "position");
+            vl.set(Cutlass::ResourceType::eF32Vec3, "color");
+            vl.set(Cutlass::ResourceType::eF32Vec3, "normal");
+            vl.set(Cutlass::ResourceType::eF32Vec2, "uv");
+            return vl;
         }
 
         MeshComponent();
@@ -60,6 +54,9 @@ namespace Engine
         Transform& getTransform();
         const Transform& getTransform() const;
 
+        const uint32_t getVertexNum() const;
+        const uint32_t getIndexNum() const;
+
         const Cutlass::HBuffer& getVB() const;
 
         const Cutlass::HBuffer& getIB() const;
@@ -68,7 +65,7 @@ namespace Engine
 
     private:
         //メッシュで固定、自作Componentとか使う場合はどうにかしてください
-        static std::optional<Cutlass::VertexLayout> meshVL;
+        //static std::optional<Cutlass::VertexLayout> meshVL;
 
         bool mVisible;
         bool mEnabled;

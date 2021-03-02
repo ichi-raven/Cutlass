@@ -7,7 +7,7 @@ namespace Engine
     public:
         virtual void update() = 0;
         
-        //どうしても識別したいときに使ってください
+        //どうしても識別したいときに使う
         void setID(int ID)
         {
             mID = ID;
@@ -17,7 +17,26 @@ namespace Engine
         {
             return mID;
         }
+
+        //更新が不要な場合はセットする
+        //普通は呼ばなくていい
+        void setUpdateFlag(bool flag)
+        {
+            mUpdateFlag = flag;
+        }
+
+        void setUpdateFlag()
+        {
+            mUpdateFlag = !mUpdateFlag;
+        }
+
+        const bool getUpdateFlag() const
+        {
+            return mUpdateFlag;
+        }
+
     private:
         int mID;
+        bool mUpdateFlag;
     };
 }

@@ -11,6 +11,7 @@ namespace Engine
 #include <memory>
 #include <functional>
 #include <algorithm>
+#include <iostream>
 
 #include "../Actors/IActor.hpp"
 
@@ -41,25 +42,20 @@ namespace Engine
 			mActorsVec.reserve(5);
 		}
 
-		void lateinitActors()
-		{
-			for(size_t i = 0; i < mActorsVec.size(); ++i)
-			{
-				mActorsVec[i]->lateinit();
-			}
-		}
-
+		//autoInitをオンにすると循環参照を起こす可能性があります
 		template<typename Actor>
-		std::shared_ptr<Actor> addActor(const std::string& actorName)
+		std::shared_ptr<Actor> addActor(std::string_view actorName, bool autoInit = false)
 		{
-			auto&& tmp = std::make_shared<Actor>(*this, mCommonRegion, mContext, mSystem);
-			tmp->init();
+			auto tmp = std::make_shared<Actor>(*this, mCommonRegion, mContext, mSystem);
+			tmp->awake();
 			mActors.emplace(actorName, tmp);
 			mActorsVec.emplace_back(tmp);
+			if(autoInit)
+				tmp->init();
 			return tmp;
 		}
 
-		void removeActor(const std::string& actorName)
+		void removeActor(std::string_view actorName)
 		{
 			auto&& itr = mActors.find(actorName);
 			if(itr == mActors.end())
@@ -69,13 +65,13 @@ namespace Engine
 		}
 
 		template<typename RequiredActor>
-		std::optional<std::shared_ptr<RequiredActor>> getActor(const std::string& actorName)//なければ無効値、必ずチェックを(shared_ptrのoperator boolで判別可能)
+		std::optional<std::shared_ptr<RequiredActor>> getActor(std::string_view actorName)//なければ無効値、必ずチェックを(shared_ptrのoperator boolで判別可能)
 		{
-			const auto& iter = mActors.find(actorName);
+			const auto iter = mActors.find(std::string(actorName));
 			return (iter != mActors.end()) ? std::make_optional(std::dynamic_pointer_cast<RequiredActor>(iter->second)) : std::nullopt;
 		}
 
-		void forEachActors(const std::function<void(std::shared_ptr<IActor<CommonRegion>> actor)>& proc)
+		void forEachActors(const std::function<void(const std::shared_ptr<IActor<CommonRegion>>& actor)>& proc)
 		{
 			std::for_each(mActorsVec.begin(), mActorsVec.end(), proc);
 		}
@@ -92,12 +88,6 @@ namespace Engine
 		//全てのアクタに対しての更新処理、ユーザは呼ぶ必要はありません
 		void update()
 		{
-			uint32_t diff = mActorsVec.size() - mBeforeActorNum;
-			if(diff > 0)
-				for(auto& itr = mActorsVec.end() - diff - 1; itr != mActorsVec.end(); ++itr)
-					itr->lateinit();
-			
-
 			//ついでに削除しちゃう
 			auto&& end = mActorsVec.end();
 			auto&& itr = std::remove_if(mActorsVec.begin(), end, [&](std::shared_ptr<IActor<CommonRegion>>& actor)

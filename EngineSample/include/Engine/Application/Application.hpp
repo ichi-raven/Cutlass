@@ -32,6 +32,7 @@ namespace Engine
 public: \
 SCENE_TYPE(Engine::Application<KEY_TYPE, COMMONREGION_TYPE>* application, std::shared_ptr<COMMONREGION_TYPE> commonRegion,std::shared_ptr<Cutlass::Context> context, std::shared_ptr<Engine::System> system) : Scene(application, commonRegion, context, system){}\
 virtual ~SCENE_TYPE() override;\
+virtual void awake() override;\
 virtual void init() override;\
 virtual void update() override;\
 private:
@@ -62,10 +63,12 @@ namespace Engine
 		, mSystem(system)
 		, mActors(commonRegion, context, system)
 		{
-
+			//awake();
 		}
 
 		virtual ~Scene(){};
+
+		virtual void awake() = 0;
 
 		virtual void init() = 0;
 
@@ -73,8 +76,8 @@ namespace Engine
 
 		inline void initAll()
 		{
+			awake();
 			init();
-			mActors.lateinitActors();
 		}
 
 		void updateAll()
@@ -102,19 +105,19 @@ namespace Engine
 		}
 
 		template<typename Actor>
-		void addActor(const std::string& actorName)
+		std::shared_ptr<Actor> addActor(const std::string& actorName)
 		{
-			mActors.template addActor<Actor>(actorName);
+			return mActors.template addActor<Actor>(actorName);
 		}
 
 		template<typename Actor, typename... Args>
-		void addActor(const std::string& actorName, Args... constructArgs)
+		std::shared_ptr<Actor> addActor(const std::string& actorName, Args... constructArgs)
 		{
-			mActors.template addActor<Actor>(actorName, constructArgs...);
+			return mActors.template addActor<Actor>(actorName, constructArgs...);
 		}
 
 		template<typename RequiredActor>
-		std::optional<std::shared_ptr<RequiredActor>> getActor(const std::string& actorName)//なければ無効値、必ずチェックを(shared_ptrのoperator boolで判別可能)
+		const std::optional<std::shared_ptr<RequiredActor>>& getActor(const std::string& actorName)//なければ無効値、必ずチェックを(shared_ptrのoperator boolで判別可能)
 		{
 			return mActors.template getActor<RequiredActor>(actorName);
 		}
@@ -124,17 +127,17 @@ namespace Engine
 			return mActors;
 		}
 
-		std::shared_ptr<CommonRegion> const getCommonRegion() const
+		const std::shared_ptr<CommonRegion>& getCommonRegion() const
 		{
 			return mCommonRegion;
 		}
 
-		std::shared_ptr<Cutlass::Context> const getContext() const
+		const std::shared_ptr<Cutlass::Context>& getContext() const
 		{
 			return mContext;
 		}
 
-		std::shared_ptr<System> const getSystem() const
+		const std::shared_ptr<System>& getSystem() const
 		{
 			return mSystem;
 		}
@@ -208,8 +211,8 @@ namespace Engine
 		{
 			//ApplicationごとにSystem内部を選べれば色々できると思う
 			mSystem = std::make_shared<System>();
-			mSystem->renderer = std::make_unique<InheritedRenderer>(mContext, mHWindows);
-			mSystem->loader = std::make_unique<InheritedLoader>();
+			mSystem->mRenderer = std::make_unique<InheritedRenderer>(mContext, mHWindows);
+			mSystem->mLoader = std::make_unique<InheritedLoader>();
 		}
 
 		//Noncopyable, Nonmoveable
@@ -228,7 +231,7 @@ namespace Engine
 			mFirstSceneKey = firstSceneKey;
 			mEndFlag = false;
 
-			//開始シーンが設定されてない
+			//開始シーンが設定されていない
 			assert(mFirstSceneKey);
 
 			mCurrent.first = mFirstSceneKey.value();
@@ -237,14 +240,12 @@ namespace Engine
 
 		void update()
 		{
-			#ifdef _DEBUG
+#ifdef _DEBUG
 			//入力更新
-			if (Cutlass::Result::eSuccess != mContext->updateInput())
-				std::cerr << "Failed to update input!\n";
-			#else
-				 mContext->updateInput();
-			#endif
-
+			assert(Cutlass::Result::eSuccess == mContext->updateInput())
+#else
+			mContext->updateInput();
+#endif
 			//全体更新
 			mCurrent.second->updateAll();
 		}
@@ -254,9 +255,9 @@ namespace Engine
 		{
 			if (mScenesFactory.find(key) != mScenesFactory.end())
 			{
-	#ifdef _DEBUG
-				assert(!"this key already exist!");
-	#endif //_DEBUG
+#ifdef _DEBUG
+			assert(!"this key already exist!");
+#endif //_DEBUG
 				//release時は止めない
 				return;
 			}

@@ -46,6 +46,16 @@ namespace Engine
         return mTransform;
     }
 
+    const uint32_t MeshComponent::getVertexNum() const
+    {
+        return mVertices.size();
+    }
+
+    const uint32_t MeshComponent::getIndexNum() const
+    {
+        return mIndices.size();
+    }
+
     const Cutlass::HBuffer& MeshComponent::getVB() const
     {
         return mVB;

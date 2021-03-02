@@ -10,20 +10,39 @@
 
 #include <Actors/SampleActor2.hpp>
 
+#include <Engine/Components/MaterialComponent.hpp>
+#include <Engine/Components/CameraComponent.hpp>
+
+#include <Engine/Utility/Transform.hpp>
+
 SampleActor::~SampleActor()
 {
 
 }
 
-void SampleActor::init()
+void SampleActor::awake()
 {
+	auto& renderer = getSystem()->mRenderer;
+
 	auto mesh = addComponent<Engine::MeshComponent>();
-	auto mesh2 = addComponent<Engine::MeshComponent>();
-	if(!mesh || !mesh2)
-		return;
+	auto material = addComponent<Engine::MaterialComponent>();
+	auto camera = addComponent<Engine::CameraComponent>();
 	mesh->createCube(*getContext(), 1.f);
 
-	assert(getActors().getActor<SampleActor2>("SampleActor2"));
+	Engine::Transform transform;
+	transform.setPos(glm::vec3(0, 0, 0));
+	camera->setTransform(transform);
+	camera->setViewParam(glm::vec3(0, 0, -10.f));
+	camera->setProjectionParam(glm::radians(45.f), getCommonRegion()->width, getCommonRegion()->height, 1.f, 100.f);
+
+	renderer->setCamera(camera);
+
+	renderer->regist(mesh, material);
+}
+
+void SampleActor::init()
+{
+	assert(getActor<SampleActor2>("SampleActor2") != std::nullopt);
 }
 
 void SampleActor::update()
