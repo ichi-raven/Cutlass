@@ -30,7 +30,7 @@ namespace Engine
 		ActorsInScene
 		(
 			std::shared_ptr<CommonRegion> const commonRegion,
-			const std::shared_ptr<Cutlass::Context>& context,
+			const std::shared_ptr<Cutlass::Context> context,
 			const std::shared_ptr<System> system
 		)
 		: mCommonRegion(commonRegion)

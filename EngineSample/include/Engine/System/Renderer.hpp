@@ -95,5 +95,7 @@ namespace Engine
         std::vector<RenderInfo> mRenderInfos;
 
         std::vector<Cutlass::HCommandBuffer> mCommandBuffers;
+
+        Cutlass::HTexture mDebugTex;
     };
 };

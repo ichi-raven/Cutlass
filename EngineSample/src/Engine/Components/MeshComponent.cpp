@@ -41,10 +41,10 @@ namespace Engine
         return mTransform;
     }
 
-    const Transform& MeshComponent::getTransform() const
-    {
-        return mTransform;
-    }
+    // const Transform& MeshComponent::getTransform() const
+    // {
+    //     return mTransform;
+    // }
 
     const uint32_t MeshComponent::getVertexNum() const
     {
@@ -174,7 +174,7 @@ namespace Engine
             Cutlass::BufferInfo bi;
             bi.setIndexBuffer<uint32_t>(mIndices.size());
             context.createBuffer(bi, mIB);
-            context.writeBuffer(mIndices.size() * sizeof(decltype(mIndices[0])), mIndices.data(), mVB);
+            context.writeBuffer(mIndices.size() * sizeof(decltype(mIndices[0])), mIndices.data(), mIB);
         }
     }
 }

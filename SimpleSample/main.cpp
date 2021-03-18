@@ -360,7 +360,7 @@ int main()
             
                 std::cerr << "now frame : " << frame << "\n";
                 std::cerr << "fps : " << 1. / (std::accumulate(times.begin(), times.end(), 0.) / 10.) << "\n";
-                context.getMousePos(x, y);
+                context.getMousePos(window, x, y);
                 std::cerr << "mouse x: " << x << " y: " << y << "\n";
             }
 

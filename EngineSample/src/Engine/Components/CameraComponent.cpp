@@ -3,16 +3,18 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include <iostream>//debug
+
 namespace Engine
 {
     CameraComponent::CameraComponent()
     {
         mEnable = true;
-        mLookPos = glm::vec3(0, -10.f, 0);
+        mLookPos = glm::vec3(0, 0, 10.f);
         mUp = glm::vec3(0, 1.f, 0);
-        mFovY = 60.f;
-        mAspect = 640.f / 480.f;
-        mNear = 1.f;
+        mFovY = glm::radians(45.f);
+        mAspect = 640.f / 480.f;//適当、設定すべきである
+        mNear = 0.1f;
         mFar = static_cast<float>(1e6);
     }
 
@@ -141,6 +143,23 @@ namespace Engine
         mTransform.update();
         mView = glm::lookAtRH(mTransform.getPos(), mLookPos, mUp);
         mProjection = glm::perspective(mFovY, mAspect, mNear, mFar);
+        mProjection[1][1] *= -1;
+
+        // std::cout << "view : ";
+        // for(int i = 0; i < 4; ++i)
+        // {
+        //     for(int j = 0; j < 4; ++j)
+        //         std::cout << mView[i][j] << " ";
+        //     std::cout << "\n";
+        // }
+
+        // std::cout << "projection : ";
+        // for(int i = 0; i < 4; ++i)
+        // {
+        //     for(int j = 0; j < 4; ++j)
+        //         std::cout << mProjection[i][j] << " ";
+        //     std::cout << "\n";
+        // }
     }
 
 }

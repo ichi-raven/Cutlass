@@ -27,6 +27,7 @@ namespace Engine
     {
     public:
         LightComponent();
+        virtual ~LightComponent(){}
 
         void setAsPointLight(const PointLightParam& param);
 

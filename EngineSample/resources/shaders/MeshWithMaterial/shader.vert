@@ -7,6 +7,10 @@ layout(binding = 0) uniform SceneUB
     mat4 view;
     mat4 proj;
 };
+//layout(binding = 1) uniform MaterialUB
+//{
+//    
+//};
 
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inColor;
@@ -21,12 +25,10 @@ layout(location = 3) out vec3 debugPos;
 
 void main() 
 {
-    vec4 inPos =  vec4(inPosition, 1.0);
-    inPos.z -= 10;
-    fragColor = inColor;
-    fragUV = inUV;
-    fragNormal = inNormal;
-    vec4 pos = proj * view * model * inPos;
     debugPos = inPosition;
-    gl_Position = pos;
+    vec4 inPos =  vec4(inPosition, 1.0);
+    fragColor = inColor;
+    fragNormal = inNormal;
+    fragUV = inUV;
+    gl_Position = proj * view * model * inPos;
 }

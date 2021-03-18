@@ -29,6 +29,7 @@ namespace Engine
         };
 
         MaterialComponent();
+        virtual ~MaterialComponent(){}
 
         template<typename MaterialParamType>
         void addMaterialParam(Cutlass::Context& context, const MaterialParamType& material, std::optional<std::string_view> texturePath, std::optional<uint32_t> useVertexNum)

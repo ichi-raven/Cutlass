@@ -29,5 +29,5 @@ void main()
     fragUV = inUV;
     fragNormal = inNormal;
     debugPos = inPosition;
-    gl_Position = basePos + vec * 0.01 * basePos.w;
+    gl_Position = basePos + vec * 0.02 * basePos.w;
 }

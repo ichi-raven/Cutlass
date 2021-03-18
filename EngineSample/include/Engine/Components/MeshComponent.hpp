@@ -25,15 +25,20 @@ namespace Engine
         //上の型を変えたときに変えてください
         static Cutlass::VertexLayout getVertexLayout()
         {
-            Cutlass::VertexLayout vl;
-            vl.set(Cutlass::ResourceType::eF32Vec3, "position");
-            vl.set(Cutlass::ResourceType::eF32Vec3, "color");
-            vl.set(Cutlass::ResourceType::eF32Vec3, "normal");
-            vl.set(Cutlass::ResourceType::eF32Vec2, "uv");
-            return vl;
+            if(!meshVL)
+            {
+                Cutlass::VertexLayout vl;
+                vl.set(Cutlass::ResourceType::eF32Vec3, "position");
+                vl.set(Cutlass::ResourceType::eF32Vec3, "color");
+                vl.set(Cutlass::ResourceType::eF32Vec3, "normal");
+                vl.set(Cutlass::ResourceType::eF32Vec2, "uv");
+                meshVL = vl;
+            }
+            return meshVL.value();
         }
 
         MeshComponent();
+        virtual ~MeshComponent(){}
 
         //メッシュを構築する
         void createCube(Cutlass::Context& context, const double& edgeLength);
@@ -52,7 +57,7 @@ namespace Engine
 
         void setTransform(const Transform& transform);
         Transform& getTransform();
-        const Transform& getTransform() const;
+        //const Transform& getTransform() const;
 
         const uint32_t getVertexNum() const;
         const uint32_t getIndexNum() const;
@@ -65,7 +70,7 @@ namespace Engine
 
     private:
         //メッシュで固定、自作Componentとか使う場合はどうにかしてください
-        //static std::optional<Cutlass::VertexLayout> meshVL;
+        static inline std::optional<Cutlass::VertexLayout> meshVL;
 
         bool mVisible;
         bool mEnabled;

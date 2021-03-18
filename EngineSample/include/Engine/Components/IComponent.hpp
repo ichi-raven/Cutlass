@@ -1,19 +1,25 @@
 #pragma once
 
+using uint32_t = unsigned int;
+
 namespace Engine
 {
     class IComponent
     {
     public:
+        IComponent()
+        : mUpdateFlag(true)
+        {
+            static uint32_t IDGen = 0;
+            mID = IDGen++;
+        }
+
+        virtual ~IComponent(){};
+
         virtual void update() = 0;
         
-        //どうしても識別したいときに使う
-        void setID(int ID)
-        {
-            mID = ID;
-        }
-        
-        int getID() const
+        //どうしても識別したいときに使う        
+        uint32_t getID() const
         {
             return mID;
         }
@@ -36,7 +42,7 @@ namespace Engine
         }
 
     private:
-        int mID;
+        uint32_t mID;
         bool mUpdateFlag;
     };
 }

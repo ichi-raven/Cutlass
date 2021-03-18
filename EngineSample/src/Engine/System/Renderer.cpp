@@ -18,6 +18,8 @@ namespace Engine
     , mHWindows(hwindows)
     , mFrameCount(frameCount)
     {
+        assert(Result::eSuccess == mContext->createTextureFromFile("../resources/textures/texture.png", mDebugTex));
+
         mTexPasses.emplace(RenderPassList::eTex, Cutlass::HRenderPass());
 
         //描画用テクスチャ、テクスチャレンダリングパス, プレゼントパス
@@ -102,8 +104,8 @@ namespace Engine
         ShaderResourceDesc SRDesc;
         {//シェーダリソース設計
             SRDesc.layout.allocForUniformBuffer(0);//Scene
-            SRDesc.layout.allocForUniformBuffer(1);//Material
-            SRDesc.layout.allocForCombinedTexture(2);//Material Texture
+            SRDesc.layout.allocForCombinedTexture(1);//Material Texture
+            SRDesc.layout.allocForUniformBuffer(2);//Material
             SRDesc.layout.allocForUniformBuffer(3);//Light
             SRDesc.setCount = std::max(4, static_cast<int>(4 * material->getMaterialSets().size()));
         }
@@ -129,7 +131,6 @@ namespace Engine
             ShaderResourceSet SRSet;
             Cutlass::CommandList cl;
             Cutlass::HCommandBuffer cb;
-            int renderedIndex = 0;
             //ジオメトリ固有パラメータセット
             {
                 Cutlass::BufferInfo bi;
@@ -139,6 +140,7 @@ namespace Engine
                 bi.setUniformBuffer<SceneData>();
                 mContext->createBuffer(bi, sceneCB);
                 SRSet.setUniformBuffer(0, sceneCB);
+                SRSet.setCombinedTexture(1, mDebugTex);
                 tmp.sceneCB = sceneCB;
             }
 
@@ -150,11 +152,12 @@ namespace Engine
                 if(material->getMaterialSets().empty())
                 {
                     cl.bindShaderResourceSet(SRSet);
-                    cl.renderIndexed(mesh->getIndexNum(), 1, renderedIndex, 0, 0);                    
+                    cl.renderIndexed(mesh->getIndexNum(), 1, 0, 0, 0);        
                 }
                 else
                 {
-                    for(auto& material : material->getMaterialSets())
+                    uint32_t renderedIndex = 0;
+                    for(const auto& material : material->getMaterialSets())
                     {
                         SRSet.setUniformBuffer(1, material.paramBuffer);
                         if(material.texture)
@@ -213,10 +216,32 @@ namespace Engine
                 //ジオメトリ固有パラメータセット
                 sceneData.world = geom.mesh->getTransform().getWorldMatrix();
                 mContext->writeBuffer(sizeof(SceneData), &sceneData, geom.sceneCB.value());
-                
+
+                // std::cout << "world : \n";
+                // for(int i = 0; i < 4; ++i)
+                // {
+                //     for(int j = 0; j < 4; ++j)
+                //         std::cout << sceneData.world[i][j] << " ";
+                //     std::cout << "\n";
+                // }
+
+                // std::cout << "view : \n";
+                // for(int i = 0; i < 4; ++i)
+                // {
+                //     for(int j = 0; j < 4; ++j)
+                //         std::cout << sceneData.view[i][j] << " ";
+                //     std::cout << "\n";
+                // }
+
+                // std::cout << "proj : \n";
+                // for(int i = 0; i < 4; ++i)
+                // {
+                //     for(int j = 0; j < 4; ++j)
+                //         std::cout << sceneData.proj[i][j] << " ";
+                //     std::cout << "\n";
+                // }
             }
         }
-        
     }
 
     void Renderer::render()

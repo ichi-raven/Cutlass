@@ -12,7 +12,7 @@
 //使用例はSampleActor等を参照してください
 #define GEN_ACTOR(ACTOR_TYPE, COMMONREGION_TYPE) \
 public:\
-ACTOR_TYPE(Engine::ActorsInScene<COMMONREGION_TYPE>& actors, const std::shared_ptr<COMMONREGION_TYPE>& sceneCommonRegion, const std::shared_ptr<Cutlass::Context>& context, const std::shared_ptr<Engine::System>& system):IActor(actors, sceneCommonRegion, context, system){awake();}\
+ACTOR_TYPE(Engine::ActorsInScene<COMMONREGION_TYPE>& actors, const std::shared_ptr<COMMONREGION_TYPE>& sceneCommonRegion, const std::shared_ptr<Cutlass::Context>& context, const std::shared_ptr<Engine::System>& system):IActor(actors, sceneCommonRegion, context, system){}\
 virtual ~ACTOR_TYPE() override;\
 virtual void awake() override;\
 virtual void init() override;\
@@ -22,7 +22,7 @@ private:
 //コンストラクタとデストラクタのみVer.
 #define GEN_ACTOR_CONSTRUCTOR_DESTRUCTOR(ACTOR_TYPE, COMMONREGION_TYPE) \
 public:\
-ACTOR_TYPE(Engine::ActorsInScene<COMMONREGION_TYPE>& actors, const std::shared_ptr<COMMONREGION_TYPE>& sceneCommonRegion, const std::shared_ptr<Cutlass::Context>& context, const std::shared_ptr<Engine::System>& system):IActor(actors, sceneCommonRegion, context, system){awake();}\
+ACTOR_TYPE(Engine::ActorsInScene<COMMONREGION_TYPE>& actors, const std::shared_ptr<COMMONREGION_TYPE>& sceneCommonRegion, const std::shared_ptr<Cutlass::Context>& context, const std::shared_ptr<Engine::System>& system):IActor(actors, sceneCommonRegion, context, system){}\
 virtual ~ACTOR_TYPE() override;\
 private:
 

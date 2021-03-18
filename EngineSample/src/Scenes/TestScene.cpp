@@ -15,14 +15,13 @@ TestScene::~TestScene()
 
 void TestScene::awake()
 {
-
 }
 
 void TestScene::init()
 {
-	auto sa = addActor<SampleActor>("SampleActor");
+	mSampleActor = addActor<SampleActor>("SampleActor");
 	auto sa2 = addActor<SampleActor2>("SampleActor2");
-	sa->init();
+	mSampleActor->init();
 	sa2->init();
 }
 
@@ -37,12 +36,7 @@ void TestScene::update()
 	if(context->getKey(Cutlass::Key::Escape))
 		exitApplication();
 
-	render();
-}
-
-void TestScene::render()
-{
-	auto& renderer = getSystem()->mRenderer;
 	renderer->buildScene();
 	renderer->render();
 }
+

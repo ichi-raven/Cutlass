@@ -10,6 +10,7 @@ namespace Engine
     {
     public:
         CameraComponent();
+        virtual ~CameraComponent(){}
 
         void setEnable(bool flag);
         void setEnable();
@@ -25,7 +26,7 @@ namespace Engine
         void setUpDir(const glm::vec3& up = glm::vec3(0, 1.f, 0));
         const glm::vec3& getUpDir() const;
 
-        void setViewParam(const glm::vec3& lookPos, const glm::vec3& up = glm::vec3(0, 1.f, 0));
+        void setViewParam(const glm::vec3& lookPos, const glm::vec3& up);
 
         void setProjectionParam(float fovy, uint32_t width, uint32_t height, float near, float far);
 

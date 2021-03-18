@@ -15,10 +15,10 @@ SampleActor2::~SampleActor2()
 
 void SampleActor2::awake()
 {
-	auto mesh = addComponent<Engine::MeshComponent>();
-	if(!mesh)
-		return;
-	mesh->createCube(*getContext(), 1.f);
+	// auto mesh = addComponent<Engine::MeshComponent>();
+	// if(!mesh)
+	// 	return;
+	// mesh->createCube(*getContext(), 1.f);
 }
 
 void SampleActor2::init()
@@ -28,8 +28,8 @@ void SampleActor2::init()
 
 void SampleActor2::update()
 {
-    auto sa2 = getActors().getActor<SampleActor2>("SampleActor2").value();
-    auto meshcmp = sa2->getComponent<Engine::MeshComponent>().value();
+    // auto sa2 = getActors().getActor<SampleActor2>("SampleActor2").value();
+    // auto meshcmp = sa2->getComponent<Engine::MeshComponent>().value();
 }
 
 void SampleActor2::test2()

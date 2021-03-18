@@ -10,6 +10,7 @@ namespace Engine
     {
     public:
         Transform();
+        virtual ~Transform();
 
         void setPos(const glm::vec3& pos);
         const glm::vec3& getPos() const;
@@ -24,18 +25,23 @@ namespace Engine
         const glm::vec3& getScale() const;
         
         void setRotation(const glm::vec3& rotAxis, float angle);
+        void setRotation(float angle);
         void setRotationDeg(const glm::vec3& rotAxis, float angle_deg);
 
+        void setRotVel(const glm::vec3& rotAxis, float angleVel);
+        void setRotVel(float angleVel);
+
+        void setRotAcc(const glm::vec3& rotAxis, float angleAcc);
+        void setRotAcc(float angleAcc);
+        
         const glm::vec3& getRotAxis() const;
         const float getRotAngle() const;
         const float getRotAngleDeg() const;
 
         const glm::mat4& getWorldMatrix();
 
-        // virtual void update(const float& deltatime);
-
         virtual void update();
-
+        
     private:
         glm::vec3 mPos;
         glm::vec3 mVel;
@@ -45,6 +51,8 @@ namespace Engine
 
         glm::vec3 mRotAxis;
         float mRotAngle;//rad
+        float mRotVel;
+        float mRotAcc;
 
         glm::mat4 mWorld;
 
