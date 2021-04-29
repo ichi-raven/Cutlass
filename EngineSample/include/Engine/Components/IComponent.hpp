@@ -2,6 +2,13 @@
 
 using uint32_t = unsigned int;
 
+#include <memory>
+
+namespace Cutlass
+{
+    class Context;
+}
+
 namespace Engine
 {
     class IComponent
@@ -18,6 +25,16 @@ namespace Engine
 
         virtual void update() = 0;
         
+        void setContext(const std::shared_ptr<Cutlass::Context>& context)
+        {
+            mContext = context;
+        }
+
+        const std::shared_ptr<Cutlass::Context>& getContext()
+        {
+            return mContext;
+        }
+
         //どうしても識別したいときに使う        
         uint32_t getID() const
         {
@@ -26,14 +43,9 @@ namespace Engine
 
         //更新が不要な場合はセットする
         //普通は呼ばなくていい
-        void setUpdateFlag(bool flag)
+        void setUpdateFlag(const bool flag)
         {
             mUpdateFlag = flag;
-        }
-
-        void setUpdateFlag()
-        {
-            mUpdateFlag = !mUpdateFlag;
         }
 
         const bool getUpdateFlag() const
@@ -41,8 +53,11 @@ namespace Engine
             return mUpdateFlag;
         }
 
+
     private:
         uint32_t mID;
         bool mUpdateFlag;
+        std::shared_ptr<Cutlass::Context> mContext;
+
     };
 }

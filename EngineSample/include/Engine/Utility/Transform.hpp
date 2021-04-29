@@ -26,17 +26,17 @@ namespace Engine
         
         void setRotation(const glm::vec3& rotAxis, float angle);
         void setRotation(float angle);
-        void setRotationDeg(const glm::vec3& rotAxis, float angle_deg);
+        void setRotAxis(const glm::vec3& rotAxis);
+        const glm::vec3& getRotAxis() const;
+        const float getRotAngle() const;
 
         void setRotVel(const glm::vec3& rotAxis, float angleVel);
         void setRotVel(float angleVel);
+        const float getRotVel() const;
 
         void setRotAcc(const glm::vec3& rotAxis, float angleAcc);
         void setRotAcc(float angleAcc);
-        
-        const glm::vec3& getRotAxis() const;
-        const float getRotAngle() const;
-        const float getRotAngleDeg() const;
+        const float getRotAcc() const;
 
         const glm::mat4& getWorldMatrix();
 
@@ -50,7 +50,7 @@ namespace Engine
         glm::vec3 mScale;
 
         glm::vec3 mRotAxis;
-        float mRotAngle;//rad
+        float mRotAngle;
         float mRotVel;
         float mRotAcc;
 

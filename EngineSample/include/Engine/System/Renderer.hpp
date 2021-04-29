@@ -97,5 +97,7 @@ namespace Engine
         std::vector<Cutlass::HCommandBuffer> mCommandBuffers;
 
         Cutlass::HTexture mDebugTex;
+
+        bool mSceneBuilded;
     };
 };

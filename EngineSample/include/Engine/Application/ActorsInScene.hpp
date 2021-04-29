@@ -42,22 +42,22 @@ namespace Engine
 			mActorsVec.reserve(5);
 		}
 
-		//autoInitをオンにすると循環参照を起こす可能性があります
+		//autoInitをオンにするとinitを自分で呼ぶ必要がなくなりますが、循環参照を起こす可能性があります
 		template<typename Actor>
-		std::shared_ptr<Actor> addActor(std::string_view actorName, bool autoInit = false)
+		std::shared_ptr<Actor> addActor(const std::string_view actorName, bool autoInit = false)
 		{
 			auto tmp = std::make_shared<Actor>(*this, mCommonRegion, mContext, mSystem);
 			tmp->awake();
-			mActors.emplace(actorName, tmp);
+			mActors.emplace(static_cast<std::string>(actorName), tmp);
 			mActorsVec.emplace_back(tmp);
 			if(autoInit)
 				tmp->init();
 			return tmp;
 		}
 
-		void removeActor(std::string_view actorName)
+		void removeActor(const std::string_view actorName)
 		{
-			auto&& itr = mActors.find(actorName);
+			auto&& itr = mActors.find(static_cast<std::string>(actorName));
 			if(itr == mActors.end())
 				return;
 			mRemovedActors.push(itr->second);
@@ -65,9 +65,9 @@ namespace Engine
 		}
 
 		template<typename RequiredActor>
-		std::optional<std::shared_ptr<RequiredActor>> getActor(std::string_view actorName)//なければ無効値、必ずチェックを(shared_ptrのoperator boolで判別可能)
+		std::optional<std::shared_ptr<RequiredActor>> getActor(const std::string_view actorName)//なければ無効値、必ずチェックを(shared_ptrのoperator boolで判別可能)
 		{
-			const auto iter = mActors.find(std::string(actorName));
+			const auto iter = mActors.find(static_cast<std::string>(actorName));
 			return (iter != mActors.end()) ? std::make_optional(std::dynamic_pointer_cast<RequiredActor>(iter->second)) : std::nullopt;
 		}
 
@@ -76,7 +76,7 @@ namespace Engine
 			std::for_each(mActorsVec.begin(), mActorsVec.end(), proc);
 		}
 
-		//全てのアクタに対しての初期化処理, リセットしたいときとか
+		//緊急SOS! SceneのActor全部消す
 		void clearActors()
 		{
 			mActors.clear();

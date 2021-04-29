@@ -10,6 +10,8 @@ include_directories(
    glm
    stb
    cutlass
+   tinyobjloader
+   tinygitf
    "../include"
    "./include"
 )

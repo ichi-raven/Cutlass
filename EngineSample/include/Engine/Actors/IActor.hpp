@@ -44,9 +44,9 @@ namespace Engine
         IActor
         (
             ActorsInScene<CommonRegion>& actors,
-            std::shared_ptr<CommonRegion> const sceneCommonRegion,
-            std::shared_ptr<Cutlass::Context> const context, 
-            std::shared_ptr<System> const system
+            const std::shared_ptr<CommonRegion>& sceneCommonRegion,
+            const std::shared_ptr<Cutlass::Context>& context, 
+            const std::shared_ptr<System>& system
         )
         : mActors(actors)
         , mCommonRegion(sceneCommonRegion)
@@ -103,6 +103,8 @@ namespace Engine
         std::shared_ptr<Component> addComponent()
         {
             auto tmp = std::make_shared<Component>();
+            tmp->setContext(mContext);
+
             auto&& p = mComponents.emplace(typeid(Component).hash_code(), std::vector<std::shared_ptr<IComponent>>());
             if(p.second)
                 p.first->second.emplace_back(tmp);
@@ -132,17 +134,22 @@ namespace Engine
             return mActors;
         }
 
-        template<typename RequiredActor>
-	    std::optional<std::shared_ptr<RequiredActor>> getActor(std::string_view actorName)
-        {
-            return mActors.template getActor<RequiredActor>(actorName);
-        }
-        
         template<typename Actor>
-		std::shared_ptr<Actor> addActor(std::string_view actorName, bool autoInit = false)
+		std::shared_ptr<Actor> addActor(const std::string_view actorName, bool autoInit = false)
 		{
             mActors.template addActor<Actor>(actorName, autoInit);
         }
+
+        template<typename RequiredActor>
+	    std::optional<std::shared_ptr<RequiredActor>> getActor(const std::string_view actorName)
+        {
+            return mActors.template getActor<RequiredActor>(actorName);
+        }
+
+        void removeActor(const std::string_view actorName)
+		{
+			mActors.removeActor(actorName);
+		}
 
         const std::shared_ptr<CommonRegion>& getCommonRegion() const
 		{

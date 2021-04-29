@@ -5,10 +5,11 @@
 
 namespace Engine
 {
-    constexpr const char* shaderDir = ("../resources/shaders/");
-    const std::string genShaderPath(const char* shader)
+    namespace Resource
     {
-        static std::string path = std::string("../resources/shaders/");
-        return path + std::string(shader);
+        constexpr std::string_view shaderDir = ("../resources/shaders/");
+
+        constexpr std::string_view testObj = ("../resources/models/chalet.obj");
+        constexpr std::string_view testGLTF = ("../resources/models/Cube.gltf");
     }
 }

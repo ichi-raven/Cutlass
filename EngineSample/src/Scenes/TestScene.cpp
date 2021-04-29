@@ -13,22 +13,19 @@ TestScene::~TestScene()
 	
 }
 
-void TestScene::awake()
-{
-}
-
 void TestScene::init()
 {
 	mSampleActor = addActor<SampleActor>("SampleActor");
-	auto sa2 = addActor<SampleActor2>("SampleActor2");
+	auto&& sa2 = addActor<SampleActor2>("SampleActor2");
+
 	mSampleActor->init();
 	sa2->init();
 }
 
 void TestScene::update()
 {
-	auto& context = getContext();
-	auto& renderer = getSystem()->mRenderer;
+	auto&& context = getContext();
+	auto&& renderer = getSystem()->mRenderer;
 
 	std::cout << "deltatime : " << getCommonRegion()->deltatime << "\n";
 

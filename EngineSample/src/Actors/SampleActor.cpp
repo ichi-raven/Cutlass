@@ -17,6 +17,9 @@
 
 #include <Engine/Resources/Resources.hpp>
 
+using namespace Cutlass;
+using namespace Engine;
+
 SampleActor::~SampleActor()
 {
 
@@ -24,20 +27,30 @@ SampleActor::~SampleActor()
 
 void SampleActor::awake()
 {
-	static auto& renderer = getSystem()->mRenderer;
+	auto&& renderer = getSystem()->mRenderer;
+	auto&& loader = getSystem()->mLoader;
 
+	//コンポーネント追加
 	mMesh = addComponent<Engine::MeshComponent>();
 	auto material = addComponent<Engine::MaterialComponent>();
 	auto camera = addComponent<Engine::CameraComponent>();
-	mMesh->createCube(*getContext(), 1.f);
+
+	//ロード
+	loader->load(Engine::Resource::testGLTF.data());
+	loader->getMesh(mMesh);
+
+	//mesh
 	mMesh->getTransform().setPos(glm::vec3(0, 0, -2.f));
 
+	material->setVS(Cutlass::Shader(static_cast<std::string>(Resource::shaderDir) + std::string("MeshWithMaterial/gltfvert.spv"), "main"));
+
+	//camera
 	camera->getTransform().setPos(glm::vec3(0, 0, 10.f));
 	camera->setViewParam(glm::vec3(0, 0, -10.f), glm::vec3(0, 1.f, 0));
-	camera->setProjectionParam(glm::radians(45.f), getCommonRegion()->width, getCommonRegion()->height, 0.1f, 1e6);
+	camera->setProjectionParam(45.f, getCommonRegion()->width, getCommonRegion()->height, 0.1f, 1e6);
 
+	//renderer
 	renderer->setCamera(camera);
-
 	renderer->regist(mMesh, material);
 }
 
@@ -49,12 +62,14 @@ void SampleActor::init()
 void SampleActor::update()
 {
 	auto&& context = getContext();
+	auto camera = getComponent<Engine::CameraComponent>().value();
 
 	{
-		constexpr float speed = 30;
+		constexpr float speed = 20;
 		glm::vec3 vel(0.f);
 		float rot = 0;
 		Engine::Transform& transform = mMesh->getTransform();
+		transform.setRotAxis(glm::vec3(1.f, 0, 0));
 
 		if (context->getKey(Cutlass::Key::W))
 			vel.z = -speed;
@@ -74,13 +89,14 @@ void SampleActor::update()
 			rot = 10;
 		if(context->getKey(Cutlass::Key::Space))
 		{
-			transform.setRotation(0.f);
+			transform.setRotation(glm::vec3(0, 0, 1.f), 90.f);
 			transform.setRotAcc(0.f);
+			camera->setLookAt(transform.getPos());
 		}
 
 		transform.setVel(vel);
+		transform.setRotAxis(glm::vec3(0, 1.f, 0));
 		transform.setRotVel(rot);
-		//std::cout << "cpu pos : " << mMesh->getTransform().getPos().x << "," << mMesh->getTransform().getPos().y << "," << mMesh->getTransform().getPos().z << "\n";
-
+		//camera->setLookAt(transform.getPos());
 	}
 }

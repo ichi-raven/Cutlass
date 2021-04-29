@@ -74,22 +74,17 @@ namespace Engine
         return mUp;
     }
 
-    void CameraComponent::setProjectionParam(float fovy, uint32_t width, uint32_t height, float near, float far)
+    void CameraComponent::setProjectionParam(float fovAngle, uint32_t width, uint32_t height, float near, float far)
     {
-        mFovY = fovy;
+        mFovY = glm::radians(fovAngle);
         setAspectAuto(width, height);
         mNear = near;
         mFar = far;
     }
 
-    void CameraComponent::setFovY(float fovy)
+    void CameraComponent::setFovY(float fovAngle)
     {
-        mFovY = fovy;
-    }
-
-    void CameraComponent::setFovY_deg(float fovy_deg)
-    {
-        mFovY = fovy_deg * (M_PI / 180.f);
+        mFovY = fovAngle;
     }
 
     const float CameraComponent::getFovY() const
@@ -145,7 +140,7 @@ namespace Engine
         mProjection = glm::perspective(mFovY, mAspect, mNear, mFar);
         mProjection[1][1] *= -1;
 
-        // std::cout << "view : ";
+        // std::cout << "view : \n";
         // for(int i = 0; i < 4; ++i)
         // {
         //     for(int j = 0; j < 4; ++j)
@@ -153,7 +148,7 @@ namespace Engine
         //     std::cout << "\n";
         // }
 
-        // std::cout << "projection : ";
+        // std::cout << "projection : \n";
         // for(int i = 0; i < 4; ++i)
         // {
         //     for(int j = 0; j < 4; ++j)

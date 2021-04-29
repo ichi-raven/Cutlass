@@ -26,12 +26,11 @@ namespace Engine
         void setUpDir(const glm::vec3& up = glm::vec3(0, 1.f, 0));
         const glm::vec3& getUpDir() const;
 
-        void setViewParam(const glm::vec3& lookPos, const glm::vec3& up);
+        void setViewParam(const glm::vec3& lookPos, const glm::vec3& up = glm::vec3(0, 1.f, 0));
 
-        void setProjectionParam(float fovy, uint32_t width, uint32_t height, float near, float far);
+        void setProjectionParam(float fovAngle, uint32_t width, uint32_t height, float near, float far);
 
-        void setFovY(float fovy);
-        void setFovY_deg(float fovy_deg);
+        void setFovY(float fovAngle);
         const float getFovY() const;
 
         void setAspect(float aspect);

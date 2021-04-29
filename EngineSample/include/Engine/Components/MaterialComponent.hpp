@@ -29,24 +29,24 @@ namespace Engine
         };
 
         MaterialComponent();
-        virtual ~MaterialComponent(){}
+        virtual ~MaterialComponent();
 
         template<typename MaterialParamType>
-        void addMaterialParam(Cutlass::Context& context, const MaterialParamType& material, std::optional<std::string_view> texturePath, std::optional<uint32_t> useVertexNum)
+        void addMaterialParam(const MaterialParamType& material, std::optional<std::string_view> texturePath, std::optional<uint32_t> useVertexNum)
         {
             auto& tmp = mMaterialSets.emplace_back(material);
 
             tmp.useVertexNum = useVertexNum;
 
             Cutlass::HBuffer hBuffer;
-            if(Cutlass::Result::eSuccess != context.createBuffer(Cutlass::BufferInfo(sizeof(MaterialParamType), Cutlass::BufferUsage::eUniform, true), hBuffer))
+            if(Cutlass::Result::eSuccess != mContext->createBuffer(Cutlass::BufferInfo(sizeof(MaterialParamType), Cutlass::BufferUsage::eUniform, true), hBuffer))
                 assert(!"Failed to create material param buffer!");
             tmp.paramBuffer = hBuffer;
 
             if(texturePath)
             {
                 Cutlass::HTexture htex;
-                if(Cutlass::Result::eSuccess != context.createTextureFromFile(texturePath.value().data(), htex))
+                if(Cutlass::Result::eSuccess != mContext->createTextureFromFile(texturePath.value().data(), htex))
                     assert(!"Failed to create material texture!");
                 tmp.texture = htex; 
             }
@@ -63,12 +63,6 @@ namespace Engine
         void setColorBlend(Cutlass::ColorBlend colorBlend);
         Cutlass::ColorBlend getColorBlend() const;
 
-        void setTopology(Cutlass::Topology topology);
-        Cutlass::Topology getTopology() const;
-
-        void setRasterizerState(const Cutlass::RasterizerState& rasterizerState);
-        const Cutlass::RasterizerState& getRasterizerState() const;
-
         void setMultiSampleState(Cutlass::MultiSampleState multiSampleState);
         Cutlass::MultiSampleState getMultiSampleState() const;
 
@@ -81,8 +75,6 @@ namespace Engine
         Cutlass::Shader mVS;
         Cutlass::Shader mFS;
         Cutlass::ColorBlend mColorBlend;
-        Cutlass::Topology mTopology;
-        Cutlass::RasterizerState mRasterizerState;
         Cutlass::MultiSampleState mMultiSampleState;
     };
 }

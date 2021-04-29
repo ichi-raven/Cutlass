@@ -17,6 +17,7 @@ namespace Engine
     : mContext(context)
     , mHWindows(hwindows)
     , mFrameCount(frameCount)
+    , mSceneBuilded(false)
     {
         assert(Result::eSuccess == mContext->createTextureFromFile("../resources/textures/texture.png", mDebugTex));
 
@@ -114,8 +115,8 @@ namespace Engine
         (
             mesh->getVertexLayout(),
             material->getColorBlend(),
-            material->getTopology(),
-            material->getRasterizerState(),
+            mesh->getTopology(),
+            mesh->getRasterizerState(),
             material->getMultiSampleState(),
             DepthStencilState::eDepth,
             material->getVS(),
@@ -176,7 +177,8 @@ namespace Engine
                 cl.endRenderPass();
             }
 
-            mContext->createCommandBuffer(cl, cb);
+            if(Cutlass::Result::eSuccess != mContext->createCommandBuffer(cl, cb))
+                assert(!"failed to create command buffer!");
             mCommandBuffers.emplace_back(cb);
         }
     }
@@ -195,7 +197,7 @@ namespace Engine
     {
         if(!mCamera || !mCamera.value()->getEnable())
         {
-           assert(!"camera is nothing!");//カメラがないとなにも映りません
+           assert(!"no camera!");//カメラがないとなにも映りません
            return;
         }
 
@@ -216,41 +218,20 @@ namespace Engine
                 //ジオメトリ固有パラメータセット
                 sceneData.world = geom.mesh->getTransform().getWorldMatrix();
                 mContext->writeBuffer(sizeof(SceneData), &sceneData, geom.sceneCB.value());
-
-                // std::cout << "world : \n";
-                // for(int i = 0; i < 4; ++i)
-                // {
-                //     for(int j = 0; j < 4; ++j)
-                //         std::cout << sceneData.world[i][j] << " ";
-                //     std::cout << "\n";
-                // }
-
-                // std::cout << "view : \n";
-                // for(int i = 0; i < 4; ++i)
-                // {
-                //     for(int j = 0; j < 4; ++j)
-                //         std::cout << sceneData.view[i][j] << " ";
-                //     std::cout << "\n";
-                // }
-
-                // std::cout << "proj : \n";
-                // for(int i = 0; i < 4; ++i)
-                // {
-                //     for(int j = 0; j < 4; ++j)
-                //         std::cout << sceneData.proj[i][j] << " ";
-                //     std::cout << "\n";
-                // }
             }
         }
+        
+        mSceneBuilded = true;
     }
 
     void Renderer::render()
     {
+        assert(mSceneBuilded);
+
         for(const auto& cb : mCommandBuffers)
             mContext->execute(cb);
 
         for(const auto& cb : mPresentCBs)
             mContext->execute(cb);
     }
-
 }

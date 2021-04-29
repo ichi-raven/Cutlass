@@ -8,7 +8,15 @@ namespace Engine
     : mVisible(false)
     , mEnabled(false)
     {
-        
+         mTopology = Cutlass::Topology::eTriangleList;
+        mRasterizerState = Cutlass::RasterizerState(Cutlass::PolygonMode::eFill, Cutlass::CullMode::eNone, Cutlass::FrontFace::eClockwise);
+    }
+
+    MeshComponent::~MeshComponent()
+    {
+        auto&& context = getContext();
+        context->destroyBuffer(mVB);
+        context->destroyBuffer(mIB);
     }
 
     void MeshComponent::setVisible(bool flag)
@@ -72,39 +80,90 @@ namespace Engine
         mTransform.update();
     }
 
-    void MeshComponent::create(Cutlass::Context& context, const std::vector<MeshComponent::Vertex>& vertices, const std::vector<uint32_t>& indices)
+    const Cutlass::VertexLayout& MeshComponent::getVertexLayout() const
     {
-        mVisible = mEnabled = true;
-        mVertices = vertices;
-        mIndices = indices;
+        static Cutlass::VertexLayout vl;
 
-        {//頂点バッファ構築
-            Cutlass::BufferInfo bi;
-            bi.setVertexBuffer<Vertex>(mVertices.size());
-            context.createBuffer(bi, mVB);
-            context.writeBuffer(mVertices.size() * sizeof(decltype(mVertices[0])), mVertices.data(), mVB);
+        if (mVertexTypeID == typeid(Vertex).hash_code())
+        {
+            vl.set(Cutlass::ResourceType::eF32Vec3, "position");
+            vl.set(Cutlass::ResourceType::eF32Vec4, "color");
+            vl.set(Cutlass::ResourceType::eF32Vec3, "normal");
+            vl.set(Cutlass::ResourceType::eF32Vec2, "uv");
         }
-
-        {//インデックスバッファ構築
-            Cutlass::BufferInfo bi;
-            bi.setIndexBuffer<uint32_t>(mIndices.size());
-            context.createBuffer(bi, mIB);
-            context.writeBuffer(mIndices.size() * sizeof(decltype(mIndices[0])), mIndices.data(), mVB);
+        else if (mVertexTypeID == typeid(GLTFVertex).hash_code())
+        {
+            vl.set(Cutlass::ResourceType::eF32Vec3, "position");
+            vl.set(Cutlass::ResourceType::eF32Vec3, "normal");
+            vl.set(Cutlass::ResourceType::eF32Vec2, "uv0");
+            vl.set(Cutlass::ResourceType::eF32Vec2, "uv1");
+            vl.set(Cutlass::ResourceType::eF32Vec4, "joint0");
+            vl.set(Cutlass::ResourceType::eF32Vec4, "weight0");
         }
+        else
+        {
+            assert(!"this mesh was not loaded!");
+            return vl;
+        }            
+        
+        return vl;
     }
 
-    void MeshComponent::createCube(Cutlass::Context& context, const double& edgeLength)
+    void MeshComponent::setTopology(Cutlass::Topology topology)
+    {
+        mTopology = topology;
+    }
+
+    Cutlass::Topology MeshComponent::getTopology() const
+    {
+        return mTopology;
+    }
+    
+    void MeshComponent::setRasterizerState(const Cutlass::RasterizerState& rasterizerState)
+    {
+        mRasterizerState = rasterizerState;
+    }
+
+    const Cutlass::RasterizerState& MeshComponent::getRasterizerState() const
+    {
+        return mRasterizerState;
+    }
+
+    // void MeshComponent::create(Cutlass::Context& context, const std::vector<MeshComponent::Vertex>& vertices, const std::vector<uint32_t>& indices)
+    // {
+    //     mVisible = mEnabled = true;
+
+        
+
+    //     mIndices = indices;
+
+    //     {//頂点バッファ構築
+    //         Cutlass::BufferInfo bi;
+    //         bi.setVertexBuffer<Vertex>(mVertices.size());
+    //         context.createBuffer(bi, mVB);
+    //         context.writeBuffer(mVertices.size() * sizeof(decltype(mVertices[0])), mVertices.data(), mVB);
+    //     }
+
+    //     {//インデックスバッファ構築
+    //         Cutlass::BufferInfo bi;
+    //         bi.setIndexBuffer<uint32_t>(mIndices.size());
+    //         context.createBuffer(bi, mIB);
+    //         context.writeBuffer(mIndices.size() * sizeof(decltype(mIndices[0])), mIndices.data(), mIB);
+    //     }
+    // }
+
+    void MeshComponent::createCube(const double& edgeLength)
     {
         mVisible = mEnabled = true;
 
-        constexpr glm::vec3 red(1.0f, 0.0f, 0.0f);
-        constexpr glm::vec3 green(0.0f, 1.0f, 0.0f);
-        constexpr glm::vec3 blue(0.0f, 0.0f, 1.0f);
-        constexpr glm::vec3 white(1.0f);
-        constexpr glm::vec3 black(0.0f);
-        constexpr glm::vec3 yellow(1.0f, 1.0f, 0.0f);
-        constexpr glm::vec3 magenta(1.0f, 0.0f, 1.0f);
-        constexpr glm::vec3 cyan(0.0f, 1.0f, 1.0f);
+        constexpr glm::vec4 red(1.0f, 0.0f, 0.0f, 1.f);
+        constexpr glm::vec4 green(0.0f, 1.0f, 0.0f, 1.f);
+        constexpr glm::vec4 blue(0.0f, 0.0f, 1.0f, 1.f);
+        constexpr glm::vec4 white(1.0f);
+        constexpr glm::vec4 black(0.0f);
+        constexpr glm::vec4 yellow(1.0f, 1.0f, 0.0f, 1.f);
+        constexpr glm::vec4 magenta(1.0f, 0.0f, 1.0f, 1.f);
+        constexpr glm::vec4 cyan(0.0f, 1.0f, 1.0f, 1.f);
 
         constexpr glm::vec2 lb(0.0f, 0.0f);
         constexpr glm::vec2 lt(0.0f, 1.0f);
@@ -118,7 +177,10 @@ namespace Engine
         constexpr glm::vec3 nu(0, 1.f, 0);
         constexpr glm::vec3 nd(0, -1.f, 0);
 
-        mVertices = 
+        std::vector<Vertex> vertices;
+        vertices.resize(24);
+
+        vertices = 
         {
             // 正面
             {glm::vec3(-edgeLength, edgeLength, edgeLength), yellow, nf, lb},
@@ -163,18 +225,78 @@ namespace Engine
             20, 22, 21, 21, 22, 23, // bottom
         };
 
+        {//ボトルネック
+            mVertices.resize(vertices.size());
+            for(uint32_t i = 0; i < mVertices.size(); ++i)
+                mVertices[i].pos = vertices[i].pos;
+        }
+
+        auto&& context = getContext();
         {
             Cutlass::BufferInfo bi;
             bi.setVertexBuffer<Vertex>(mVertices.size());
-            context.createBuffer(bi, mVB);
-            context.writeBuffer(mVertices.size() * sizeof(decltype(mVertices[0])), mVertices.data(), mVB);
+            context->createBuffer(bi, mVB);
+            context->writeBuffer(mVertices.size() * sizeof(decltype(mVertices[0])), mVertices.data(), mVB);
         }
 
         {
             Cutlass::BufferInfo bi;
             bi.setIndexBuffer<uint32_t>(mIndices.size());
-            context.createBuffer(bi, mIB);
-            context.writeBuffer(mIndices.size() * sizeof(decltype(mIndices[0])), mIndices.data(), mIB);
+            context->createBuffer(bi, mIB);
+            context->writeBuffer(mIndices.size() * sizeof(decltype(mIndices[0])), mIndices.data(), mIB);
+        }
+    }
+
+    void MeshComponent::createPlane(const double& xSize, const double& zSize)
+    {
+        constexpr glm::vec3 nu(0, 1.f, 0);
+        constexpr glm::vec2 lb(0.0f, 0.0f);
+        constexpr glm::vec2 lt(0.0f, 1.0f);
+        constexpr glm::vec2 rb(1.0f, 0.0f);
+        constexpr glm::vec2 rt(1.0f, 1.0f);
+
+        constexpr glm::vec4 red(1.0f, 0.0f, 0.0f, 1.f);
+        constexpr glm::vec4 green(0.0f, 1.0f, 0.0f, 1.f);
+        constexpr glm::vec4 blue(0.0f, 0.0f, 1.0f, 1.f);
+        constexpr glm::vec4 yellow(1.0f, 1.0f, 0.0f, 1.f);
+
+        std::vector<Vertex> vertices;
+        vertices.resize(24);
+        
+        vertices = 
+        {
+            {glm::vec3(-xSize, zSize, 0), red, nu, lb},
+            {glm::vec3(-xSize, zSize, 0), green, nu, lt},
+            {glm::vec3(xSize, zSize, 0), blue, nu, rb},
+            {glm::vec3(xSize, zSize, 0), yellow, nu, rt}
+        };
+
+        mVertices = 
+        {
+            {glm::vec3(-xSize, zSize, 0)},
+            {glm::vec3(-xSize, zSize, 0)},
+            {glm::vec3(xSize, zSize, 0)},
+            {glm::vec3(xSize, zSize, 0)}
+        };
+
+        mIndices = 
+        {
+            0, 2, 1, 1, 2, 3
+        };
+
+        auto&& context = getContext();
+        {
+            Cutlass::BufferInfo bi;
+            bi.setVertexBuffer<Vertex>(mVertices.size());
+            context->createBuffer(bi, mVB);
+            context->writeBuffer(vertices.size() * sizeof(Vertex), vertices.data(), mVB);
+        }
+
+        {
+            Cutlass::BufferInfo bi;
+            bi.setIndexBuffer<uint32_t>(mIndices.size());
+            context->createBuffer(bi, mIB);
+            context->writeBuffer(mIndices.size() * sizeof(decltype(mIndices[0])), mIndices.data(), mIB);
         }
     }
 }

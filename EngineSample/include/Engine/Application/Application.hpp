@@ -32,7 +32,6 @@ namespace Engine
 public: \
 SCENE_TYPE(Engine::Application<KEY_TYPE, COMMONREGION_TYPE>* application, std::shared_ptr<COMMONREGION_TYPE> commonRegion,std::shared_ptr<Cutlass::Context> context, std::shared_ptr<Engine::System> system) : Scene(application, commonRegion, context, system){}\
 virtual ~SCENE_TYPE() override;\
-virtual void awake() override;\
 virtual void init() override;\
 virtual void update() override;\
 private:
@@ -68,15 +67,12 @@ namespace Engine
 
 		virtual ~Scene(){};
 
-		virtual void awake() = 0;
-
 		virtual void init() = 0;
 
 		virtual void update() = 0;
 
 		inline void initAll()
 		{
-			awake();
 			init();
 		}
 
@@ -105,21 +101,26 @@ namespace Engine
 		}
 
 		template<typename Actor>
-		std::shared_ptr<Actor> addActor(const std::string& actorName)
+		std::shared_ptr<Actor> addActor(const std::string_view actorName)
 		{
 			return mActors.template addActor<Actor>(actorName);
 		}
 
 		template<typename Actor, typename... Args>
-		std::shared_ptr<Actor> addActor(const std::string& actorName, Args... constructArgs)
+		std::shared_ptr<Actor> addActor(const std::string_view actorName, Args... constructArgs)
 		{
 			return mActors.template addActor<Actor>(actorName, constructArgs...);
 		}
 
 		template<typename RequiredActor>
-		const std::optional<std::shared_ptr<RequiredActor>>& getActor(const std::string& actorName)//なければ無効値、必ずチェックを(shared_ptrのoperator boolで判別可能)
+		std::optional<std::shared_ptr<RequiredActor>> getActor(const std::string_view actorName)//なければ無効値、必ずチェックを(shared_ptrのoperator boolで判別可能)
 		{
 			return mActors.template getActor<RequiredActor>(actorName);
+		}
+
+		void removeActor(const std::string_view actorName)
+		{
+			mActors.removeActor(actorName);
 		}
 
 		ActorsInScene<CommonRegion>& getActorsInScene()
@@ -212,7 +213,7 @@ namespace Engine
 			//ApplicationごとにSystem内部を選べれば色々できると思う
 			mSystem = std::make_shared<System>();
 			mSystem->mRenderer = std::make_unique<InheritedRenderer>(mContext, mHWindows);
-			mSystem->mLoader = std::make_unique<InheritedLoader>();
+			mSystem->mLoader = std::make_unique<InheritedLoader>(mContext);
 		}
 
 		//Noncopyable, Nonmoveable
@@ -240,8 +241,8 @@ namespace Engine
 
 		void update()
 		{
-#ifdef _DEBUG
 			//入力更新
+#ifdef _DEBUG
 			assert(Cutlass::Result::eSuccess == mContext->updateInput())
 #else
 			mContext->updateInput();
@@ -283,7 +284,7 @@ namespace Engine
 		{
 			//そのシーンはない
 			assert(mScenesFactory.find(dstSceneKey) != mScenesFactory.end());
-
+			
 			if (cachePrevScene)
 				mCache = mCurrent;
 			
