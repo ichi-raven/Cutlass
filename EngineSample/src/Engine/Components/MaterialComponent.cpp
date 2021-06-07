@@ -12,8 +12,8 @@ namespace Engine
         mColorBlend = Cutlass::ColorBlend::eDefault;
         mMultiSampleState = Cutlass::MultiSampleState::eDefault;
 
-        mVS = Cutlass::Shader(static_cast<std::string>(Resource::shaderDir) + ("MeshWithMaterial/vert.spv"), "main");
-	    mFS = Cutlass::Shader(static_cast<std::string>(Resource::shaderDir) + ("MeshWithMaterial/frag.spv"), "main");
+        mVS = Cutlass::Shader(Resource::Shader::genPath(Resource::Shader::objVert), "main");
+	    mFS = Cutlass::Shader(Resource::Shader::genPath(Resource::Shader::frag), "main");
     }
 
     MaterialComponent::~MaterialComponent()

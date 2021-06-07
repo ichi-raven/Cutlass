@@ -36,13 +36,14 @@ void SampleActor::awake()
 	auto camera = addComponent<Engine::CameraComponent>();
 
 	//ロード
-	loader->load(Engine::Resource::testGLTF.data());
-	loader->getMesh(mMesh);
+	//loader->load(Resource::Model::genPath(Resource::Model::testObj).c_str(), mMesh, material);
 
 	//mesh
+	mMesh->createCube(1);
+
 	mMesh->getTransform().setPos(glm::vec3(0, 0, -2.f));
 
-	material->setVS(Cutlass::Shader(static_cast<std::string>(Resource::shaderDir) + std::string("MeshWithMaterial/gltfvert.spv"), "main"));
+	material->setVS(Cutlass::Shader(Resource::Shader::genPath(Resource::Shader::objVert), "main"));
 
 	//camera
 	camera->getTransform().setPos(glm::vec3(0, 0, 10.f));

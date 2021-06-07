@@ -26,8 +26,8 @@ int main()
 	//アプリケーション実体作成
 	Engine::Application<SceneList, MyCommonRegion> app
 	(
-		Cutlass::InitializeInfo("testApp", true), 
-		{Cutlass::WindowInfo(windowWidth, windowHeight, frameCount, "testAppWindow", false, false)}
+		"EngineSampleApp", true,
+		{Cutlass::WindowInfo(windowWidth, windowHeight, frameCount, "EngineSampleWindow", false, false)}
 	);
 	
 	//情報セット

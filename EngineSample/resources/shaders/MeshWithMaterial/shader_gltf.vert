@@ -7,6 +7,7 @@ layout(binding = 0) uniform SceneUB
     mat4 view;
     mat4 proj;
 };
+
 //layout(binding = 1) uniform MaterialUB
 //{
 //    

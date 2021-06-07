@@ -1,15 +1,31 @@
 //Resources
 #pragma once
-
 #include <string>
 
 namespace Engine
 {
     namespace Resource
     {
-        constexpr std::string_view shaderDir = ("../resources/shaders/");
+        namespace Shader
+        {
+            constexpr const char* shaderDir = "../resources/shaders/";
+            
+            constexpr const char* objVert = "MeshWithMaterial/vert.spv";
+            constexpr const char* gltfVert = "MeshWithMaterial/gltfvert.spv";
 
-        constexpr std::string_view testObj = ("../resources/models/chalet.obj");
-        constexpr std::string_view testGLTF = ("../resources/models/Cube.gltf");
+            constexpr const char* frag = "MeshWithMaterial/frag.spv";
+
+            const std::string genPath(const char* target);
+        };
+
+        namespace Model
+        {
+            constexpr const char* modelDir = "../resources/models/";
+            constexpr const char* testObj = "chalet.obj";
+            constexpr const char* testGLTF = "Cube.gltf";
+
+            const std::string genPath(const char* target);
+        };
     }
 }
+

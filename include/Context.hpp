@@ -58,33 +58,11 @@ namespace Cutlass
         bool fullScreen;
     };
 
-    struct InitializeInfo
-    {
-        InitializeInfo() {}
-
-        InitializeInfo(const std::string& appName, bool debugFlag)
-            : appName(appName)
-            , debugFlag(debugFlag)
-        {
-
-        }
-
-        InitializeInfo(const char* appName, bool debugFlag)
-            : appName(std::string(appName))
-            , debugFlag(debugFlag)
-        {
-
-        }
-
-        std::string appName;
-        bool debugFlag;
-    };
-
     class Context
     {
     public:
         Context();
-        Context(const InitializeInfo& info, Result& result_out);
+        Context(std::string_view appName, bool debugFlag, Result& result_out);
 
         ~Context();
 
@@ -95,7 +73,7 @@ namespace Cutlass
         Context &operator=(Context&&) = delete;
 
         //明示的に初期化
-        Result initialize(const InitializeInfo& info);
+        Result initialize(std::string_view appName, bool debugFlag);
 
         //ウィンドウ作成・破棄
         Result createWindow(const WindowInfo& info, HWindow& handle_out);
@@ -242,9 +220,11 @@ namespace Cutlass
             //これ不要説濃厚
             std::optional<VkPipelineLayout> mPipelineLayout;
             std::optional<VkPipeline> mPipeline;
-            std::optional<VkDescriptorSetLayout> mDescriptorSetLayout;
+            std::vector<VkDescriptorSetLayout> mDescriptorSetLayouts;
             std::optional<VkDescriptorPool> mDescriptorPool;
-            ShaderResourceSetLayout layout; //firstがユニフォームバッファ, シェーダリソースの接続管轄用
+            std::optional<Shader> mVS;
+            std::optional<Shader> mFS;
+            std::vector<size_t> mSetSizes;//各DescriptorSetのbinding数
             HRenderPass mHRenderPass;
         };
 
@@ -256,8 +236,8 @@ namespace Cutlass
 
             std::vector<VkCommandBuffer> mCommandBuffers;
             std::optional<HRenderPass> mHRenderPass;//同じ内容を描画するウィンドウが複数ある場合
-            std::optional<HGraphicsPipeline> mHRPO;
-            std::vector<VkDescriptorSet> mDescriptorSets;
+            std::optional<HGraphicsPipeline> mHGPO;
+            std::vector<std::vector<VkDescriptorSet>> mDescriptorSets;
             bool mPresentFlag;
         };
 
@@ -299,8 +279,9 @@ namespace Cutlass
         inline Result cmdRender(CommandObject& co, const CmdRender& info);
         inline Result cmdSync(CommandObject& co, const CmdSync& info);
 
-        //ユーザ指定
-        InitializeInfo mInitializeInfo;
+        //アプリケーション名
+        std::string mAppName;
+        bool mDebugFlag;
 
         //隠蔽
         HWindow                 mNextWindowHandle;

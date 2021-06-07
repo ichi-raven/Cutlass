@@ -38,10 +38,19 @@ namespace Cutlass
         mCommands.emplace_back(CommandType::eBindIB, CmdBindIB{handle});
     }
 
-    void CommandList::bindShaderResourceSet(const ShaderResourceSet& shaderResourceSet)
+    void CommandList::bindShaderResourceSet(const uint32_t set, const ShaderResourceSet& shaderResourceSet)
     {
-        mCommands.emplace_back(CommandType::eBindSRSet, CmdBindSRSet{shaderResourceSet});
+        mCommands.emplace_back(CommandType::eBindSRSet, CmdBindSRSet{set, shaderResourceSet});
     }
+    // void CommandList::bindUniformBuffer(const uint32_t set, const uint32_t binding, const HBuffer& handle)
+    // {
+    //     mCommands.emplace_back(CommandType::eBindUB, CmdBindUniformBuffer{set, binding, handle});
+    // }
+
+    // void CommandList::bindTexture(const uint32_t set, const uint32_t binding, const HTexture& handle)
+    // {
+    //     mCommands.emplace_back(CommandType::eBindTex, CmdBindTexture{set, binding, handle});
+    // }
 
     void CommandList::renderIndexed
     ( 

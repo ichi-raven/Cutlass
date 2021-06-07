@@ -167,14 +167,14 @@ namespace Engine
 	public://メソッド宣言部
 
 		template<typename T>
-		Application(const Cutlass::InitializeInfo& initializeInfo, const std::initializer_list<Cutlass::WindowInfo>& windowInfos)
+		Application(std::string_view appName, bool debugFlag, const std::initializer_list<Cutlass::WindowInfo>& windowInfos)
 		 : mCommonRegion(std::make_shared<CommonRegion>())
 		 , mEndFlag(false)
 		{
 			mContext = std::make_shared<Cutlass::Context>();
 
 			{//Context初期化
-				if(Cutlass::Result::eSuccess != mContext->initialize(initializeInfo))
+				if(Cutlass::Result::eSuccess != mContext->initialize(appName, debugFlag))
 					std::cerr << "Failed to initialize cutlass context!\n";
 			}
 
@@ -186,14 +186,14 @@ namespace Engine
 			initSystem();
 		}
 
-		Application(const Cutlass::InitializeInfo&& initializeInfo, const std::initializer_list<Cutlass::WindowInfo>&& windowInfos)
+		Application(std::string_view appName, bool debugFlag, const std::initializer_list<Cutlass::WindowInfo>&& windowInfos)
 		 : mCommonRegion(std::make_shared<CommonRegion>())
 		 , mEndFlag(false)
 		{
 			mContext = std::make_shared<Cutlass::Context>();
 
 			{//Context初期化
-				if(Cutlass::Result::eSuccess != mContext->initialize(initializeInfo))
+				if(Cutlass::Result::eSuccess != mContext->initialize(appName, debugFlag))
 					std::cerr << "Failed to initialize cutlass context!\n";
 			}
 

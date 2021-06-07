@@ -268,8 +268,8 @@ typedef struct {
   std::vector<real_t> normals;    // 'vn'
   std::vector<real_t> texcoords;  // 'vt'
   std::vector<real_t> colors;     // extension: vertex colors
-} attrib_t;
 
+} attrib_t;
 typedef struct callback_t_ {
   // W is optional and set to 1 if there is no `w` item in `v` line
   void (*vertex_cb)(void *user_data, real_t x, real_t y, real_t z, real_t w);

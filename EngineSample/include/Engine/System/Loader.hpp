@@ -26,7 +26,7 @@ namespace Engine
         , mContext(context)
         {}
 
-        virtual void load(const char* path);
+        //virtual void load(const char* path);
         virtual void load
         (
             const char* path,
@@ -34,8 +34,19 @@ namespace Engine
             std::shared_ptr<MaterialComponent>& material_out
         );
 
-        virtual void getMesh(std::shared_ptr<MeshComponent>& mesh_out);
-        virtual void getMaterial(std::shared_ptr<MaterialComponent>& material_out);
+        void loadObj
+        (
+            const char* path,
+            std::shared_ptr<MeshComponent>& mesh_out,
+            std::shared_ptr<MaterialComponent>& material_out
+        );
+
+        void loadGLTF
+        (
+            const char* path,
+            std::shared_ptr<MeshComponent>& mesh_out,
+            std::shared_ptr<MaterialComponent>& material_out
+        );
 
         virtual void unload();
 
@@ -54,9 +65,9 @@ namespace Engine
             eNone
         };
 
-
         std::variant<ObjModel, tinygltf::Model> mModel;
         Mode mMode;
+        
         std::shared_ptr<Cutlass::Context> mContext;
     };
 }

@@ -2,6 +2,8 @@
 
 #include <Engine/Components/MaterialComponent.hpp>
 
+#include <iostream>
+
 namespace Engine
 {
     MeshComponent::MeshComponent()
@@ -49,11 +51,6 @@ namespace Engine
         return mTransform;
     }
 
-    // const Transform& MeshComponent::getTransform() const
-    // {
-    //     return mTransform;
-    // }
-
     const uint32_t MeshComponent::getVertexNum() const
     {
         return mVertices.size();
@@ -78,35 +75,6 @@ namespace Engine
     {
         //update
         mTransform.update();
-    }
-
-    const Cutlass::VertexLayout& MeshComponent::getVertexLayout() const
-    {
-        static Cutlass::VertexLayout vl;
-
-        if (mVertexTypeID == typeid(Vertex).hash_code())
-        {
-            vl.set(Cutlass::ResourceType::eF32Vec3, "position");
-            vl.set(Cutlass::ResourceType::eF32Vec4, "color");
-            vl.set(Cutlass::ResourceType::eF32Vec3, "normal");
-            vl.set(Cutlass::ResourceType::eF32Vec2, "uv");
-        }
-        else if (mVertexTypeID == typeid(GLTFVertex).hash_code())
-        {
-            vl.set(Cutlass::ResourceType::eF32Vec3, "position");
-            vl.set(Cutlass::ResourceType::eF32Vec3, "normal");
-            vl.set(Cutlass::ResourceType::eF32Vec2, "uv0");
-            vl.set(Cutlass::ResourceType::eF32Vec2, "uv1");
-            vl.set(Cutlass::ResourceType::eF32Vec4, "joint0");
-            vl.set(Cutlass::ResourceType::eF32Vec4, "weight0");
-        }
-        else
-        {
-            assert(!"this mesh was not loaded!");
-            return vl;
-        }            
-        
-        return vl;
     }
 
     void MeshComponent::setTopology(Cutlass::Topology topology)

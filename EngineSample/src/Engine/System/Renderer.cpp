@@ -30,22 +30,16 @@ namespace Engine
             mPresentPasses.emplace_back();
             mContext->createRenderPass(hw, true, mPresentPasses.back().renderPass);
             {
-                ShaderResourceDesc SRDesc;
-                SRDesc.layout.allocForCombinedTexture(0);
-                SRDesc.layout.allocForUniformBuffer(1);
-                SRDesc.setCount = frameCount;
-
                 GraphicsPipelineInfo rpi
                 (
-                    ColorBlend::eDefault,
-                    Topology::eTriangleStrip,
-                    RasterizerState(PolygonMode::eFill, CullMode::eNone, FrontFace::eClockwise, 1.f),
-                    MultiSampleState::eDefault,
-                    DepthStencilState::eNone,
                     Shader("../resources/shaders/present/vert.spv", "main"),
                     Shader("../resources/shaders/present/frag.spv", "main"),
-                    SRDesc,
-                    mPresentPasses.back().renderPass
+                    mPresentPasses.back().renderPass,
+                    DepthStencilState::eNone,
+                    RasterizerState(PolygonMode::eFill, CullMode::eNone, FrontFace::eClockwise, 1.f),
+                    Topology::eTriangleStrip,
+                    ColorBlend::eDefault,
+                    MultiSampleState::eDefault
                 );
 
                 if (Result::eSuccess != mContext->createGraphicsPipeline(rpi, mPresentPasses.back().graphicsPipeline))
@@ -76,7 +70,7 @@ namespace Engine
                             cls[i].readBarrier(target);
                         cls[i].beginRenderPass(wp.renderPass, true, ccv, dcv);
                         cls[i].bindGraphicsPipeline(wp.graphicsPipeline);
-                        cls[i].bindShaderResourceSet(SRSet);
+                        cls[i].bindShaderResourceSet(0, SRSet);
                         cls[i].render(4, 1, 0, 0);
                         cls[i].endRenderPass();
                         cls[i].present();
@@ -101,28 +95,18 @@ namespace Engine
         auto& tmp = mRenderInfos.emplace_back();
         tmp.mesh = mesh;
         tmp.material = material;
-        
-        ShaderResourceDesc SRDesc;
-        {//シェーダリソース設計
-            SRDesc.layout.allocForUniformBuffer(0);//Scene
-            SRDesc.layout.allocForCombinedTexture(1);//Material Texture
-            SRDesc.layout.allocForUniformBuffer(2);//Material
-            SRDesc.layout.allocForUniformBuffer(3);//Light
-            SRDesc.setCount = std::max(4, static_cast<int>(4 * material->getMaterialSets().size()));
-        }
+
 
         GraphicsPipelineInfo gpi
         (
-            mesh->getVertexLayout(),
-            material->getColorBlend(),
-            mesh->getTopology(),
-            mesh->getRasterizerState(),
-            material->getMultiSampleState(),
-            DepthStencilState::eDepth,
             material->getVS(),
             material->getFS(),
-            SRDesc,
-            mTexPasses[RenderPassList::eTex]
+            mTexPasses[RenderPassList::eTex],
+            DepthStencilState::eDepth,
+            mesh->getRasterizerState(),
+            mesh->getTopology(),
+            material->getColorBlend(),
+            material->getMultiSampleState()
         );
 
         if(Cutlass::Result::eSuccess != mContext->createGraphicsPipeline(gpi, tmp.pipeline))
@@ -152,7 +136,7 @@ namespace Engine
                 cl.bindGraphicsPipeline(tmp.pipeline);
                 if(material->getMaterialSets().empty())
                 {
-                    cl.bindShaderResourceSet(SRSet);
+                    cl.bindShaderResourceSet(0, SRSet);
                     cl.renderIndexed(mesh->getIndexNum(), 1, 0, 0, 0);        
                 }
                 else
@@ -164,11 +148,11 @@ namespace Engine
                         if(material.texture)
                             SRSet.setCombinedTexture(2, material.texture.value());
 
-                        cl.bindShaderResourceSet(SRSet);
-                        if(material.useVertexNum)
+                        cl.bindShaderResourceSet(0, SRSet);
+                        if(material.useIndexNum)
                         {
-                            cl.renderIndexed(material.useVertexNum.value(), 1, renderedIndex, 0, 0);
-                            renderedIndex += material.useVertexNum.value();
+                            cl.renderIndexed(material.useIndexNum.value(), 1, renderedIndex, 0, 0);
+                            renderedIndex += material.useIndexNum.value();
                         }
                         else
                             cl.renderIndexed(mesh->getIndexNum(), 1, renderedIndex, 0, 0);

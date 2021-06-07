@@ -23,7 +23,7 @@ namespace Engine
         //ビルド済みマテリアルデータ
         struct MaterialSet
         {
-            std::optional<uint32_t> useVertexNum;
+            std::optional<uint32_t> useIndexNum;
             std::optional<Cutlass::HTexture> texture;
             Cutlass::HBuffer paramBuffer;
         };
@@ -32,21 +32,24 @@ namespace Engine
         virtual ~MaterialComponent();
 
         template<typename MaterialParamType>
-        void addMaterialParam(const MaterialParamType& material, std::optional<std::string_view> texturePath, std::optional<uint32_t> useVertexNum)
+        void addMaterialParam(const MaterialParamType& material, std::optional<std::string_view> texturePath, std::optional<uint32_t> useIndexNum)
         {
-            auto& tmp = mMaterialSets.emplace_back(material);
+            auto& tmp = mMaterialSets.emplace_back();
+            auto&& context = getContext();
 
-            tmp.useVertexNum = useVertexNum;
+            tmp.useIndexNum = useIndexNum;
 
             Cutlass::HBuffer hBuffer;
-            if(Cutlass::Result::eSuccess != mContext->createBuffer(Cutlass::BufferInfo(sizeof(MaterialParamType), Cutlass::BufferUsage::eUniform, true), hBuffer))
-                assert(!"Failed to create material param buffer!");
-            tmp.paramBuffer = hBuffer;
+            {
+                if(Cutlass::Result::eSuccess != context->createBuffer(Cutlass::BufferInfo(sizeof(MaterialParamType), Cutlass::BufferUsage::eUniform, true), hBuffer))
+                    assert(!"Failed to create material param buffer!");
+                tmp.paramBuffer = hBuffer;
+            }
 
             if(texturePath)
             {
                 Cutlass::HTexture htex;
-                if(Cutlass::Result::eSuccess != mContext->createTextureFromFile(texturePath.value().data(), htex))
+                if(Cutlass::Result::eSuccess != context->createTextureFromFile(texturePath.value().data(), htex))
                     assert(!"Failed to create material texture!");
                 tmp.texture = htex; 
             }

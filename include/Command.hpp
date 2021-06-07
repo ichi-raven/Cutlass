@@ -45,8 +45,23 @@ namespace Cutlass
         HBuffer IBHandle;
     };
 
+    // struct CmdBindUniformBuffer
+    // {
+    //     uint32_t set;
+    //     uint32_t binding;
+    //     HBuffer hBuffer;
+    // };
+
+    // struct CmdBindTexture
+    // {
+    //     uint32_t set;
+    //     uint32_t binding;
+    //     HTexture hTexture;
+    // };
+
     struct CmdBindSRSet
     {
+        uint32_t set;
         ShaderResourceSet SRSet;
     };
 
@@ -116,22 +131,24 @@ namespace Cutlass
         void present();
         void bindGraphicsPipeline(const HGraphicsPipeline& handle);
         void bindVertexBuffer(const HBuffer& handle);
-        void bindIndexBuffer(const HBuffer &handle);
-        void bindShaderResourceSet(const ShaderResourceSet &shaderResourceSet);
+        void bindIndexBuffer(const HBuffer& handle);
+
+        void bindShaderResourceSet(const uint32_t set, const ShaderResourceSet &shaderResourceSet);
+        
         void renderIndexed
         (
             uint32_t indexCount,    //いくつインデックスを描画するか
             uint32_t instanceCount, //インスタンシング描画しない場合は1
             uint32_t firstIndex,    //何番目のインデックスから描画を開始するか
             uint32_t vertexOffset,  //描画し終わった頂点だけずらす、普通は0
-            uint32_t firstInstance  //インスタシング描画しないなら0
+            uint32_t firstInstance  //インスタンシング描画しないなら0
         );
         void render
         (
             uint32_t vertexCount,   //描画する頂点の個数
             uint32_t instanceCount, //インスタンシング描画しない場合は1
             uint32_t vertexOffset,  //描画し終わった頂点だけずらす、普通は0
-            uint32_t firstInstance //インスタシング描画しないなら0
+            uint32_t firstInstance //インスタンシング描画しないなら0
         );
 
         void readBarrier(const HTexture& handle);

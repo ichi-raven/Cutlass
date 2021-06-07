@@ -95,8 +95,6 @@ namespace Engine
         //基本スタティックメッシュ構築
         void createCube(const double& edgeLength);
         void createPlane(const double& xSize, const double& zSize);
-
-        const Cutlass::VertexLayout& getVertexLayout() const;
         
         void setVisible(bool flag);
         bool getVisible() const;

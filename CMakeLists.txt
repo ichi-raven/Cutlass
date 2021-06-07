@@ -1,21 +1,26 @@
 
 cmake_minimum_required(VERSION 3.11)
 
-project(CutlassEngine CXX)
+project(Cutlass C CXX)
 
-add_definitions("-g -O0 -std=c++17")
+add_definitions("-g -std=c++17")
 
 include_directories(
    vulkan
    glfw
-   stb
    ${PROJECT_SOURCE_DIR}/include
 )
 
-file(GLOB SRCS src/*.cpp)
-file(GLOB HDRS include/*.hpp)
+file(GLOB HDRS include/*.hp*)
 
-add_library(cutlass STATIC ${SRCS})
+add_library(
+   cutlass STATIC
+   src/Context.cpp 
+   src/Command.cpp 
+   src/Event.cpp 
+   src/Shader.cpp
+   src/ThirdParty/spirv_reflect.c 
+)
 
 TARGET_LINK_LIBRARIES(
    cutlass
