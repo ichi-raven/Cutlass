@@ -10,7 +10,7 @@ namespace Engine
     : mVisible(false)
     , mEnabled(false)
     {
-         mTopology = Cutlass::Topology::eTriangleList;
+        mTopology = Cutlass::Topology::eTriangleList;
         mRasterizerState = Cutlass::RasterizerState(Cutlass::PolygonMode::eFill, Cutlass::CullMode::eNone, Cutlass::FrontFace::eClockwise);
     }
 
@@ -217,6 +217,8 @@ namespace Engine
 
     void MeshComponent::createPlane(const double& xSize, const double& zSize)
     {
+        mVisible = mEnabled = true;
+
         constexpr glm::vec3 nu(0, 1.f, 0);
         constexpr glm::vec2 lb(0.0f, 0.0f);
         constexpr glm::vec2 lt(0.0f, 1.0f);

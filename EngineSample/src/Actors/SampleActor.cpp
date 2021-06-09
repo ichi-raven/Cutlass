@@ -36,14 +36,27 @@ void SampleActor::awake()
 	auto camera = addComponent<Engine::CameraComponent>();
 
 	//ロード
-	//loader->load(Resource::Model::genPath(Resource::Model::testObj).c_str(), mMesh, material);
+	//loader->load(Resource::Model::genPath(Resource::Model::testGLTF).c_str(), mMesh, material);
+
+	mMesh->setRasterizerState(RasterizerState(Cutlass::PolygonMode::eFill, Cutlass::CullMode::eBack, Cutlass::FrontFace::eClockwise));
 
 	//mesh
 	mMesh->createCube(1);
 
 	mMesh->getTransform().setPos(glm::vec3(0, 0, -2.f));
 
-	material->setVS(Cutlass::Shader(Resource::Shader::genPath(Resource::Shader::objVert), "main"));
+	auto VS = Cutlass::Shader(Resource::Shader::genPath(Resource::Shader::objVert), "main");
+	auto FS = Cutlass::Shader(Resource::Shader::genPath(Resource::Shader::frag), "main");
+
+	assert(VS.getOutputVariables().size() == FS.getInputVariables().size());
+
+	auto out = VS.getOutputVariables();
+	auto in = FS.getInputVariables();
+
+
+
+	material->setVS(VS);
+	material->setFS(FS);
 
 	//camera
 	camera->getTransform().setPos(glm::vec3(0, 0, 10.f));
@@ -65,7 +78,7 @@ void SampleActor::update()
 	auto&& context = getContext();
 	auto camera = getComponent<Engine::CameraComponent>().value();
 
-	{
+	{//input control
 		constexpr float speed = 20;
 		glm::vec3 vel(0.f);
 		float rot = 0;

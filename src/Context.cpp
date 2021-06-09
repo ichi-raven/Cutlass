@@ -2513,7 +2513,7 @@ namespace Cutlass
             std::vector<VkVertexInputAttributeDescription> ia_vec;
             
             VkPipelineVertexInputStateCreateInfo visci{};
-            auto inputVariables = info.VS.getInputVariables();
+            const auto& inputVariables = info.VS.getInputVariables();
             if (!inputVariables.empty())
             {
                 {
@@ -2558,6 +2558,7 @@ namespace Cutlass
                         case ResourceType::eUNormVec2:
                             ia_vec.back().format = VK_FORMAT_R8G8_UNORM;
                             offset += 2;
+                            break;
                         case ResourceType::eF32Vec2:
                             ia_vec.back().format = VK_FORMAT_R32G32_SFLOAT;
                             offset += 8;
@@ -2574,6 +2575,7 @@ namespace Cutlass
                         case ResourceType::eUNormVec3:
                             ia_vec.back().format = VK_FORMAT_R8G8B8_UNORM;
                             offset += 3;
+                            break;
                         case ResourceType::eF32Vec3:
                             ia_vec.back().format = VK_FORMAT_R32G32B32_SFLOAT;
                             offset += 12;
@@ -2590,6 +2592,7 @@ namespace Cutlass
                         case ResourceType::eUNormVec4:
                             ia_vec.back().format = VK_FORMAT_R8G8B8A8_UNORM;
                             offset += 4;
+                            break;
                         case ResourceType::eF32Vec4:
                             ia_vec.back().format = VK_FORMAT_R32G32B32A32_SFLOAT;
                             offset += 16;

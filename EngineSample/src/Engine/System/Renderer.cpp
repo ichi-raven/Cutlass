@@ -96,7 +96,6 @@ namespace Engine
         tmp.mesh = mesh;
         tmp.material = material;
 
-
         GraphicsPipelineInfo gpi
         (
             material->getVS(),

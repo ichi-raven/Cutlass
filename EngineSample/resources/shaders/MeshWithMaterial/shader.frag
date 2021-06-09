@@ -12,8 +12,8 @@ layout(location = 0) out vec4 outColor;
 
 void main() 
 {
-    outColor = vec4(debugPos, 1.f);
-    return;
+    // outColor = vec4(debugPos, 1.f);
+    // return;
 
     vec4 color = texture(texSampler, fragUV);
    
