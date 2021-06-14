@@ -68,7 +68,6 @@ namespace Engine
         {
             auto&& context = getContext();
             mVisible = mEnabled = true;
-            mVertexTypeID = typeid(VertexType).hash_code();
             {//ボトルネック
                 mVertices.resize(vertices.size());
                 for(uint32_t i = 0; i < mVertices.size(); ++i)
@@ -126,8 +125,6 @@ namespace Engine
         bool mVisible;
         bool mEnabled;
         Transform mTransform;
-
-        std::size_t mVertexTypeID;
 
         std::vector<CPUVertex> mVertices;
         std::vector<uint32_t> mIndices;

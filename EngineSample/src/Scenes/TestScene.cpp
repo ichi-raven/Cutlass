@@ -33,7 +33,9 @@ void TestScene::update()
 	if(context->getKey(Cutlass::Key::Escape))
 		exitApplication();
 
-	renderer->buildScene();
+	//renderer->build();
 	renderer->render();
+
+	//assert(!"fjeiaje");
 }
 

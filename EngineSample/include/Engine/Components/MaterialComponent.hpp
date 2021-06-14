@@ -29,12 +29,12 @@ namespace Engine
         };
 
         MaterialComponent();
-        virtual ~MaterialComponent();
+        virtual ~MaterialComponent() override;
 
         template<typename MaterialParamType>
         void addMaterialParam(const MaterialParamType& material, std::optional<std::string_view> texturePath, std::optional<uint32_t> useIndexNum)
         {
-            auto& tmp = mMaterialSets.emplace_back();
+            auto&& tmp = mMaterialSets.emplace_back();
             auto&& context = getContext();
 
             tmp.useIndexNum = useIndexNum;
@@ -43,6 +43,8 @@ namespace Engine
             {
                 if(Cutlass::Result::eSuccess != context->createBuffer(Cutlass::BufferInfo(sizeof(MaterialParamType), Cutlass::BufferUsage::eUniform, true), hBuffer))
                     assert(!"Failed to create material param buffer!");
+                if(Cutlass::Result::eSuccess != context->writeBuffer(sizeof(MaterialParamType), &material, hBuffer))
+                    assert(!"Faield to write material buffer!");
                 tmp.paramBuffer = hBuffer;
             }
 

@@ -14,7 +14,7 @@ namespace Engine
     
     struct PointLightParam
     {
-
+        glm::vec3 lightColor;
     };
 
     struct DirectionalLightParam

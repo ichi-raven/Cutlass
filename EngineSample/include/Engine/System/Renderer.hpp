@@ -32,7 +32,9 @@ namespace Engine
 
         virtual void regist(const std::shared_ptr<MeshComponent>& mesh, const std::shared_ptr<MaterialComponent>& material);
 
-        virtual void addLight(std::shared_ptr<LightComponent> light);
+        virtual void addLight(const std::shared_ptr<LightComponent>& light);
+
+        virtual void changeScene();//Scene変更時に情報をアンロードする
 
         //TODO
         //virtual void addPostEffect();
@@ -41,7 +43,7 @@ namespace Engine
         virtual void setCamera(std::shared_ptr<CameraComponent> camera);
 
         //現在設定されている情報から描画用シーンをビルドする
-        virtual void buildScene();
+        virtual void build();
 
         //描画コマンド実行
         virtual void render();
@@ -53,11 +55,14 @@ namespace Engine
     private:
         const uint16_t mFrameCount;
 
+        std::vector<Cutlass::HTexture> mDepthBuffers;
+
         //描画対象・描画パス
         //テクスチャレンダリングパス
         std::vector<Cutlass::HTexture> mRTTexs;        
         enum class RenderPassList
         {
+            eTexClear,
             eTex,
         };
         std::unordered_map<RenderPassList, Cutlass::HRenderPass> mTexPasses;

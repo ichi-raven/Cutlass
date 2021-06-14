@@ -3550,12 +3550,12 @@ namespace Cutlass
             dsai.descriptorSetCount = 1;
             dsai.pSetLayouts = &gpo.mDescriptorSetLayouts[info.set];
             result = checkVkResult(vkAllocateDescriptorSets(mDevice, &dsai, &co.mDescriptorSets.back()[info.set]));
+                        
             if (result != Result::eSuccess)
             {
                 std::cerr << "failed to allocate descriptor set\n";
                 return result;
             }
-
             writeDescriptors.reserve
             (
                 gpo.mSetSizes[info.set]
@@ -3709,7 +3709,6 @@ namespace Cutlass
             std::cerr << "invalid texture handle!\n";
             return Result::eFailure;
         }
-
 
         auto& io = mImageMap[info.hTexture];
         setImageMemoryBarrier

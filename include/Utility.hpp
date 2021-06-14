@@ -4,13 +4,13 @@
 
 namespace Cutlass
 {
-    using HWindow = uint16_t;
-    using HBuffer = uint32_t;
-    using HTexture = uint32_t;
-    //using HSampler = uint32_t;
-	using HRenderPass = uint32_t;
-    using HGraphicsPipeline = uint32_t;
-    using HCommandBuffer = uint32_t;
+    typedef uint16_t HWindow;
+    typedef uint32_t HBuffer;
+    typedef uint32_t HTexture;
+    //typedef uint32_t HSampler;
+	typedef uint32_t HRenderPass ;
+    typedef uint32_t HGraphicsPipeline;
+    typedef uint32_t HCommandBuffer;
 
     enum class Result
     {
@@ -18,9 +18,9 @@ namespace Cutlass
         eSuccess,
     };
 
-    enum class ResourceType //とりあえずglmを想定していたりする
+    enum class ResourceType //とりあえずglmを想定している
     {
-        eUint32,//0
+        eUint32 = 0,
         eInt32,//1
         eUnorm,//2
         eFloat32,//3

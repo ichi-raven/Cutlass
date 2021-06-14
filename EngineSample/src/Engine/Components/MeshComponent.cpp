@@ -11,14 +11,14 @@ namespace Engine
     , mEnabled(false)
     {
         mTopology = Cutlass::Topology::eTriangleList;
-        mRasterizerState = Cutlass::RasterizerState(Cutlass::PolygonMode::eFill, Cutlass::CullMode::eNone, Cutlass::FrontFace::eClockwise);
+        mRasterizerState = Cutlass::RasterizerState(Cutlass::PolygonMode::eFill, Cutlass::CullMode::eBack, Cutlass::FrontFace::eClockwise);
     }
 
     MeshComponent::~MeshComponent()
     {
         auto&& context = getContext();
-        context->destroyBuffer(mVB);
-        context->destroyBuffer(mIB);
+        //context->destroyBuffer(mIB);
+        //context->destroyBuffer(mVB);
     }
 
     void MeshComponent::setVisible(bool flag)
@@ -147,6 +147,7 @@ namespace Engine
 
         std::vector<Vertex> vertices;
         vertices.resize(24);
+        mIndices.resize(36);
 
         vertices = 
         {
@@ -202,9 +203,9 @@ namespace Engine
         auto&& context = getContext();
         {
             Cutlass::BufferInfo bi;
-            bi.setVertexBuffer<Vertex>(mVertices.size());
+            bi.setVertexBuffer<Vertex>(vertices.size());
             context->createBuffer(bi, mVB);
-            context->writeBuffer(mVertices.size() * sizeof(decltype(mVertices[0])), mVertices.data(), mVB);
+            context->writeBuffer(vertices.size() * sizeof(decltype(vertices[0])), vertices.data(), mVB);
         }
 
         {
@@ -218,6 +219,7 @@ namespace Engine
     void MeshComponent::createPlane(const double& xSize, const double& zSize)
     {
         mVisible = mEnabled = true;
+        mRasterizerState.cullMode = Cutlass::CullMode::eNone;
 
         constexpr glm::vec3 nu(0, 1.f, 0);
         constexpr glm::vec2 lb(0.0f, 0.0f);
@@ -231,22 +233,24 @@ namespace Engine
         constexpr glm::vec4 yellow(1.0f, 1.0f, 0.0f, 1.f);
 
         std::vector<Vertex> vertices;
-        vertices.resize(24);
-        
+        vertices.resize(4);
+        mVertices.resize(4);
+        mIndices.resize(6);
+
         vertices = 
         {
-            {glm::vec3(-xSize, zSize, 0), red, nu, lb},
-            {glm::vec3(-xSize, zSize, 0), green, nu, lt},
-            {glm::vec3(xSize, zSize, 0), blue, nu, rb},
-            {glm::vec3(xSize, zSize, 0), yellow, nu, rt}
+            {glm::vec3(-xSize, 0, zSize), red, nu, lb},
+            {glm::vec3(-xSize, 0, -zSize), green, nu, lt},
+            {glm::vec3(xSize, 0, zSize), blue, nu, rb},
+            {glm::vec3(xSize, 0, -zSize), yellow, nu, rt}
         };
 
         mVertices = 
         {
-            {glm::vec3(-xSize, zSize, 0)},
-            {glm::vec3(-xSize, zSize, 0)},
-            {glm::vec3(xSize, zSize, 0)},
-            {glm::vec3(xSize, zSize, 0)}
+            {glm::vec3(-xSize, 0, zSize)},
+            {glm::vec3(-xSize, 0, -zSize)},
+            {glm::vec3(xSize, 0, zSize)}, 
+            {glm::vec3(xSize, 0, -zSize)},
         };
 
         mIndices = 
@@ -257,9 +261,9 @@ namespace Engine
         auto&& context = getContext();
         {
             Cutlass::BufferInfo bi;
-            bi.setVertexBuffer<Vertex>(mVertices.size());
+            bi.setVertexBuffer<Vertex>(vertices.size());
             context->createBuffer(bi, mVB);
-            context->writeBuffer(vertices.size() * sizeof(Vertex), vertices.data(), mVB);
+            context->writeBuffer(vertices.size() * sizeof(decltype(vertices[0])), vertices.data(), mVB);
         }
 
         {

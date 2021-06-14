@@ -295,6 +295,7 @@ namespace Engine
 			}
 			else
 			{
+				mSystem->mRenderer->changeScene();
 				mCurrent.first = dstSceneKey;
 				mCurrent.second = mScenesFactory[dstSceneKey]();
 			}

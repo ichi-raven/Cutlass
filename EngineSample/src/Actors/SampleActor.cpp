@@ -38,22 +38,11 @@ void SampleActor::awake()
 	//ロード
 	//loader->load(Resource::Model::genPath(Resource::Model::testGLTF).c_str(), mMesh, material);
 
-	mMesh->setRasterizerState(RasterizerState(Cutlass::PolygonMode::eFill, Cutlass::CullMode::eBack, Cutlass::FrontFace::eClockwise));
-
 	//mesh
-	mMesh->createCube(1);
-
-	mMesh->getTransform().setPos(glm::vec3(0, 0, -2.f));
+	mMesh->createCube(1.f);
 
 	auto VS = Cutlass::Shader(Resource::Shader::genPath(Resource::Shader::objVert), "main");
 	auto FS = Cutlass::Shader(Resource::Shader::genPath(Resource::Shader::frag), "main");
-
-	assert(VS.getOutputVariables().size() == FS.getInputVariables().size());
-
-	auto out = VS.getOutputVariables();
-	auto in = FS.getInputVariables();
-
-
 
 	material->setVS(VS);
 	material->setFS(FS);
@@ -70,7 +59,7 @@ void SampleActor::awake()
 
 void SampleActor::init()
 {
-	//assert(getActor<SampleActor2>("SampleActor2") != std::nullopt);
+	//他アクタに関連する処理用,関数名はUnity準拠
 }
 
 void SampleActor::update()
@@ -82,26 +71,25 @@ void SampleActor::update()
 		constexpr float speed = 20;
 		glm::vec3 vel(0.f);
 		float rot = 0;
-		Engine::Transform& transform = mMesh->getTransform();
-		transform.setRotAxis(glm::vec3(1.f, 0, 0));
+		auto& transform = mMesh->getTransform();
 
-		if (context->getKey(Cutlass::Key::W))
+		if (context->getKey(Key::W))
 			vel.z = -speed;
-		if (context->getKey(Cutlass::Key::S))
+		if (context->getKey(Key::S))
 			vel.z = speed;
-		if (context->getKey(Cutlass::Key::A))
+		if (context->getKey(Key::A))
 			vel.x = -speed;
-		if (context->getKey(Cutlass::Key::D))
+		if (context->getKey(Key::D))
 			vel.x = speed;
-		if (context->getKey(Cutlass::Key::Up))
+		if (context->getKey(Key::Up))
 			vel.y = speed;
-		if (context->getKey(Cutlass::Key::Down))
+		if (context->getKey(Key::Down))
 			vel.y = -speed;
-		if(context->getKey(Cutlass::Key::Left))
+		if (context->getKey(Key::Left))
 			rot = -10;
-		if(context->getKey(Cutlass::Key::Right))
+		if (context->getKey(Key::Right))
 			rot = 10;
-		if(context->getKey(Cutlass::Key::Space))
+		if (context->getKey(Key::Space))
 		{
 			transform.setRotation(glm::vec3(0, 0, 1.f), 90.f);
 			transform.setRotAcc(0.f);
@@ -110,7 +98,6 @@ void SampleActor::update()
 
 		transform.setVel(vel);
 		transform.setRotAxis(glm::vec3(0, 1.f, 0));
-		transform.setRotVel(rot);
-		//camera->setLookAt(transform.getPos());
+		transform.setRotAcc(rot);
 	}
 }

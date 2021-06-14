@@ -199,11 +199,12 @@ int main()
         Shader VS2("../Shaders/TexturedCube/vert2.spv", "main");
         Shader FS2("../Shaders/TexturedCube/frag2.spv", "main"); 
 
-        {//入出力変数をチェック
-            //輪郭線
+        {//入出力変数をチェック\
+
             auto out = VS.getOutputVariables();
             auto in = FS.getInputVariables();
-            for(size_t i = 0; i < out.size(); ++i)//そもそもアクセス違反を起こす(両者のサイズが異なる)時点でアウト
+            assert(out.size() == in.size());
+            for(size_t i = 0; i < out.size(); ++i)
             {
                 if(out[i].first != in[i].first)
                     assert(!"Layout Error!");
@@ -261,6 +262,7 @@ int main()
 
         renderSet.setUniformBuffer(0, renderUB);
         renderSet.setCombinedTexture(1, texture);
+
     }
 
     std::vector<ShaderResourceSet> presentSets(frameCount);

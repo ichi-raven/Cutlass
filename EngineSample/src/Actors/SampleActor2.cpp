@@ -2,8 +2,11 @@
 #include <Actors/SampleActor2.hpp>
 
 #include <Engine/Components/MeshComponent.hpp>
+#include <Engine/Components/MaterialComponent.hpp>
 
 #include <Engine/Application/ActorsInScene.hpp>
+#include <Engine/System/System.hpp>
+#include <Engine/System/Renderer.hpp>
 
 #include <cassert>
 #include <memory>
@@ -15,10 +18,15 @@ SampleActor2::~SampleActor2()
 
 void SampleActor2::awake()
 {
-	// auto mesh = addComponent<Engine::MeshComponent>();
-	// if(!mesh)
-	// 	return;
-	// mesh->createCube(*getContext(), 1.f);
+	auto mesh = addComponent<Engine::MeshComponent>();
+	if(!mesh)
+		return;
+	mesh->createPlane(10.f, 10.f);
+	mesh->getTransform().setPos(glm::vec3(0, -1.5f, -2.f));
+
+	auto material = addComponent<Engine::MaterialComponent>();
+
+	getSystem()->mRenderer->regist(mesh, material);
 }
 
 void SampleActor2::init()
@@ -28,8 +36,7 @@ void SampleActor2::init()
 
 void SampleActor2::update()
 {
-    // auto sa2 = getActors().getActor<SampleActor2>("SampleActor2").value();
-    // auto meshcmp = sa2->getComponent<Engine::MeshComponent>().value();
+
 }
 
 void SampleActor2::test2()

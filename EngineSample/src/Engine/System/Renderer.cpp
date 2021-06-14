@@ -21,16 +21,16 @@ namespace Engine
     {
         assert(Result::eSuccess == mContext->createTextureFromFile("../resources/textures/texture.png", mDebugTex));
 
-        mTexPasses.emplace(RenderPassList::eTex, Cutlass::HRenderPass());
+        mRTTexs.reserve(hwindows.size());
 
         //描画用テクスチャ、テクスチャレンダリングパス, プレゼントパス
         for(const auto& hw : hwindows)
         {
-            
             mPresentPasses.emplace_back();
             mContext->createRenderPass(hw, true, mPresentPasses.back().renderPass);
+
             {
-                GraphicsPipelineInfo rpi
+                GraphicsPipelineInfo gpi
                 (
                     Shader("../resources/shaders/present/vert.spv", "main"),
                     Shader("../resources/shaders/present/frag.spv", "main"),
@@ -42,7 +42,7 @@ namespace Engine
                     MultiSampleState::eDefault
                 );
 
-                if (Result::eSuccess != mContext->createGraphicsPipeline(rpi, mPresentPasses.back().graphicsPipeline))
+                if (Result::eSuccess != mContext->createGraphicsPipeline(gpi, mPresentPasses.back().graphicsPipeline))
                     std::cout << "Failed to create present pipeline!\n";  
             }
 
@@ -51,6 +51,8 @@ namespace Engine
             mContext->getWindowSize(hw, width, height);
             ti.setRTTex2D(width, height);
             mContext->createTexture(ti, mRTTexs.emplace_back());
+            ti.setRTTex2DDepth(width, height);
+            mContext->createTexture(ti, mDepthBuffers.emplace_back());
 
             {//テクスチャの画面表示用コマンドを作成
                 ShaderResourceSet SRSet;
@@ -66,8 +68,8 @@ namespace Engine
 
                     for(size_t i = 0; i < cls.size(); ++i)
                     {
-                        for(auto& target : mRTTexs)
-                            cls[i].readBarrier(target);
+                        //for(const auto& target : mRTTexs)
+                        cls[i].readBarrier(mRTTexs.back());
                         cls[i].beginRenderPass(wp.renderPass, true, ccv, dcv);
                         cls[i].bindGraphicsPipeline(wp.graphicsPipeline);
                         cls[i].bindShaderResourceSet(0, SRSet);
@@ -82,7 +84,11 @@ namespace Engine
             }
         }
         
-        mContext->createRenderPass(RenderPassCreateInfo(mRTTexs), mTexPasses[RenderPassList::eTex]);
+        mTexPasses.emplace(RenderPassList::eTexClear, Cutlass::HRenderPass());
+        mTexPasses.emplace(RenderPassList::eTex, Cutlass::HRenderPass());
+
+        mContext->createRenderPass(RenderPassCreateInfo(mRTTexs, mDepthBuffers.back()), mTexPasses[RenderPassList::eTexClear]);
+        mContext->createRenderPass(RenderPassCreateInfo(mRTTexs, mDepthBuffers.back(), true), mTexPasses[RenderPassList::eTex]);
     }
 
     Renderer::~Renderer()
@@ -96,11 +102,17 @@ namespace Engine
         tmp.mesh = mesh;
         tmp.material = material;
 
+        Cutlass::HRenderPass rp;
+        if(mRenderInfos.size() == 1)
+            rp = mTexPasses[RenderPassList::eTexClear];
+        else
+            rp = mTexPasses[RenderPassList::eTex];
+        
         GraphicsPipelineInfo gpi
         (
             material->getVS(),
             material->getFS(),
-            mTexPasses[RenderPassList::eTex],
+            rp,
             DepthStencilState::eDepth,
             mesh->getRasterizerState(),
             mesh->getTopology(),
@@ -112,30 +124,40 @@ namespace Engine
             assert(!"failed to create graphics pipeline");
 
         {//コマンド作成
-            ShaderResourceSet SRSet;
+            ShaderResourceSet sceneSet;
             Cutlass::CommandList cl;
             Cutlass::HCommandBuffer cb;
             //ジオメトリ固有パラメータセット
             {
                 Cutlass::BufferInfo bi;
+                bi.setUniformBuffer<SceneData>();
+                mContext->createBuffer(bi, sceneCB);
+               
                 SceneData sceneData;
                 Cutlass::HBuffer sceneCB;
                 sceneData.world = mesh->getTransform().getWorldMatrix();
-                bi.setUniformBuffer<SceneData>();
-                mContext->createBuffer(bi, sceneCB);
-                SRSet.setUniformBuffer(0, sceneCB);
-                SRSet.setCombinedTexture(1, mDebugTex);
+                
+                sceneSet.setUniformBuffer(0, sceneCB);
+                sceneSet.setCombinedTexture(1, mDebugTex);
                 tmp.sceneCB = sceneCB;
             }
 
             {//コマンドビルド
-                cl.beginRenderPass(mTexPasses[RenderPassList::eTex]);
+                
+                if(mRenderInfos.size() == 1)
+                    cl.beginRenderPass(rp, true);
+                else
+                    cl.beginRenderPass(rp, false);
                 cl.bindVertexBuffer(mesh->getVB());
                 cl.bindIndexBuffer(mesh->getIB());
                 cl.bindGraphicsPipeline(tmp.pipeline);
+                
+                Cutlass::ShaderResourceSet materialSet;
+                cl.bindShaderResourceSet(0, sceneSet);
+                
                 if(material->getMaterialSets().empty())
                 {
-                    cl.bindShaderResourceSet(0, SRSet);
+                    cl.bindShaderResourceSet(1, materialSet);
                     cl.renderIndexed(mesh->getIndexNum(), 1, 0, 0, 0);        
                 }
                 else
@@ -143,11 +165,11 @@ namespace Engine
                     uint32_t renderedIndex = 0;
                     for(const auto& material : material->getMaterialSets())
                     {
-                        SRSet.setUniformBuffer(1, material.paramBuffer);
+                        materialSet.setUniformBuffer(0, material.paramBuffer);
                         if(material.texture)
-                            SRSet.setCombinedTexture(2, material.texture.value());
+                            materialSet.setCombinedTexture(1, material.texture.value());
 
-                        cl.bindShaderResourceSet(0, SRSet);
+                        cl.bindShaderResourceSet(1, materialSet);
                         if(material.useIndexNum)
                         {
                             cl.renderIndexed(material.useIndexNum.value(), 1, renderedIndex, 0, 0);
@@ -166,17 +188,41 @@ namespace Engine
         }
     }
 
-    void Renderer::addLight(std::shared_ptr<LightComponent> light)
+    void Renderer::addLight(const std::shared_ptr<LightComponent>& light)
     {
         mLights.emplace_back(light);
     }
 
-    void Renderer::setCamera(std::shared_ptr<CameraComponent> camera)
+    void Renderer::setCamera(const std::shared_ptr<CameraComponent>& camera)
     {
         mCamera = camera;
     }
 
-    void Renderer::buildScene()
+    void Renderer::changeScene()
+    {
+        mCamera = std::nullopt;
+        mLights.clear();
+
+        for(const auto& ri : mRenderInfos)
+        {
+            if(ri.sceneCB)
+                mContext->destroyBuffer(ri.sceneCB.value());
+            if(ri.lightCB)
+                mContext->destroyBuffer(ri.lightCB.value());
+            mContext->destroyGraphicsPipeline(ri.pipeline);
+        }
+
+        mRenderInfos.clear();
+
+        for(const auto& cb : mCommandBuffers)
+        {
+            mContext->destroyGraphicsPipeline(cb);
+        }
+
+        mCommandBuffers.clear();
+    }
+
+    void Renderer::build()
     {
         if(!mCamera || !mCamera.value()->getEnable())
         {
@@ -189,7 +235,7 @@ namespace Engine
             //TODO
         }
         
-        {//各定数バッファをビルドし、コマンドを作成
+        {//各定数バッファを書き込み
             SceneData sceneData;
             {//各ジオメトリ共通データ
                 sceneData.view = mCamera.value()->getViewMatrix();
@@ -209,7 +255,11 @@ namespace Engine
 
     void Renderer::render()
     {
-        assert(mSceneBuilded);
+        if(!mSceneBuilded)
+        {
+            build();
+            mSceneBuilded = false;
+        }
 
         for(const auto& cb : mCommandBuffers)
             mContext->execute(cb);
