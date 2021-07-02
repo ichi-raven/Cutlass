@@ -109,10 +109,9 @@ int main()
 
     //コンテキスト作成
     Context context;
-    {
-        if (Result::eSuccess != context.initialize("SimpleSampleApp", true))
-            assert(!"Failed to initialize!");
-    }
+    if (Result::eSuccess != context.initialize("SimpleSampleApp", true))
+        assert(!"Failed to initialize!");
+    
 
     HWindow window;
     {//ウィンドウ作成
@@ -172,34 +171,13 @@ int main()
             assert(!"Failed to create render target texture!");
     }
 
-    HRenderPass contourPass;
-    {//テクスチャ用描画パス作成
-        if (Result::eSuccess != context.createRenderPass(RenderPassCreateInfo(target), contourPass))
-            assert(!"Failed to create contour renderpass");
-    }
-
-    HRenderPass texPass;
-    {//テクスチャ用描画パス作成
-        if (Result::eSuccess != context.createRenderPass(RenderPassCreateInfo(target, true), texPass))
-            assert(!"Failed to create texture renderpass");
-    }
-
-    HRenderPass windowPass;
-    {//ウィンドウ用描画パス作成
-        if (Result::eSuccess != context.createRenderPass(window, true, windowPass))
-            assert(!"Failed to create renderpass");
-    }
-
     HGraphicsPipeline contourPipeline, renderPipeline, presentPipeline;
     {//テクスチャ描画用パス、ウィンドウ描画用パスを定義
 
         Shader VS("../Shaders/TexturedCube/vert.spv", "main");
         Shader FS("../Shaders/TexturedCube/frag.spv", "main"); 
 
-        Shader VS2("../Shaders/TexturedCube/vert2.spv", "main");
-        Shader FS2("../Shaders/TexturedCube/frag2.spv", "main"); 
-
-        {//入出力変数をチェック\
+        {//入出力変数をチェック
 
             auto out = VS.getOutputVariables();
             auto in = FS.getInputVariables();
@@ -213,9 +191,9 @@ int main()
 
         GraphicsPipelineInfo gpi
         (
-            VS2,
-            FS2,
-            contourPass,
+            Shader("../Shaders/TexturedCube/vert2.spv", "main"),
+            Shader("../Shaders/TexturedCube/frag2.spv", "main"),
+            RenderPass(target),
             DepthStencilState::eDepth,  
             RasterizerState(PolygonMode::eFill, CullMode::eBack, FrontFace::eClockwise)
         );
@@ -224,7 +202,7 @@ int main()
         (
             VS,
             FS,
-            texPass,
+            RenderPass(target, true),
             DepthStencilState::eDepth,
             RasterizerState(PolygonMode::eFill, CullMode::eBack, FrontFace::eClockwise)
         );
@@ -238,14 +216,11 @@ int main()
     }
 
     {
-        Shader VS("../Shaders/present/vert.spv", "main");
-        Shader FS("../Shaders/present/frag.spv", "main");
-
         GraphicsPipelineInfo gpi
         (
-            VS,
-            FS,
-            windowPass,
+            Shader("../Shaders/present/vert.spv", "main"),
+            Shader("../Shaders/present/frag.spv", "main"),
+            RenderPass(window),
             DepthStencilState::eNone,
             RasterizerState(PolygonMode::eFill, CullMode::eNone, FrontFace::eClockwise),
             Topology::eTriangleStrip
@@ -258,11 +233,9 @@ int main()
     ShaderResourceSet contourSet, renderSet;
     {//テクスチャレンダリングパスのリソースセット
         contourSet.setUniformBuffer(0, renderUB);
-        contourSet.setCombinedTexture(1, texture);
 
         renderSet.setUniformBuffer(0, renderUB);
         renderSet.setCombinedTexture(1, texture);
-
     }
 
     std::vector<ShaderResourceSet> presentSets(frameCount);
@@ -282,36 +255,29 @@ int main()
         DepthClearValue dcv(1.f, 0);
 
         {
-            contourCL.bindVertexBuffer(vertexBuffer);
-            contourCL.bindIndexBuffer(indexBuffer);
-            
-            contourCL.beginRenderPass(contourPass, true, ccv, dcv);
-            contourCL.bindGraphicsPipeline(contourPipeline);
-            contourCL.bindShaderResourceSet(0, contourSet);
+
+            contourCL.begin(contourPipeline, true, ccv, dcv);
+            contourCL.bind(vertexBuffer, indexBuffer);
+            contourCL.bind(0, contourSet);
             contourCL.renderIndexed(indices.size(), 1, 0, 0, 0);
-            contourCL.endRenderPass();
+            contourCL.end();
         }
         
         {
-            renderCL.bindVertexBuffer(vertexBuffer);
-            renderCL.bindIndexBuffer(indexBuffer);
-            
-            renderCL.beginRenderPass(texPass, false);
-            renderCL.bindGraphicsPipeline(renderPipeline);
-            renderCL.bindShaderResourceSet(0, renderSet);
+            renderCL.begin(renderPipeline, true);
+            renderCL.bind(vertexBuffer, indexBuffer);
+            renderCL.bind(0, renderSet);
             renderCL.renderIndexed(indices.size(), 1, 0, 0, 0);
-            renderCL.endRenderPass();
+            renderCL.end();
         }
 
         for(size_t i = 0; i < presentCL.size(); ++i)
         {
-            presentCL[i].readBarrier(target);
-            presentCL[i].beginRenderPass(windowPass, true, ccv, dcv);
-            presentCL[i].bindGraphicsPipeline(presentPipeline);
-            presentCL[i].bindShaderResourceSet(0, presentSets[i]);
+            presentCL[i].barrier(target);
+            presentCL[i].begin(presentPipeline, true, ccv, dcv);
+            presentCL[i].bind(0, presentSets[i]);
             presentCL[i].render(4, 1, 0, 0);
-            presentCL[i].endRenderPass();
-            presentCL[i].present();
+            presentCL[i].end();
         }
     }
 
@@ -380,7 +346,7 @@ int main()
                 ubo.proj = glm::perspective(glm::radians(45.f), 1.f * width / height, 1.f, 1000.f);
                 ubo.proj[1][1] *= -1;
 
-                uint32_t frameIndex = context.getFrameBufferIndex(windowPass);
+                uint32_t frameIndex = context.getFrameBufferIndex(presentPipeline);
                 if (Result::eSuccess != context.writeBuffer(sizeof(Uniform), &ubo, renderUB))
                     assert(!"Failed to write uniform buffer!");
             }

@@ -34,13 +34,13 @@ namespace Engine
 
         virtual void addLight(const std::shared_ptr<LightComponent>& light);
 
-        virtual void changeScene();//Scene変更時に情報をアンロードする
+        virtual void clearScene();//Scene変更時に情報をアンロードする
 
         //TODO
         //virtual void addPostEffect();
 
         //このカメラになる
-        virtual void setCamera(std::shared_ptr<CameraComponent> camera);
+        virtual void setCamera(const std::shared_ptr<CameraComponent>& camera);
 
         //現在設定されている情報から描画用シーンをビルドする
         virtual void build();

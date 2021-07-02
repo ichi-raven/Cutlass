@@ -3,6 +3,7 @@
 #include "Utility.hpp"
 
 #include "Shader.hpp"
+#include "RenderPass.hpp"
 
 #include <vector>
 #include <queue>
@@ -93,11 +94,34 @@ namespace Cutlass
 
     struct  GraphicsPipelineInfo
     {
+       //GraphicsPipelineInfo
+        // (
+        //     const Shader& VS,
+        //     const Shader& FS,
+        //     const HRenderPass& renderPass,
+        //     const DepthStencilState& depthStencilState = DepthStencilState::eDepth,
+        //     const RasterizerState& rasterizerState = RasterizerState(PolygonMode::eFill, CullMode::eNone, FrontFace::eClockwise),
+        //     const Topology& topology = Topology::eTriangleList,
+        //     const ColorBlend& colorBlend = ColorBlend::eDefault,
+        //     const MultiSampleState& multiSampleState = MultiSampleState::eDefault
+        // )
+        //     : colorBlend(colorBlend)
+        //     , topology(topology)
+        //     , rasterizerState(rasterizerState)
+        //     , multiSampleState(multiSampleState)
+        //     , depthStencilState(depthStencilState)
+        //     , VS(VS)
+        //     , FS(FS)
+        //     , renderPass(renderPass)
+        // {
+
+        // }
+
         GraphicsPipelineInfo
         (
             const Shader& VS,
             const Shader& FS,
-            const HRenderPass& renderPass,
+            const RenderPass& renderPass,
             const DepthStencilState& depthStencilState = DepthStencilState::eDepth,
             const RasterizerState& rasterizerState = RasterizerState(PolygonMode::eFill, CullMode::eNone, FrontFace::eClockwise),
             const Topology& topology = Topology::eTriangleList,
@@ -125,7 +149,8 @@ namespace Cutlass
         Shader FS;
         std::optional<Viewport> viewport; //左上手前、右下奥3次元(Depthは正規化座標)
         std::optional<Scissor> scissor;  //左上、右下2次元
-		HRenderPass renderPass;//描画対象
+		//HRenderPass renderPass;//描画対象
+        RenderPass renderPass;
     };
     
 };

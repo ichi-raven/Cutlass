@@ -26,19 +26,19 @@ namespace Cutlass
         SpvReflectResult result = spvReflectCreateShaderModule(sizeof(mFileData[0]) * mFileData.size(), mFileData.data(), &module);
         assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
-        // std::cout << "loaded shader : " << path << "\n";
-        // std::cout << "stage : "; 
-        // switch (module.shader_stage) 
-        // {
-        //     case SPV_REFLECT_SHADER_STAGE_VERTEX_BIT                   : std::cout << "VS"; break;
-        //     case SPV_REFLECT_SHADER_STAGE_TESSELLATION_CONTROL_BIT     : std::cout << "HS"; break;
-        //     case SPV_REFLECT_SHADER_STAGE_TESSELLATION_EVALUATION_BIT  : std::cout << "DS"; break;
-        //     case SPV_REFLECT_SHADER_STAGE_GEOMETRY_BIT                 : std::cout << "GS"; break;
-        //     case SPV_REFLECT_SHADER_STAGE_FRAGMENT_BIT                 : std::cout << "PS"; break;
-        //     case SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT                  : std::cout << "CS"; break;
-        //     default: break;
-        // }
-        // std::cout << "\n";
+        std::cout << "loaded shader : " << path << "\n";
+        std::cout << "stage : "; 
+        switch (module.shader_stage) 
+        {
+            case SPV_REFLECT_SHADER_STAGE_VERTEX_BIT                   : std::cout << "VS"; break;
+            case SPV_REFLECT_SHADER_STAGE_TESSELLATION_CONTROL_BIT     : std::cout << "HS"; break;
+            case SPV_REFLECT_SHADER_STAGE_TESSELLATION_EVALUATION_BIT  : std::cout << "DS"; break;
+            case SPV_REFLECT_SHADER_STAGE_GEOMETRY_BIT                 : std::cout << "GS"; break;
+            case SPV_REFLECT_SHADER_STAGE_FRAGMENT_BIT                 : std::cout << "PS"; break;
+            case SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT                  : std::cout << "CS"; break;
+            default: break;
+        }
+        std::cout << "\n";
 
         //ディスクリプタセットレイアウト取得
         {
@@ -63,7 +63,7 @@ namespace Cutlass
                     {
                         case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER                    : srt = ShaderResourceType::eSampler; break;
                         case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER     : srt = ShaderResourceType::eCombinedTexture; break;
-                        //case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE              : ; break;
+                        case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE              : srt = ShaderResourceType::eCombinedTexture; break;
                         //case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE              : ; break;
                         //case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER       : ; break;
                         //case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER       : ; break;
@@ -73,6 +73,9 @@ namespace Cutlass
                         //case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC     : ; break;
                         //case SPV_REFLECT_DESCRIPTOR_TYPE_INPUT_ATTACHMENT           : ; break;
                         //case SPV_REFLECT_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR : ; break;
+                        default : 
+                        std::cout << "ERROR!\nparam : " << sets[i]->bindings[j]->descriptor_type << "\n";
+                        break;
                     }
                     mResourceLayoutTable.emplace(std::pair<uint8_t, uint8_t>(sets[i]->set, sets[i]->bindings[j]->binding), srt); 
                 }
@@ -254,20 +257,20 @@ namespace Cutlass
 
     void ShaderResourceSet::setUniformBuffer(uint8_t binding, const HBuffer& handle)
     {
-        uniformBuffers.emplace_back(binding, handle);
+        uniformBuffers.emplace(binding, handle);
     }
 
     void ShaderResourceSet::setCombinedTexture(uint8_t binding, const HBuffer& handle)
     {
-        combinedTextures.emplace_back(binding, handle);
+        combinedTextures.emplace(binding, handle);
     }
 
-    const std::vector<std::pair<uint8_t, HBuffer>>& ShaderResourceSet::getUniformBuffers() const
+    const std::map<uint8_t, HBuffer>& ShaderResourceSet::getUniformBuffers() const
     {
         return uniformBuffers;
     }
 
-    const std::vector<std::pair<uint8_t, HTexture>> &ShaderResourceSet::getCombinedTextures() const
+    const std::map<uint8_t, HTexture>& ShaderResourceSet::getCombinedTextures() const
     {
         return combinedTextures;
     }

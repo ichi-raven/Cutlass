@@ -35,12 +35,12 @@ namespace Cutlass
         void setUniformBuffer(uint8_t binding, const HBuffer& handle);
         void setCombinedTexture(uint8_t binding, const HBuffer &handle);
         
-        const std::vector<std::pair<uint8_t, HBuffer>>& getUniformBuffers() const;
-        const std::vector<std::pair<uint8_t, HTexture>>& getCombinedTextures() const;
+        const std::map<uint8_t, HBuffer>& getUniformBuffers() const;
+        const std::map<uint8_t, HTexture>& getCombinedTextures() const;
 
     private:
-        std::vector<std::pair<uint8_t, HBuffer>> uniformBuffers;
-        std::vector<std::pair<uint8_t, HTexture>> combinedTextures;
+        std::map<uint8_t, HBuffer> uniformBuffers;
+        std::map<uint8_t, HTexture> combinedTextures;
     };
 
     struct Shader

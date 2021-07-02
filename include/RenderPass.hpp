@@ -9,9 +9,14 @@
 
 namespace Cutlass
 {
-    struct RenderPassCreateInfo
+    struct RenderPass
     {
-        RenderPassCreateInfo
+        RenderPass() 
+        {
+            //do nothing(dangerous)
+        };
+
+        RenderPass
         (
             const HTexture& colorTarget,
             const HTexture& depthTarget,
@@ -23,7 +28,7 @@ namespace Cutlass
             colorTargets.emplace_back(colorTarget);
         }
 
-        RenderPassCreateInfo
+        RenderPass
         (
             const HTexture& colorTarget,
             const bool loadPrevData = false
@@ -33,7 +38,7 @@ namespace Cutlass
             colorTargets.emplace_back(colorTarget);
         }
 
-        RenderPassCreateInfo
+        RenderPass
         (
             const std::vector<HTexture>& colorTargets,
             const HTexture& depthTarget,
@@ -46,7 +51,7 @@ namespace Cutlass
 
         }
 
-        RenderPassCreateInfo
+        RenderPass
         (
             const std::initializer_list<HTexture>& colorTargets,
             const HTexture& depthTarget,
@@ -59,7 +64,7 @@ namespace Cutlass
 
         }
 
-        RenderPassCreateInfo
+        RenderPass
         (
             const std::vector<HTexture>& colorTargets,
             const bool loadPrevData = false
@@ -70,7 +75,7 @@ namespace Cutlass
 
         }
 
-        RenderPassCreateInfo
+        RenderPass
         (
             const std::initializer_list<HTexture>& colorTargets,
             const bool loadPrevData = false
@@ -81,6 +86,16 @@ namespace Cutlass
             
         }
 
+        RenderPass
+        (
+            const HWindow& window
+        )
+        : window(window)
+        {
+
+        }
+
+        std::optional<HWindow> window;//if window handle was set, colortargets will be ignored
         std::vector<HTexture> colorTargets;
         std::optional<HTexture> depthTarget;
         bool loadPrevData;

@@ -12,20 +12,28 @@ namespace Cutlass
     using ColorClearValue = std::array<float, 4>;
     using DepthClearValue = std::tuple<float, uint32_t>;
 
-    struct CmdBeginRenderPass
+    //struct CmdBeginRenderPass
+    // {
+    //     HRenderPass RPHandle;
+    //     ColorClearValue ccv;
+    //     DepthClearValue dcv;
+    //     bool clear;
+    // };
+
+    struct CmdBegin
     {
-        HRenderPass RPHandle;
+        HGraphicsPipeline handle;
         ColorClearValue ccv;
         DepthClearValue dcv;
         bool clear;
     };
 
-    struct CmdBindGraphicsPipeline
-    {
-        HGraphicsPipeline RPHandle;
-    };
+    // struct CmdBindGraphicsPipeline
+    // {
+    //     HGraphicsPipeline RPHandle;
+    // };
 
-    struct CmdEndRenderPass
+    struct CmdEnd
     {
 
     };
@@ -61,7 +69,7 @@ namespace Cutlass
 
     struct CmdBindSRSet
     {
-        uint32_t set;
+        uint16_t set;
         ShaderResourceSet SRSet;
     };
 
@@ -82,39 +90,39 @@ namespace Cutlass
         uint32_t firstInstance; //インスタシング描画しないなら0
     };
 
-    struct CmdSync
+    struct CmdBarrier
     {
-        HTexture hTexture;
+        HTexture handle;
     };
 
     //コマンド追加時はここ
     enum class CommandType
     {
-        eBeginRenderPass,
-        eEndRenderPass,
-        eBindGraphicsPipeline,
+        eBegin,
+        eEnd,
+        //eBindGraphicsPipeline,
         ePresent,
         eBindVB,
         eBindIB,
         eBindSRSet,
         eRenderIndexed,
         eRender,
-        eSync,
+        eBarrier,
     };
 
     //とここ
     using CommandInfoVariant = std::variant
     <
-        CmdBeginRenderPass,
-        CmdEndRenderPass,
-        CmdBindGraphicsPipeline,
+        CmdBegin,
+        CmdEnd,
+        //CmdBindGraphicsPipeline,
         CmdPresent,
         CmdBindVB,
         CmdBindIB,
         CmdBindSRSet,
         CmdRenderIndexed,
         CmdRender,
-        CmdSync
+        CmdBarrier
     >;
 
     using InternalCommandList = std::vector<std::pair<CommandType, CommandInfoVariant>>;
@@ -123,18 +131,32 @@ namespace Cutlass
     class CommandList
     {
     public:
-        void beginRenderPass(const HRenderPass& RPHandle, bool clearFlag, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f }, const DepthClearValue dcv = { 1.f, 0 });
-        void beginRenderPass(const HRenderPass& RPHandle, const DepthClearValue dcv = { 1.f, 0 }, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f });
+        CommandList()
+        : indexed(false)
+        {
 
-        void endRenderPass();
-        
-        void present();
-        void bindGraphicsPipeline(const HGraphicsPipeline& handle);
-        void bindVertexBuffer(const HBuffer& handle);
-        void bindIndexBuffer(const HBuffer& handle);
+        }
+        // void beginRenderPass(const HRenderPass& RPHandle, bool clearFlag, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f }, const DepthClearValue dcv = { 1.f, 0 });
+        // void beginRenderPass(const HRenderPass& RPHandle, const DepthClearValue dcv = { 1.f, 0 }, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f });
 
-        void bindShaderResourceSet(const uint32_t set, const ShaderResourceSet &shaderResourceSet);
+        void begin(const HGraphicsPipeline& handle, bool clearFlag, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f }, const DepthClearValue dcv = { 1.f, 0 });
+        void begin(const HGraphicsPipeline& handle, const DepthClearValue dcv = { 1.f, 0 }, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f });
+        void end(bool presentIfRenderedFrameBuffer = true);
         
+        //void present();
+        //void bindGraphicsPipeline(const HGraphicsPipeline& handle);
+        // void bindVertexBuffer(const HBuffer& handle);
+        // void bindIndexBuffer(const HBuffer& handle);
+
+        // void bindShaderResourceSet(const uint32_t set, const ShaderResourceSet &shaderResourceSet);
+        
+        //bind vertex buffer only
+        void bind(const HBuffer& VBHandle);
+        //bind vertex buffer and index buffer
+        void bind(const HBuffer& VBHandle, const HBuffer& IBHandle);
+        //bind shader resource set
+        void bind(const uint16_t set, const ShaderResourceSet& shaderSet);
+
         void renderIndexed
         (
             uint32_t indexCount,    //いくつインデックスを描画するか
@@ -151,7 +173,7 @@ namespace Cutlass
             uint32_t firstInstance //インスタンシング描画しないなら0
         );
 
-        void readBarrier(const HTexture& handle);
+        void barrier(const HTexture& handle);
 
         //現在のCommandListに接続する
         void append(CommandList& commandList);
@@ -160,5 +182,6 @@ namespace Cutlass
 
     private:
         InternalCommandList mCommands;
+        bool indexed;
     };
 }            

@@ -350,28 +350,28 @@ namespace Cutlass
         return result;
     }
 
-    Result Context::destroyRenderPass(const HRenderPass& handle)
-    {
-        Result result = Result::eSuccess;
+    // Result Context::destroyRenderPass(const HRenderPass& handle)
+    // {
+    //     Result result = Result::eSuccess;
 
-        if (mDebugFlag && mRPMap.count(handle) <= 0)
-        {
-            std::cerr << "invalid renderPass handle!\n";
-            return Result::eFailure;
-        }
+    //     if (mDebugFlag && mRPMap.count(handle) <= 0)
+    //     {
+    //         std::cerr << "invalid renderPass handle!\n";
+    //         return Result::eFailure;
+    //     }
 
-        auto& rpo = mRPMap[handle];
+    //     auto& rpo = mRPMap[handle];
 
-        for (auto& f : rpo.mFramebuffers)
-            vkDestroyFramebuffer(mDevice, f.value(), nullptr);
+    //     for (auto& f : rpo.mFramebuffers)
+    //         vkDestroyFramebuffer(mDevice, f.value(), nullptr);
 
-        if (rpo.mRenderPass)
-            vkDestroyRenderPass(mDevice, rpo.mRenderPass.value(), nullptr);
+    //     if (rpo.mRenderPass)
+    //         vkDestroyRenderPass(mDevice, rpo.mRenderPass.value(), nullptr);
 
-        mRPMap.erase(handle);
+    //     mRPMap.erase(handle);
 
-        return result;
-    }
+    //     return result;
+    // }
 
     Result Context::destroyGraphicsPipeline(const HGraphicsPipeline& handle)
     {
@@ -385,6 +385,21 @@ namespace Cutlass
 
         auto& gpo = mGPMap[handle];
 
+        if (mDebugFlag && mRPMap.count(gpo.mHRenderPass) <= 0)
+        {
+            std::cerr << "invalid renderPass handle!\n";
+            return Result::eFailure;
+        }
+
+        auto& rpo = mRPMap[gpo.mHRenderPass];
+
+        for (auto& f : rpo.mFramebuffers)
+            vkDestroyFramebuffer(mDevice, f.value(), nullptr);
+
+        if (rpo.mRenderPass)
+            vkDestroyRenderPass(mDevice, rpo.mRenderPass.value(), nullptr);
+
+        mRPMap.erase(gpo.mHRenderPass);
 
         for(const auto& dsl : gpo.mDescriptorSetLayouts)
             vkDestroyDescriptorSetLayout(mDevice, dsl, nullptr);
@@ -508,9 +523,11 @@ namespace Cutlass
                 return result;
             }
 
+            std::cout << "enabled extensions : \n";
             for (const auto& v : props)
             {
                 extensions.push_back(v.extensionName);
+                std::cout << v.extensionName << "\n";
             }
         }
 
@@ -1884,13 +1901,19 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Context::createRenderPass(const RenderPassCreateInfo& info, HRenderPass& handle_out)
+    Result Context::createRenderPass(const RenderPass& info, HRenderPass& handle_out)
     {
-
-        if(info.depthTarget)
-            return createRenderPass(info.colorTargets, info.depthTarget.value(), info.loadPrevData, handle_out);
+        if(info.window)
+        {
+            return createRenderPass(info.window.value(), true, handle_out);
+        }
         else
-            return createRenderPass(info.colorTargets, info.loadPrevData, handle_out);
+        {
+            if(info.depthTarget)
+                return createRenderPass(info.colorTargets, info.depthTarget.value(), info.loadPrevData, handle_out);
+            else
+                return createRenderPass(info.colorTargets, info.loadPrevData, handle_out);
+        }
 
         return Result::eFailure;
     }
@@ -1972,6 +1995,8 @@ namespace Cutlass
             //if use depthBuffer, create attachment
             if (depthTestEnable)
             {
+                rpo.depthTarget = swapchain.mHDepthBuffer;
+
                 adVec.emplace_back();
 
                 auto& depthBuffer = mImageMap[swapchain.mHDepthBuffer];
@@ -2100,7 +2125,7 @@ namespace Cutlass
                     rpo.mExtent = io.extent;
                 if (rpo.mExtent.value().width != io.extent.width || rpo.mExtent.value().height != io.extent.height || rpo.mExtent.value().depth != io.extent.depth)
                 {
-                    std::cerr << "invalid texture extent\n";
+                    std::cerr << "invalid color texture extent\n";
                     return Result::eFailure;
                 }
             }
@@ -2123,7 +2148,9 @@ namespace Cutlass
                 rpo.mExtent = io.extent;
             if (rpo.mExtent.value().width != io.extent.width || rpo.mExtent.value().height != io.extent.height || rpo.mExtent.value().depth != io.extent.depth)
             {
-                std::cerr << "invalid texture extent\n";
+                std::cerr << "invalid depth texture extent\n";
+                std::cerr << rpo.mExtent.value().width << " : " << rpo.mExtent.value().height << " : " << rpo.mExtent.value().depth << "\n";
+                std::cerr << io.extent.width << " : " << io.extent.height << " : " << io.extent.depth << "\n";                
                 return Result::eFailure;
             }
         }
@@ -2138,48 +2165,50 @@ namespace Cutlass
         std::vector<VkAttachmentReference> arVec;
 
         //Renderpass, Framebuffer
-        for (auto& tex : colorTargets)
         {
-
-            auto& io = mImageMap[tex];
-            adVec.emplace_back();
-            arVec.emplace_back();
-
-            if (!rpo.mExtent)
-                rpo.mExtent = io.extent;
-
-            if(loadPrevData)
+            auto&& size = colorTargets.size();
+            for (size_t i = 0; i < size; ++i)
             {
-                adVec.back().loadOp =  VK_ATTACHMENT_LOAD_OP_LOAD;
-                adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                auto& io = mImageMap[colorTargets[i]];
+                auto&& ad = adVec.emplace_back(VkAttachmentDescription{});
+                auto&& ar = arVec.emplace_back(VkAttachmentReference{});
 
-                switch(io.currentLayout)
+                if (!rpo.mExtent)
+                    rpo.mExtent = io.extent;
+
+                if(loadPrevData)
                 {
-                    case VK_IMAGE_LAYOUT_UNDEFINED:
-                    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-                        adVec.back().initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                    break;
-                    case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-                        adVec.back().initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                    break;
-                    default:
-                        std::cerr << "invalid initial image layout!\n";
-                        return Result::eFailure;
-                    break;
-                }
-            }
-            else
-            {
-                adVec.back().loadOp =  VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-                adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-                adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            }
+                    ad.loadOp =  VK_ATTACHMENT_LOAD_OP_LOAD;
+                    ad.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
-            adVec.back().format = io.format;
-            adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
-            adVec.back().finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            arVec.back().attachment = 0;
-            arVec.back().layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                    switch(io.currentLayout)
+                    {
+                        case VK_IMAGE_LAYOUT_UNDEFINED:
+                        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+                            ad.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                        break;
+                        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+                            ad.initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                        break;
+                        default:
+                            std::cerr << "invalid initial image layout!\n";
+                            return Result::eFailure;
+                        break;
+                    }
+                }
+                else
+                {
+                    ad.loadOp =  VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                    ad.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                    ad.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                }
+
+                ad.format = io.format;
+                ad.samples = VK_SAMPLE_COUNT_1_BIT;
+                ad.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                ar.attachment = i;
+                ar.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            }
         }
 
         VkSubpassDescription subpassDesc{};
@@ -2187,27 +2216,26 @@ namespace Cutlass
         subpassDesc.colorAttachmentCount = static_cast<uint32_t>(arVec.size());
         subpassDesc.pColorAttachments = arVec.data();
 
-
         VkAttachmentReference depthAr;
-        adVec.emplace_back();
+        auto&& depthAd = adVec.emplace_back();
         auto& depthBuffer = mImageMap[depthTarget];
 
         if(loadPrevData)
         {
-            adVec.back().loadOp =  VK_ATTACHMENT_LOAD_OP_LOAD;
-            adVec.back().initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            depthAd.loadOp =  VK_ATTACHMENT_LOAD_OP_LOAD;
+            depthAd.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         }
         else
         {
-            adVec.back().loadOp =  VK_ATTACHMENT_LOAD_OP_CLEAR;
-            adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            depthAd.loadOp =  VK_ATTACHMENT_LOAD_OP_CLEAR;
+            depthAd.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         }
 
-        adVec.back().format = depthBuffer.format;
-        adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
-        adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        adVec.back().finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        depthAr.attachment = 1;
+        depthAd.format = depthBuffer.format;
+        depthAd.samples = VK_SAMPLE_COUNT_1_BIT;
+        depthAd.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        depthAd.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        depthAr.attachment = colorTargets.size();//attach to last index
         depthAr.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
         subpassDesc.pDepthStencilAttachment = &depthAr;
@@ -2216,6 +2244,7 @@ namespace Cutlass
         ci.pAttachments = adVec.data();
         ci.subpassCount = 1;
         ci.pSubpasses = &subpassDesc;
+
         {
             VkRenderPass renderPass;
             result = checkVkResult(vkCreateRenderPass(mDevice, &ci, nullptr, &renderPass));
@@ -2227,24 +2256,25 @@ namespace Cutlass
             rpo.mRenderPass = renderPass;
         }
 
+        std::vector<VkImageView> ivVec;
+        ivVec.reserve(colorTargets.size());
+        {
+            for (auto& tex : colorTargets)
+                ivVec.emplace_back(mImageMap[tex].mView.value());
+            
+            //depth buffer
+            ivVec.emplace_back(depthBuffer.mView.value());
+        }
+
         VkFramebufferCreateInfo fbci{};
         fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         fbci.renderPass = rpo.mRenderPass.value();
         fbci.width = rpo.mExtent.value().width;
         fbci.height = rpo.mExtent.value().height;
         fbci.layers = 1;
-
-        fbci.attachmentCount = rpo.mTargetNum = static_cast<uint32_t>(adVec.size());
-        std::vector<VkImageView> ivVec;
-        for (auto& tex : colorTargets)
-        {
-            const auto& img = mImageMap[tex];
-            ivVec.emplace_back(img.mView.value());
-        }
-        //depth buffer
-        ivVec.emplace_back(depthBuffer.mView.value());
-
+        fbci.attachmentCount = rpo.mTargetNum = static_cast<uint32_t>(ivVec.size());
         fbci.pAttachments = ivVec.data();
+
         {
             VkFramebuffer frameBuffer;
             result = checkVkResult(vkCreateFramebuffer(mDevice, &fbci, nullptr, &frameBuffer));
@@ -2284,9 +2314,10 @@ namespace Cutlass
             {
                 if (mImageMap.count(tex) <= 0)
                 {
-                    std::cerr << "invalid texture handle\n";
+                    std::cerr << "invalid texture handle!\n";
                     return Result::eFailure;
                 }
+
                 auto& io = mImageMap[tex];
 
                 //usage check
@@ -2298,15 +2329,17 @@ namespace Cutlass
 
                 //extent substitute and check
                 if (!rpo.mExtent)
-                    rpo.mExtent = io.extent;
-                if (rpo.mExtent.value().width != io.extent.width || rpo.mExtent.value().height != io.extent.height || rpo.mExtent.value().depth != io.extent.depth)
                 {
-                    std::cerr << "invalid texture extent\n";
-                    return Result::eFailure;
+                    rpo.mExtent = io.extent;
+
+                    if (rpo.mExtent.value().width != io.extent.width || rpo.mExtent.value().height != io.extent.height || rpo.mExtent.value().depth != io.extent.depth)
+                    {
+                        std::cerr << "invalid texture extent!\n";
+                        return Result::eFailure;
+                    }
                 }
             }
         }
-
 
         rpo.mHWindow = std::nullopt;
         rpo.colorTargets = colorTargets;
@@ -2318,59 +2351,88 @@ namespace Cutlass
         std::optional<HTexture> hDepthBuffer = std::nullopt;
 
         //Renderpass, Framebuffer
-        for (auto& tex : colorTargets)
         {
-            auto& io = mImageMap[tex];
-            adVec.emplace_back();
-            arVec.emplace_back();
+            const auto&& size = colorTargets.size();
 
-            if (!rpo.mExtent)
-                rpo.mExtent = io.extent;
-
-            adVec.back().format = io.format;
-            adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
-            
-            if(loadPrevData)
+            adVec.reserve(size);
+            arVec.reserve(size);
+            for (size_t i = 0; i < size; ++i)
             {
-                adVec.back().loadOp =  VK_ATTACHMENT_LOAD_OP_LOAD;
-                adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                const auto& io = mImageMap[colorTargets[i]];
+                auto&& ad = adVec.emplace_back();
+                auto&& ar = arVec.emplace_back();
+
+                if (!rpo.mExtent)
+                    rpo.mExtent = io.extent;
+
+                ad.format = io.format;
+                ad.samples = VK_SAMPLE_COUNT_1_BIT;
                 
-                 switch(io.currentLayout)
+                if(loadPrevData)
                 {
-                    case VK_IMAGE_LAYOUT_UNDEFINED:
-                    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-                        adVec.back().initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                    break;
-                    case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-                        adVec.back().initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                    break;
-                    default:
-                        std::cerr << "invalid initial image layout!\n";
-                        return Result::eFailure;
-                    break;
+                    ad.loadOp =  VK_ATTACHMENT_LOAD_OP_LOAD;
+                    ad.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                    
+                    switch(io.currentLayout)
+                    {
+                        case VK_IMAGE_LAYOUT_UNDEFINED:
+                        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+                            ad.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                        break;
+                        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+                            ad.initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                        break;
+                        default:
+                            std::cerr << "invalid initial image layout!\n";
+                            return Result::eFailure;
+                        break;
+                    }
                 }
-            }
-            else
-            {
-                adVec.back().loadOp =  VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-                adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-                adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            }
+                else
+                {
+                    ad.loadOp =  VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                    ad.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                    ad.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                }
 
-            arVec.back().attachment = 0;
-            adVec.back().finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            arVec.back().layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                ad.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                ar.attachment = i;
+                ar.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            }
         }
 
         VkSubpassDescription subpassDesc{};
         subpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpassDesc.colorAttachmentCount = static_cast<uint32_t>(arVec.size());
         subpassDesc.pColorAttachments = arVec.data();
+        subpassDesc.pDepthStencilAttachment = NULL;
+
         rpo.mHWindow = std::nullopt;
         rpo.colorTargets = colorTargets;
 
+        std::array<VkSubpassDependency, 2> dependencies;
+        {
+            dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+            dependencies[0].dstSubpass = 0;
+            dependencies[0].srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+            dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dependencies[0].srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+            dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+            dependencies[1].srcSubpass = 0;
+            dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+            dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dependencies[1].dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+            dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            dependencies[1].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+            dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+        }
+
         ci.attachmentCount = static_cast<uint32_t>(adVec.size());
         ci.pAttachments = adVec.data();
+        ci.dependencyCount = 2;
+        ci.pDependencies = dependencies.data();
         ci.subpassCount = 1;
         ci.pSubpasses = &subpassDesc;
 
@@ -2385,23 +2447,22 @@ namespace Cutlass
             rpo.mRenderPass = renderPass;
         }
 
+        std::vector<VkImageView> ivVec;
+        {
+            ivVec.reserve(colorTargets.size());
+            for (const auto& tex : colorTargets)
+                ivVec.emplace_back(mImageMap[tex].mView.value());
+        }
+
         VkFramebufferCreateInfo fbci{};
         fbci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         fbci.renderPass = rpo.mRenderPass.value();
         fbci.width = rpo.mExtent.value().width;
         fbci.height = rpo.mExtent.value().height;
         fbci.layers = 1;
-
-        fbci.attachmentCount = rpo.mTargetNum = static_cast<uint32_t>(adVec.size());
-        std::vector<VkImageView> ivVec;
-        ivVec.reserve(colorTargets.size());
-        for (auto& tex : colorTargets)
-        {
-            const auto& img = mImageMap[tex];
-            ivVec.emplace_back(img.mView.value());
-        }
-
+        fbci.attachmentCount = rpo.mTargetNum = static_cast<uint32_t>(ivVec.size());
         fbci.pAttachments = ivVec.data();
+
         {
             VkFramebuffer frameBuffer;
             result = checkVkResult(vkCreateFramebuffer(mDevice, &fbci, nullptr, &frameBuffer));
@@ -2482,7 +2543,6 @@ namespace Cutlass
         return result;
     }
 
-
     Result Context::createGraphicsPipeline(const GraphicsPipelineInfo &info, HGraphicsPipeline& handle_out)
     {
 
@@ -2495,14 +2555,16 @@ namespace Cutlass
         Result result;
         GraphicsPipelineObject gpo;
 
-        if (mRPMap.count(info.renderPass) <= 0)
+        HRenderPass renderPass;
+        
+        if (Result::eSuccess != createRenderPass(info.renderPass, renderPass))
         {
             std::cerr << "invalid renderPass handle!\n";
             return Result::eFailure;
         }
 
-        RenderPassObject& rpo = mRPMap[info.renderPass];
-        gpo.mHRenderPass = info.renderPass;
+        RenderPassObject& rpo = mRPMap[renderPass];
+        gpo.mHRenderPass = renderPass;
         gpo.mVS = info.VS;
         gpo.mFS = info.FS;
 
@@ -2636,53 +2698,62 @@ namespace Cutlass
             }
 
             //color blend
-            VkPipelineColorBlendAttachmentState blendAttachment{};
+            std::vector<VkPipelineColorBlendAttachmentState> blendAttachments;
+            blendAttachments.reserve(rpo.colorTargets.size() + 1);
             VkPipelineColorBlendStateCreateInfo cbci{};
+            cbci.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+
             {
-                const auto colorWriteAll =
-                    VK_COLOR_COMPONENT_R_BIT |
-                    VK_COLOR_COMPONENT_G_BIT |
-                    VK_COLOR_COMPONENT_B_BIT |
-                    VK_COLOR_COMPONENT_A_BIT;
-                switch (info.colorBlend)
+                auto&& size = (rpo.mHWindow ? 1 : rpo.colorTargets.size());// + (rpo.depthTarget ? 1 : 0);
+                for(size_t i = 0; i < size; ++i)
                 {
-                case ColorBlend::eNone:
-                    blendAttachment.blendEnable = VK_FALSE;
-                    break;
-                
-                case ColorBlend::eDefault:
-                    blendAttachment.blendEnable = VK_TRUE;
-                    blendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-                    blendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
-                    blendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-                    blendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-                    blendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-                    blendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-                    blendAttachment.colorWriteMask = colorWriteAll;
-                    break;
+                    auto&& blendAttachment = blendAttachments.emplace_back(); 
 
-                case ColorBlend::eAlphaBlend:
-                    blendAttachment.blendEnable = VK_TRUE;
-                    blendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-                    blendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-                    blendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-                    blendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-                    blendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-                    blendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-                    blendAttachment.colorWriteMask = colorWriteAll;
-                    break;
+                    const auto colorWriteAll =
+                        VK_COLOR_COMPONENT_R_BIT |
+                        VK_COLOR_COMPONENT_G_BIT |
+                        VK_COLOR_COMPONENT_B_BIT |
+                        VK_COLOR_COMPONENT_A_BIT;
+                    switch (info.colorBlend)
+                    {
+                    case ColorBlend::eNone:
+                        blendAttachment.blendEnable = VK_FALSE;
+                        break;
+                    
+                    case ColorBlend::eDefault:
+                        blendAttachment.blendEnable = VK_TRUE;
+                        blendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+                        blendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+                        blendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+                        blendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+                        blendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+                        blendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+                        blendAttachment.colorWriteMask = colorWriteAll;
+                        break;
 
-                default:
-                    std::cerr << "color blend state is not described\n";
-                    return Result::eFailure;
-                    break;
+                    case ColorBlend::eAlphaBlend:
+                        blendAttachment.blendEnable = VK_TRUE;
+                        blendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+                        blendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+                        blendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+                        blendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+                        blendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+                        blendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+                        blendAttachment.colorWriteMask = colorWriteAll;
+                        break;
+
+                    default:
+                        std::cerr << "color blend state is not described\n";
+                        return Result::eFailure;
+                        break;
+                    }
+
+                    cbci.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+                    cbci.logicOpEnable = VK_FALSE;
+                    cbci.logicOp = VK_LOGIC_OP_COPY;
+                    cbci.attachmentCount = blendAttachments.size();
+                    cbci.pAttachments = blendAttachments.data();
                 }
-
-                cbci.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-                cbci.logicOpEnable = VK_FALSE;
-                cbci.logicOp = VK_LOGIC_OP_COPY;
-                cbci.attachmentCount = 1;
-                cbci.pAttachments = &blendAttachment;
             }
 
             //viewport and scissor
@@ -3116,25 +3187,35 @@ namespace Cutlass
             {
                 switch (command.first) //RTTI...
                 {
-                case CommandType::eBeginRenderPass:
-                    if (!std::holds_alternative<CmdBeginRenderPass>(command.second))
+                // case CommandType::eBeginRenderPass:
+                //     if (!std::holds_alternative<CmdBeginRenderPass>(command.second))
+                //         return Result::eFailure;
+                //     result = cmdBeginRenderPass(co, index, std::get<CmdBeginRenderPass>(command.second));
+                //     break;
+                // case CommandType::eEndRenderPass:
+                //     if (!std::holds_alternative<CmdEndRenderPass>(command.second))
+                //         return Result::eFailure;
+                //     result = cmdEndRenderPass(co, std::get<CmdEndRenderPass>(command.second));
+                //     break;
+                // case CommandType::eBindGraphicsPipeline:
+                //     if (!std::holds_alternative<CmdBindGraphicsPipeline>(command.second))
+                //         return Result::eFailure;
+                //     result = cmdBindGraphicsPipeline(co, std::get<CmdBindGraphicsPipeline>(command.second));
+                //     break;
+                case CommandType::eBegin:
+                    if (!std::holds_alternative<CmdBegin>(command.second))
                         return Result::eFailure;
-                    result = cmdBeginRenderPass(co, index, std::get<CmdBeginRenderPass>(command.second));
+                    result = cmdBegin(co, index, std::get<CmdBegin>(command.second));
                     break;
-                case CommandType::eEndRenderPass:
-                    if (!std::holds_alternative<CmdEndRenderPass>(command.second))
+                case CommandType::eEnd:
+                    if (!std::holds_alternative<CmdEnd>(command.second))
                         return Result::eFailure;
-                    result = cmdEndRenderPass(co, std::get<CmdEndRenderPass>(command.second));
+                    result = cmdEnd(co, std::get<CmdEnd>(command.second));
                     break;
                 case CommandType::ePresent:
                     if (!std::holds_alternative<CmdPresent>(command.second))
                         return Result::eFailure;
                     co.mPresentFlag = true;
-                    break;
-                case CommandType::eBindGraphicsPipeline:
-                    if (!std::holds_alternative<CmdBindGraphicsPipeline>(command.second))
-                        return Result::eFailure;
-                    result = cmdBindGraphicsPipeline(co, std::get<CmdBindGraphicsPipeline>(command.second));
                     break;
                 case CommandType::eBindVB:
                     if (!std::holds_alternative<CmdBindVB>(command.second))
@@ -3171,10 +3252,10 @@ namespace Cutlass
                         return Result::eFailure;
                     result = cmdRenderIndexed(co, std::get<CmdRenderIndexed>(command.second));
                     break;
-                case CommandType::eSync:
-                    if (!std::holds_alternative<CmdSync>(command.second))
+                case CommandType::eBarrier:
+                    if (!std::holds_alternative<CmdBarrier>(command.second))
                         return Result::eFailure;
-                    result = cmdSync(co, std::get<CmdSync>(command.second));
+                    result = cmdBarrier(co, std::get<CmdBarrier>(command.second));
                     break;
                 default:
                     std::cerr << "invalid command!\nrequested command : " << static_cast<int>(command.first) << "\n";
@@ -3268,25 +3349,35 @@ namespace Cutlass
             {
                 switch (command.first) //RTTI...
                 {
-                case CommandType::eBeginRenderPass:
-                    if (!std::holds_alternative<CmdBeginRenderPass>(command.second))
+                // case CommandType::eBeginRenderPass:
+                //     if (!std::holds_alternative<CmdBeginRenderPass>(command.second))
+                //         return Result::eFailure;
+                //     result = cmdBeginRenderPass(co, index, std::get<CmdBeginRenderPass>(command.second));
+                //     break;
+                // case CommandType::eEndRenderPass:
+                //     if (!std::holds_alternative<CmdEndRenderPass>(command.second))
+                //         return Result::eFailure;
+                //     result = cmdEndRenderPass(co, std::get<CmdEndRenderPass>(command.second));
+                //     break;
+                // case CommandType::eBindGraphicsPipeline:
+                //     if (!std::holds_alternative<CmdBindGraphicsPipeline>(command.second))
+                //         return Result::eFailure;
+                //     result = cmdBindGraphicsPipeline(co, std::get<CmdBindGraphicsPipeline>(command.second));
+                //     break;
+                case CommandType::eBegin:
+                    if (!std::holds_alternative<CmdBegin>(command.second))
                         return Result::eFailure;
-                    result = cmdBeginRenderPass(co, index, std::get<CmdBeginRenderPass>(command.second));
+                    result = cmdBegin(co, index, std::get<CmdBegin>(command.second));
                     break;
-                case CommandType::eEndRenderPass:
-                    if (!std::holds_alternative<CmdEndRenderPass>(command.second))
+                case CommandType::eEnd:
+                    if (!std::holds_alternative<CmdEnd>(command.second))
                         return Result::eFailure;
-                    result = cmdEndRenderPass(co, std::get<CmdEndRenderPass>(command.second));
+                    result = cmdEnd(co, std::get<CmdEnd>(command.second));
                     break;
                 case CommandType::ePresent:
                     if (!std::holds_alternative<CmdPresent>(command.second))
                         return Result::eFailure;
                     co.mPresentFlag = true;
-                    break;
-                case CommandType::eBindGraphicsPipeline:
-                    if (!std::holds_alternative<CmdBindGraphicsPipeline>(command.second))
-                        return Result::eFailure;
-                    result = cmdBindGraphicsPipeline(co, std::get<CmdBindGraphicsPipeline>(command.second));
                     break;
                 case CommandType::eBindVB:
                     if (!std::holds_alternative<CmdBindVB>(command.second))
@@ -3313,10 +3404,10 @@ namespace Cutlass
                         return Result::eFailure;
                     result = cmdRenderIndexed(co, std::get<CmdRenderIndexed>(command.second));
                     break;
-                case CommandType::eSync:
-                    if (!std::holds_alternative<CmdSync>(command.second))
+                case CommandType::eBarrier:
+                    if (!std::holds_alternative<CmdBarrier>(command.second))
                         return Result::eFailure;
-                    result = cmdSync(co, std::get<CmdSync>(command.second));
+                    result = cmdBarrier(co, std::get<CmdBarrier>(command.second));
                     break;
                 default:
                     std::cerr << "invalid command!\nrequested command : " << static_cast<int>(command.first) << "\n";
@@ -3391,36 +3482,55 @@ namespace Cutlass
         return Result::eFailure;
     }
 
-    Result Context::cmdBeginRenderPass(CommandObject& co, size_t frameBufferIndex, const CmdBeginRenderPass& info)
+    Result Context::cmdBegin(CommandObject& co, size_t frameBufferIndex, const CmdBegin& info)
     {
         Result result = Result::eSuccess;
 
         auto& command = co.mCommandBuffers.back();
-        auto& rpo = mRPMap[info.RPHandle];
+        auto& gpo = mGPMap[info.handle];
+        auto& rpo = mRPMap[gpo.mHRenderPass];
 
-        co.mHRenderPass = info.RPHandle;
+        co.mHRenderPass = gpo.mHRenderPass;
 
         VkRenderPassBeginInfo bi{};
-        
-        VkClearValue clearValues[2];
 
-        clearValues[0].color = 
+        std::vector<VkClearValue> clearValues;
+        if(!rpo.mHWindow)
         {
-            info.ccv[0], info.ccv[1], info.ccv[2], info.ccv[3]
-        };
+            clearValues.reserve(rpo.colorTargets.size() + 1);
 
-        clearValues[1].depthStencil = 
-        {
-            std::get<0>(info.dcv), std::get<1>(info.dcv)
-        };
+            for(size_t i = 0; i < rpo.colorTargets.size(); ++i)
+            {
+                auto&& cv = clearValues.emplace_back();
+                cv.color = 
+                {
+                    info.ccv[0], info.ccv[1], info.ccv[2], info.ccv[3]
+                };
+            }
 
-        if (rpo.mDepthTestEnable)
-        
-            bi.clearValueCount = 2;
+            if (rpo.mDepthTestEnable)
+            {
+                clearValues.emplace_back().depthStencil = 
+                {
+                    std::get<0>(info.dcv), std::get<1>(info.dcv)
+                };
+            }
+        }
         else
-            bi.clearValueCount = 1;
-
-        bi.pClearValues = clearValues;
+        {
+            clearValues.resize(2);
+            clearValues[0].color = 
+            {
+                info.ccv[0], info.ccv[1], info.ccv[2], info.ccv[3]
+            };
+            clearValues[1].depthStencil = 
+            {
+                std::get<0>(info.dcv), std::get<1>(info.dcv)
+            };
+        }
+        
+        bi.clearValueCount = clearValues.size();
+        bi.pClearValues = clearValues.data();
         
 
         if (!rpo.mHWindow && info.clear && !rpo.mLoadPrevData)
@@ -3434,9 +3544,9 @@ namespace Cutlass
                 io.currentLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             }
 
-            for (const auto& img : rpo.colorTargets)
+            for (const auto& tex : rpo.colorTargets)
             {
-                auto& io = mImageMap[img];
+                auto& io = mImageMap[tex];
                 setImageMemoryBarrier(command, io.mImage.value(), io.currentLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
                 vkCmdClearColorImage(command, io.mImage.value(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearValues[0].color, 1, &io.range);
                 setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -3473,10 +3583,16 @@ namespace Cutlass
         bi.framebuffer = rpo.mFramebuffers[frameBufferIndex % rpo.mFramebuffers.size()].value();
         vkCmdBeginRenderPass(command, &bi, VK_SUBPASS_CONTENTS_INLINE);
 
+        co.mHGPO = info.handle;
+        vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, gpo.mPipeline.value());
+
+        //DescriptorSetを確保しておく
+        co.mDescriptorSets.emplace_back().resize(gpo.mDescriptorSetLayouts.size());
+
         return Result::eSuccess;
     }
 
-    Result Context::cmdEndRenderPass(CommandObject &co, const CmdEndRenderPass &info)
+    Result Context::cmdEnd(CommandObject &co, const CmdEnd &info)
     {
         vkCmdEndRenderPass(co.mCommandBuffers.back());
 
@@ -3508,18 +3624,18 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Context::cmdBindGraphicsPipeline(CommandObject& co, const CmdBindGraphicsPipeline& info)
-    {
-        auto& gpo = mGPMap[info.RPHandle];
-        co.mHGPO = info.RPHandle;
-        auto& command = co.mCommandBuffers.back();
-        vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, gpo.mPipeline.value());
+    // Result Context::cmdBindGraphicsPipeline(CommandObject& co, const CmdBindGraphicsPipeline& info)
+    // {
+    //     auto& gpo = mGPMap[info.RPHandle];
+    //     co.mHGPO = info.RPHandle;
+    //     auto& command = co.mCommandBuffers.back();
+    //     vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, gpo.mPipeline.value());
 
-        //DescriptorSetを確保しておく
-        co.mDescriptorSets.emplace_back().resize(gpo.mDescriptorSetLayouts.size());
+    //     //DescriptorSetを確保しておく
+    //     co.mDescriptorSets.emplace_back().resize(gpo.mDescriptorSetLayouts.size());
 
-        return Result::eSuccess;
-    }
+    //     return Result::eSuccess;
+    // }
 
     Result Context::cmdBindSRSet(CommandObject &co, const CmdBindSRSet &info)
     {
@@ -3539,9 +3655,14 @@ namespace Cutlass
             return Result::eFailure;
         }
 
+        auto&& UBs = info.SRSet.getUniformBuffers();
+        auto&& CTs = info.SRSet.getCombinedTextures();
+
         std::vector<VkDescriptorBufferInfo> dbi_vec;
+        dbi_vec.reserve(UBs.size());
 
         std::vector<VkDescriptorImageInfo> dii_vec;
+        dii_vec.reserve(CTs.size());
 
         std::vector<VkWriteDescriptorSet> writeDescriptors;
         {
@@ -3551,7 +3672,7 @@ namespace Cutlass
             dsai.descriptorSetCount = 1;
             dsai.pSetLayouts = &gpo.mDescriptorSetLayouts[info.set];
             result = checkVkResult(vkAllocateDescriptorSets(mDevice, &dsai, &co.mDescriptorSets.back()[info.set]));
-                        
+            
             if (result != Result::eSuccess)
             {
                 std::cerr << "failed to allocate descriptor set\n";
@@ -3562,41 +3683,41 @@ namespace Cutlass
                 gpo.mSetSizes[info.set]
             );
             
-            for (const auto& dub: info.SRSet.getUniformBuffers())
+            for (const auto& dub: UBs)
             {
                 auto& ubo = mBufferMap[dub.second];
-                dbi_vec.emplace_back();
-                dbi_vec.back().buffer = ubo.mBuffer.value();
-                dbi_vec.back().offset = 0;
-                dbi_vec.back().range = VK_WHOLE_SIZE;
+                auto&& dbi = dbi_vec.emplace_back();
+                dbi.buffer = ubo.mBuffer.value();
+                dbi.offset = 0;
+                dbi.range = VK_WHOLE_SIZE;
 
-                writeDescriptors.emplace_back(VkWriteDescriptorSet{});
-                writeDescriptors.back().sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                writeDescriptors.back().dstBinding = dub.first;
-                writeDescriptors.back().dstArrayElement = 0;
-                writeDescriptors.back().descriptorCount = 1;
-                writeDescriptors.back().descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                writeDescriptors.back().pBufferInfo = &dbi_vec.back();
-                writeDescriptors.back().dstSet = co.mDescriptorSets.back()[info.set];
+                auto&& wdi = writeDescriptors.emplace_back(VkWriteDescriptorSet{});
+                wdi.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                wdi.dstBinding = dub.first;
+                wdi.dstArrayElement = 0;
+                wdi.descriptorCount = 1;
+                wdi.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                wdi.pBufferInfo = &dbi_vec.back();
+                wdi.dstSet = co.mDescriptorSets.back()[info.set];
             }
 
-            for (const auto& dct : info.SRSet.getCombinedTextures())
+            for (const auto& dct : CTs)
             {
                 auto& cto = mImageMap[dct.second];
                 
-                dii_vec.emplace_back();
-                dii_vec.back().imageView = cto.mView.value();
-                dii_vec.back().sampler = cto.mSampler.value();
-                dii_vec.back().imageLayout = cto.currentLayout;
+                auto&& dii = dii_vec.emplace_back();
+                dii.imageView = cto.mView.value();
+                dii.sampler = cto.mSampler.value();
+                dii.imageLayout = cto.currentLayout;
 
-                writeDescriptors.emplace_back(VkWriteDescriptorSet{});
-                writeDescriptors.back().sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                writeDescriptors.back().dstBinding = dct.first;
-                writeDescriptors.back().dstArrayElement = 0;
-                writeDescriptors.back().descriptorCount = 1;
-                writeDescriptors.back().descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                writeDescriptors.back().pImageInfo = &dii_vec.back();
-                writeDescriptors.back().dstSet = co.mDescriptorSets.back()[info.set];
+                auto&& wdi = writeDescriptors.emplace_back(VkWriteDescriptorSet{});
+                wdi.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                wdi.dstBinding = dct.first;
+                wdi.dstArrayElement = 0;
+                wdi.descriptorCount = 1;
+                wdi.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                wdi.pImageInfo = &dii_vec.back();
+                wdi.dstSet = co.mDescriptorSets.back()[info.set];
             }
 
             vkUpdateDescriptorSets(mDevice, static_cast<uint32_t>(writeDescriptors.size()), writeDescriptors.data(), 0, nullptr);
@@ -3702,16 +3823,15 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Context::cmdSync(CommandObject& co, const CmdSync& info)
+    Result Context::cmdBarrier(CommandObject& co, const CmdBarrier& info)
     {
-
-        if(mDebugFlag && mImageMap.count(info.hTexture) <= 0)
+        if(mDebugFlag && mImageMap.count(info.handle) <= 0)
         {
             std::cerr << "invalid texture handle!\n";
             return Result::eFailure;
         }
 
-        auto& io = mImageMap[info.hTexture];
+        auto& io = mImageMap[info.handle];
         setImageMemoryBarrier
         (
             co.mCommandBuffers.back(),
@@ -3724,7 +3844,7 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    uint32_t Context::getFrameBufferIndex(const HRenderPass& handle) const
+    uint32_t Context::getFrameBufferIndex(const HGraphicsPipeline& handle) const
     {
         if (!mIsInitialized)
         {
@@ -3732,13 +3852,21 @@ namespace Cutlass
             return 0;
         }
 
-        if (mRPMap.count(handle) <= 0)
+        if (mGPMap.count(handle) <= 0)
         {
             std::cerr << "invalid handle!\n";
             return 0;
         }
 
-        return mRPMap.at(handle).mFrameBufferIndex;
+        auto& gpo = mGPMap.at(handle);
+
+        if (mRPMap.count(gpo.mHRenderPass) <= 0)
+        {
+            std::cerr << "invalid renderpass handle!\n";
+            return 0;
+        }
+
+        return mRPMap.at(gpo.mHRenderPass).mFrameBufferIndex;
     }
 
     Result Context::execute(const HCommandBuffer &handle)

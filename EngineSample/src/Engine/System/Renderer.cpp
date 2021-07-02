@@ -129,13 +129,10 @@ namespace Engine
             Cutlass::HCommandBuffer cb;
             //ジオメトリ固有パラメータセット
             {
+                Cutlass::HBuffer sceneCB;
                 Cutlass::BufferInfo bi;
                 bi.setUniformBuffer<SceneData>();
                 mContext->createBuffer(bi, sceneCB);
-               
-                SceneData sceneData;
-                Cutlass::HBuffer sceneCB;
-                sceneData.world = mesh->getTransform().getWorldMatrix();
                 
                 sceneSet.setUniformBuffer(0, sceneCB);
                 sceneSet.setCombinedTexture(1, mDebugTex);
@@ -198,7 +195,7 @@ namespace Engine
         mCamera = camera;
     }
 
-    void Renderer::changeScene()
+    void Renderer::clearScene()
     {
         mCamera = std::nullopt;
         mLights.clear();

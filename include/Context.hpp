@@ -98,14 +98,6 @@ namespace Cutlass
         //テクスチャにデータ書き込み(使用注意, 書き込むデータのサイズはテクスチャのサイズに従うもの以外危険)
         Result writeTexture(const void *const pData, const HTexture& handle);
 
-        //描画対象オブジェクトをスワップチェインから構築
-        Result createRenderPass(const HWindow& handle, bool depthTestEnable, HRenderPass& handle_out);
-
-        //普通に構築
-        Result createRenderPass(const RenderPassCreateInfo& info, HRenderPass& handle_out);
-
-        Result destroyRenderPass(const HRenderPass& handle);
-
         //描画パイプライン構築
         Result createGraphicsPipeline(const GraphicsPipelineInfo& info, HGraphicsPipeline& handle_out);
         Result destroyGraphicsPipeline(const HGraphicsPipeline& handle);
@@ -124,7 +116,7 @@ namespace Cutlass
         Result rewriteCommandBuffer(const CommandList& commandList, const HCommandBuffer& handle);
 
         //現在処理中のフレームバッファのインデックスを取得(0~frameCount)
-        uint32_t getFrameBufferIndex(const HRenderPass& handle) const;
+        uint32_t getFrameBufferIndex(const HGraphicsPipeline& handle) const;
 
         //コマンド実行, バックバッファ表示
         Result execute(const HCommandBuffer& handle);
@@ -260,6 +252,10 @@ namespace Cutlass
         inline Result createSyncObjects(RenderPassObject &rdsto);
         
         //描画パスをテクスチャから構築
+        //描画対象オブジェクトをスワップチェインから構築
+        inline Result createRenderPass(const HWindow& handle, bool depthTestEnable, HRenderPass& handle_out);
+        //普通に構築
+        inline Result createRenderPass(const RenderPass& info, HRenderPass& handle_out);
         inline Result createRenderPass(const std::vector<HTexture>& colors, const bool loadPrevData, HRenderPass& handle_out);
         inline Result createRenderPass(const std::vector<HTexture>& colors, const HTexture& depth, const bool loadPrevData, HRenderPass& handle_out);
 
@@ -270,15 +266,17 @@ namespace Cutlass
         inline Result createShaderModule(const Shader &shader, const VkShaderStageFlagBits &stage, VkPipelineShaderStageCreateInfo *pSSCI);
 
         //各コマンド関数
-        inline Result cmdBeginRenderPass(CommandObject& co, size_t frameBufferIndex, const CmdBeginRenderPass& info);
-        inline Result cmdEndRenderPass(CommandObject& co, const CmdEndRenderPass& info);
-        inline Result cmdBindGraphicsPipeline(CommandObject& co, const CmdBindGraphicsPipeline& info);
+        // inline Result cmdBeginRenderPass(CommandObject& co, size_t frameBufferIndex, const CmdBeginRenderPass& info);
+        // inline Result cmdEndRenderPass(CommandObject& co, const CmdEndRenderPass& info);
+        // inline Result cmdBindGraphicsPipeline(CommandObject& co, const CmdBindGraphicsPipeline& info);
+        inline Result cmdBegin(CommandObject& co, size_t frameBufferIndex, const CmdBegin& info);
+        inline Result cmdEnd(CommandObject& co, const CmdEnd& info);
         inline Result cmdBindVB(CommandObject &co, const CmdBindVB& info);
         inline Result cmdBindIB(CommandObject& co, const CmdBindIB& info);
         inline Result cmdBindSRSet(CommandObject& co, const CmdBindSRSet& info);
         inline Result cmdRenderIndexed(CommandObject& co, const CmdRenderIndexed& info);
         inline Result cmdRender(CommandObject& co, const CmdRender& info);
-        inline Result cmdSync(CommandObject& co, const CmdSync& info);
+        inline Result cmdBarrier(CommandObject& co, const CmdBarrier& info);
 
         //アプリケーション名
         std::string mAppName;
