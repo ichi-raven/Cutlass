@@ -1,16 +1,370 @@
 #pragma once
 
 #include <cstdint>
+#include <unordered_map>
+
 
 namespace Cutlass
 {
-    typedef uint16_t HWindow;
-    typedef uint32_t HBuffer;
-    typedef uint32_t HTexture;
-    //typedef uint32_t HSampler;
-	typedef uint32_t HRenderPass ;
-    typedef uint32_t HGraphicsPipeline;
-    typedef uint32_t HCommandBuffer;
+    // using HWindow           = uint16_t;
+    // using HBuffer           = uint32_t;
+    // using HTexture          = uint32_t;
+    // //using HSampler        = uint32_t;
+	// using HRenderPass       = uint32_t;
+    // using HGraphicsPipeline = uint32_t;
+    // using HCommandBuffer    = uint32_t;
+
+    struct HWindow
+    {
+        const HWindow& operator = (const HWindow& r)
+        {
+            id = r.id;
+            return r;
+        }
+
+        bool operator == (const HWindow& r) const
+        {
+            return id == r.id;
+        }
+        
+        bool operator != (const HWindow& r) const
+        {
+            return id != r.id;
+        }
+
+        uint16_t operator = (uint16_t rid)
+        {
+            id = rid;
+            return rid;
+        }
+
+        HWindow& operator ++()
+        {
+            ++id;
+            return *this;
+        }
+
+        HWindow operator ++(int)
+        {
+            auto tmp = *this;
+            ++*this;
+            return tmp;
+        }
+
+        HWindow& operator --()
+        {
+            --id;
+            return *this;
+        }
+
+        HWindow operator --(int)
+        {
+            auto tmp = *this;
+            --*this;
+            return tmp;
+        }
+
+        uint16_t getID() const
+        {
+            return id;
+        }
+
+    private:
+        uint16_t id;
+    };
+
+    struct HBuffer
+    {
+        const HBuffer& operator = (const HBuffer& r)
+        {
+            id = r.id;
+            return r;
+        }
+
+        uint32_t operator = (uint32_t rid)
+        {
+            id = rid;
+            return rid;
+        }
+
+        bool operator == (const HBuffer& r) const
+        {
+            return id == r.id;
+        }
+        
+        bool operator != (const HBuffer& r) const
+        {
+            return id != r.id;
+        }
+
+        HBuffer& operator ++()
+        {
+            ++id;
+            return *this;
+        }
+
+        HBuffer operator ++(int)
+        {
+            auto tmp = *this;
+            ++*this;
+            return tmp;
+        }
+
+        HBuffer& operator --()
+        {
+            --id;
+            return *this;
+        }
+
+        HBuffer operator --(int)
+        {
+            auto tmp = *this;
+            --*this;
+            return tmp;
+        }
+
+        uint32_t getID() const
+        {
+            return id;
+        }
+
+    private:
+        uint32_t id;
+    };
+
+    struct HTexture
+    {
+        const HTexture& operator = (const HTexture& r)
+        {
+            id = r.id;
+            return r;
+        }
+        uint32_t operator = (uint32_t rid)
+        {
+            id = rid;
+            return rid;
+        }
+
+        bool operator == (const HTexture& r) const
+        {
+            return id == r.id;
+        }
+        
+        bool operator != (const HTexture& r) const
+        {
+            return id != r.id;
+        }
+        
+        HTexture& operator ++()
+        {
+            ++id;
+            return *this;
+        }
+
+        HTexture operator ++(int)
+        {
+            auto tmp = *this;
+            ++*this;
+            return tmp;
+        }
+
+        HTexture& operator --()
+        {
+            --id;
+            return *this;
+        }
+
+        HTexture operator --(int)
+        {
+            auto tmp = *this;
+            --*this;
+            return tmp;
+        }
+
+        uint32_t getID() const
+        {
+            return id;
+        }
+
+    private:
+        uint32_t id;
+    };
+
+    struct HRenderPass
+    {
+        const HRenderPass& operator = (const HRenderPass& r)
+        {
+            id = r.id;
+            return r;
+        }
+        uint32_t operator = (uint32_t rid)
+        {
+            id = rid;
+            return rid;
+        }
+
+        bool operator == (const HRenderPass& r) const
+        {
+            return id == r.id;
+        }
+        
+        bool operator != (const HRenderPass& r) const
+        {
+            return id != r.id;
+        }
+
+        HRenderPass& operator ++()
+        {
+            ++id;
+            return *this;
+        }
+
+        HRenderPass operator ++(int)
+        {
+            auto tmp = *this;
+            ++*this;
+            return tmp;
+        }
+
+        HRenderPass& operator --()
+        {
+            --id;
+            return *this;
+        }
+
+        HRenderPass operator --(int)
+        {
+            auto tmp = *this;
+            --*this;
+            return tmp;
+        }
+
+        uint32_t getID() const
+        {
+            return id;
+        }
+
+    private:
+        uint32_t id;
+    };
+
+    struct HGraphicsPipeline
+    {
+        const HGraphicsPipeline& operator = (const HGraphicsPipeline& r)
+        {
+            id = r.id;
+            return r;
+        }
+
+        uint32_t operator = (uint32_t rid)
+        {
+            id = rid;
+            return rid;
+        }
+
+        bool operator == (const HGraphicsPipeline& r) const
+        {
+            return id == r.id;
+        }
+        
+        bool operator != (const HGraphicsPipeline& r) const
+        {
+            return id != r.id;
+        }
+
+        HGraphicsPipeline& operator ++()
+        {
+            ++id;
+            return *this;
+        }
+
+        HGraphicsPipeline operator ++(int)
+        {
+            auto tmp = *this;
+            ++*this;
+            return tmp;
+        }
+
+        HGraphicsPipeline& operator --()
+        {
+            --id;
+            return *this;
+        }
+
+        HGraphicsPipeline operator --(int)
+        {
+            auto tmp = *this;
+            --*this;
+            return tmp;
+        }
+
+        uint32_t getID() const
+        {
+            return id;
+        }
+
+    private:
+        uint32_t id;
+    };
+
+    struct HCommandBuffer
+    {
+        const HCommandBuffer& operator = (const HCommandBuffer& r)
+        {
+            id = r.id;
+            return r;
+        }
+        uint32_t operator = (uint32_t rid)
+        {
+            id = rid;
+            return rid;
+        }
+
+        bool operator == (const HCommandBuffer& r) const
+        {
+            return id == r.id;
+        }
+        
+        bool operator != (const HCommandBuffer& r) const
+        {
+            return id != r.id;
+        }
+
+        HCommandBuffer& operator ++()
+        {
+            ++id;
+            return *this;
+        }
+
+        HCommandBuffer operator ++(int)
+        {
+            auto tmp = *this;
+            ++*this;
+            return tmp;
+        }
+
+        HCommandBuffer& operator --()
+        {
+            --id;
+            return *this;
+        }
+
+        HCommandBuffer operator --(int)
+        {
+            auto tmp = *this;
+            --*this;
+            return tmp;
+        }
+
+        uint32_t getID() const
+        {
+            return id;
+        }
+
+    private:
+        uint32_t id;
+    };
+
 
     enum class Result
     {
@@ -41,3 +395,60 @@ namespace Cutlass
         eFMat4,//18
     };
 };
+
+namespace std 
+{
+    template<>
+    struct hash<Cutlass::HWindow> 
+    {
+        size_t operator()(const Cutlass::HWindow& data) const 
+        {
+            return std::hash<uint16_t>()(data.getID());
+        }
+    };
+
+    template<>
+    struct hash<Cutlass::HBuffer> 
+    {
+        size_t operator()(const Cutlass::HBuffer& data) const 
+        {
+            return std::hash<uint32_t>()(data.getID());
+        }
+    };
+
+    template<>
+    struct hash<Cutlass::HTexture> 
+    {
+        size_t operator()(const Cutlass::HTexture& data) const 
+        {
+            return std::hash<uint32_t>()(data.getID());
+        }
+    };
+
+    template<>
+    struct hash<Cutlass::HRenderPass> 
+    {
+        size_t operator()(const Cutlass::HRenderPass& data) const 
+        {
+            return std::hash<uint32_t>()(data.getID());
+        }
+    };
+
+    template<>
+    struct hash<Cutlass::HGraphicsPipeline> 
+    {
+        size_t operator()(const Cutlass::HGraphicsPipeline& data) const 
+        {
+            return std::hash<uint32_t>()(data.getID());
+        }
+    };
+
+    template<>
+    struct hash<Cutlass::HCommandBuffer> 
+    {
+        size_t operator()(const Cutlass::HCommandBuffer& data) const 
+        {
+            return std::hash<uint32_t>()(data.getID());
+        }
+    };
+}

@@ -111,7 +111,6 @@ int main()
     Context context;
     if (Result::eSuccess != context.initialize("SimpleSampleApp", true))
         assert(!"Failed to initialize!");
-    
 
     HWindow window;
     {//ウィンドウ作成
@@ -144,7 +143,6 @@ int main()
     {//ユニフォームバッファ作成
         BufferInfo bi;
         bi.setUniformBuffer<Uniform>();
-        
         if (Result::eSuccess != context.createBuffer(bi, renderUB))
             assert(!"Failed to create uniform");
     }
@@ -212,7 +210,6 @@ int main()
 
         if (Result::eSuccess != context.createGraphicsPipeline(gpi2, renderPipeline))
             assert(!"Failed to create render pipeline!"); 
-
     }
 
     {
@@ -232,18 +229,16 @@ int main()
 
     ShaderResourceSet contourSet, renderSet;
     {//テクスチャレンダリングパスのリソースセット
-        contourSet.setUniformBuffer(0, renderUB);
+        contourSet.bind(0, renderUB);
 
-        renderSet.setUniformBuffer(0, renderUB);
-        renderSet.setCombinedTexture(1, texture);
+        renderSet.bind(0, renderUB);
+        renderSet.bind(1, texture);
     }
 
     std::vector<ShaderResourceSet> presentSets(frameCount);
     {//ウィンドウに描画するパスのリソースセット
         for (size_t i = 0; i < presentSets.size(); ++i)
-        {
-            presentSets[i].setCombinedTexture(0, target);
-        }
+            presentSets[i].bind(0, target);
     }
 
     CommandList contourCL, renderCL;
@@ -255,7 +250,6 @@ int main()
         DepthClearValue dcv(1.f, 0);
 
         {
-
             contourCL.begin(contourPipeline, true, ccv, dcv);
             contourCL.bind(vertexBuffer, indexBuffer);
             contourCL.bind(0, contourSet);
@@ -339,7 +333,7 @@ int main()
             }
 
             {//UBO書き込み
-                angle += 80.f * static_cast<float>(deltatime);
+                angle = static_cast<int>(angle + 80.f * static_cast<float>(deltatime)) % 360;
                 Uniform ubo;
                 ubo.world = glm::rotate(glm::identity<glm::mat4>(), glm::radians(angle), glm::vec3(0, 1.f, 0));
                 ubo.view = glm::lookAtRH(pos, pos + glm::vec3(0, 0, -10.f), glm::vec3(0, 1.f, 0));
@@ -350,6 +344,22 @@ int main()
                 if (Result::eSuccess != context.writeBuffer(sizeof(Uniform), &ubo, renderUB))
                     assert(!"Failed to write uniform buffer!");
             }
+
+            ImGui_ImplVulkan_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
+            ImGui::Begin("Hello, world!", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove);
+            ImGui::Text("This is some useful text.");
+            //float param = 10;
+            ImGui::SliderFloat("english", &angle, 0, 360.f);
+            if(ImGui::Button("test button", ImVec2(100, 100)))
+            {
+                break;
+            }
+            ImGui::End();
+            ImGui::Render();
+
+            context.updateCommandBuffer(presentCL, presentCB);
 
             //コマンド実行
             if (Result::eSuccess != context.execute(contourCB))

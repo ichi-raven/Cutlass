@@ -90,6 +90,13 @@ namespace Cutlass
         uint32_t firstInstance; //インスタシング描画しないなら0
     };
 
+    // struct ImDrawData;
+
+    // struct CmdRenderImGui
+    // {
+    //     ImDrawData* data;
+    // };
+
     struct CmdBarrier
     {
         HTexture handle;
@@ -107,6 +114,7 @@ namespace Cutlass
         eBindSRSet,
         eRenderIndexed,
         eRender,
+        //eRenderImGui,
         eBarrier,
     };
 
@@ -122,6 +130,7 @@ namespace Cutlass
         CmdBindSRSet,
         CmdRenderIndexed,
         CmdRender,
+        //CmdRenderImGui,
         CmdBarrier
     >;
 
@@ -172,6 +181,8 @@ namespace Cutlass
             uint32_t vertexOffset,  //描画し終わった頂点だけずらす、普通は0
             uint32_t firstInstance //インスタンシング描画しないなら0
         );
+
+        //void renderImGui(ImDrawData* data = nullptr);
 
         void barrier(const HTexture& handle);
 

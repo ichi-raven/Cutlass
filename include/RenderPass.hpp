@@ -20,10 +20,10 @@ namespace Cutlass
         (
             const HTexture& colorTarget,
             const HTexture& depthTarget,
-            const bool loadPrevData = false
+            const bool loadPrevFrame = false
         )
         : depthTarget(depthTarget)
-        , loadPrevData(loadPrevData)
+        , loadPrevFrame(loadPrevFrame)
         {
             colorTargets.emplace_back(colorTarget);
         }
@@ -31,9 +31,9 @@ namespace Cutlass
         RenderPass
         (
             const HTexture& colorTarget,
-            const bool loadPrevData = false
+            const bool loadPrevFrame = false
         )
-        : loadPrevData(loadPrevData)
+        : loadPrevFrame(loadPrevFrame)
         {
             colorTargets.emplace_back(colorTarget);
         }
@@ -42,11 +42,11 @@ namespace Cutlass
         (
             const std::vector<HTexture>& colorTargets,
             const HTexture& depthTarget,
-            const bool loadPrevData = false
+            const bool loadPrevFrame = false
         )
         : colorTargets(colorTargets)
         , depthTarget(depthTarget)
-        , loadPrevData(loadPrevData)
+        , loadPrevFrame(loadPrevFrame)
         {
 
         }
@@ -55,11 +55,11 @@ namespace Cutlass
         (
             const std::initializer_list<HTexture>& colorTargets,
             const HTexture& depthTarget,
-            const bool loadPrevData = false
+            const bool loadPrevFrame = false
         )
         : colorTargets(colorTargets)
         , depthTarget(depthTarget)
-        , loadPrevData(loadPrevData)
+        , loadPrevFrame(loadPrevFrame)
         {
 
         }
@@ -67,10 +67,10 @@ namespace Cutlass
         RenderPass
         (
             const std::vector<HTexture>& colorTargets,
-            const bool loadPrevData = false
+            const bool loadPrevFrame = false
         )
         : colorTargets(colorTargets)
-        , loadPrevData(loadPrevData)
+        , loadPrevFrame(loadPrevFrame)
         {
 
         }
@@ -78,10 +78,10 @@ namespace Cutlass
         RenderPass
         (
             const std::initializer_list<HTexture>& colorTargets,
-            const bool loadPrevData = false
+            const bool loadPrevFrame = false
         )
         : colorTargets(colorTargets)
-        , loadPrevData(loadPrevData)
+        , loadPrevFrame(loadPrevFrame)
         {
             
         }
@@ -98,6 +98,6 @@ namespace Cutlass
         std::optional<HWindow> window;//if window handle was set, colortargets will be ignored
         std::vector<HTexture> colorTargets;
         std::optional<HTexture> depthTarget;
-        bool loadPrevData;
+        bool loadPrevFrame;
     };
 }

@@ -255,12 +255,12 @@ namespace Cutlass
         return mOutputVariables;
     }
 
-    void ShaderResourceSet::setUniformBuffer(uint8_t binding, const HBuffer& handle)
+    void ShaderResourceSet::bind(uint8_t binding, const HBuffer& handle)
     {
         uniformBuffers.emplace(binding, handle);
     }
 
-    void ShaderResourceSet::setCombinedTexture(uint8_t binding, const HBuffer& handle)
+    void ShaderResourceSet::bind(uint8_t binding, const HTexture& handle)
     {
         combinedTextures.emplace(binding, handle);
     }

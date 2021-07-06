@@ -6,6 +6,10 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include "ThirdParty/imgui.h"
+#include "ThirdParty/imgui_impl_glfw.h"
+#include "ThirdParty/imgui_impl_vulkan.h"
+
 #include "Utility.hpp"
 #include "Buffer.hpp"
 #include "Texture.hpp"
@@ -29,24 +33,26 @@ namespace Cutlass
     {
         WindowInfo() {}
 
-        WindowInfo(const uint32_t width, const uint32_t height, const uint32_t frameCount, const std::string& windowName, bool fullScreen = false, bool vsync = true)
+        WindowInfo(const uint32_t width, const uint32_t height, const uint32_t frameCount, const std::string& windowName, bool fullScreen = false, bool vsync = true, bool useImGui = true)
             : width(width)
             , height(height)
             , frameCount(frameCount)
             , windowName(windowName)
             , vsync(vsync)
             , fullScreen(fullScreen)
+            , useImGui(useImGui)
         {
 
         }
 
-        WindowInfo(const uint32_t width, const uint32_t height, const uint32_t frameCount, const char* windowName, bool fullScreen = false, bool vsync = true)
+        WindowInfo(const uint32_t width, const uint32_t height, const uint32_t frameCount, const char* windowName, bool fullScreen = false, bool vsync = true, bool useImGui = true)
             : width(width)
             , height(height)
             , frameCount(frameCount)
             , windowName(std::string(windowName))
             , vsync(vsync)
             , fullScreen(fullScreen)
+            , useImGui(useImGui)
         {
 
         }
@@ -57,6 +63,7 @@ namespace Cutlass
         std::string windowName;
         bool vsync;
         bool fullScreen;
+        bool useImGui;
     };
 
     class Context
@@ -112,8 +119,8 @@ namespace Cutlass
         Result releaseShaderResourceSet(const HCommandBuffer& handle);
 
         //すでに割り当てたコマンドの中身を書き換える
-        Result rewriteCommandBuffer(const std::vector<CommandList>& commandLists, const HCommandBuffer& handle);
-        Result rewriteCommandBuffer(const CommandList& commandList, const HCommandBuffer& handle);
+        Result updateCommandBuffer(const std::vector<CommandList>& commandLists, const HCommandBuffer& handle);
+        Result updateCommandBuffer(const CommandList& commandList, const HCommandBuffer& handle);
 
         //現在処理中のフレームバッファのインデックスを取得(0~frameCount)
         uint32_t getFrameBufferIndex(const HGraphicsPipeline& handle) const;
@@ -136,6 +143,9 @@ namespace Cutlass
         //ウィンドウ終了通知(指定なしで全てのウィンドウの論理和)
         bool shouldClose() const;
         bool shouldClose(const HWindow& handle) const;
+
+        //ImGui用インタフェース
+        Result uploadFontFile(const char* fontPath, float fontSize);
 
         //破棄
         Result destroy();
@@ -161,6 +171,9 @@ namespace Cutlass
             uint32_t mMaxFrameNum;
             //同時処理可能なフレーム数
             uint32_t mMaxFrameInFlight;
+
+            //ImGui
+            bool useImGui;
         };
 
         struct BufferObject
@@ -206,6 +219,7 @@ namespace Cutlass
             std::vector<VkFence> imagesInFlight;
             std::vector<VkSemaphore> mRenderCompletedSems;
             std::vector<VkSemaphore> mPresentCompletedSems;
+
         };
 
         struct GraphicsPipelineObject
@@ -230,7 +244,7 @@ namespace Cutlass
             std::vector<VkCommandBuffer> mCommandBuffers;
             std::optional<HRenderPass> mHRenderPass;//同じ内容を描画するウィンドウが複数ある場合
             std::optional<HGraphicsPipeline> mHGPO;
-            std::vector<std::vector<VkDescriptorSet>> mDescriptorSets;
+            std::vector<std::vector<std::optional<VkDescriptorSet>>> mDescriptorSets;
             bool mPresentFlag;
         };
 
@@ -240,11 +254,12 @@ namespace Cutlass
         inline Result createDevice();
         inline Result createCommandPool();
 
-        inline Result createSurface(WindowObject &wo);
-        inline Result selectSurfaceFormat(WindowObject &wo, VkFormat format);
-        inline Result createSwapchain(WindowObject &wo, bool vsync);
-        inline Result createSwapchainImages(WindowObject &wo);
-        inline Result createDepthBuffer(WindowObject &wo);
+        inline Result createSurface(WindowObject& wo);
+        inline Result selectSurfaceFormat(WindowObject& wo, VkFormat format);
+        inline Result createSwapchain(WindowObject& wo, bool vsync);
+        inline Result createSwapchainImages(WindowObject& wo);
+        inline Result createDepthBuffer(WindowObject& wo);
+        inline Result setUpImGui(WindowObject& wo, RenderPassObject& rpo);
 
         inline Result searchGraphicsQueueIndex();
         inline uint32_t getMemoryTypeIndex(uint32_t requestBits, VkMemoryPropertyFlags requestProps) const;
@@ -256,8 +271,8 @@ namespace Cutlass
         inline Result createRenderPass(const HWindow& handle, bool depthTestEnable, HRenderPass& handle_out);
         //普通に構築
         inline Result createRenderPass(const RenderPass& info, HRenderPass& handle_out);
-        inline Result createRenderPass(const std::vector<HTexture>& colors, const bool loadPrevData, HRenderPass& handle_out);
-        inline Result createRenderPass(const std::vector<HTexture>& colors, const HTexture& depth, const bool loadPrevData, HRenderPass& handle_out);
+        inline Result createRenderPass(const std::vector<HTexture>& colors, const bool loadPrevFrame, HRenderPass& handle_out);
+        inline Result createRenderPass(const std::vector<HTexture>& colors, const HTexture& depth, const bool loadPrevFrame, HRenderPass& handle_out);
 
         inline Result enableDebugReport();
         inline Result disableDebugReport();
@@ -270,13 +285,18 @@ namespace Cutlass
         // inline Result cmdEndRenderPass(CommandObject& co, const CmdEndRenderPass& info);
         // inline Result cmdBindGraphicsPipeline(CommandObject& co, const CmdBindGraphicsPipeline& info);
         inline Result cmdBegin(CommandObject& co, size_t frameBufferIndex, const CmdBegin& info);
-        inline Result cmdEnd(CommandObject& co, const CmdEnd& info);
-        inline Result cmdBindVB(CommandObject &co, const CmdBindVB& info);
-        inline Result cmdBindIB(CommandObject& co, const CmdBindIB& info);
-        inline Result cmdBindSRSet(CommandObject& co, const CmdBindSRSet& info);
-        inline Result cmdRenderIndexed(CommandObject& co, const CmdRenderIndexed& info);
-        inline Result cmdRender(CommandObject& co, const CmdRender& info);
-        inline Result cmdBarrier(CommandObject& co, const CmdBarrier& info);
+        inline Result cmdEnd(CommandObject& co, size_t frameBufferIndex, const CmdEnd& info);
+        inline Result cmdBindVB(CommandObject &co, size_t frameBufferIndex, const CmdBindVB& info);
+        inline Result cmdBindIB(CommandObject& co, size_t frameBufferIndex, const CmdBindIB& info);
+        inline Result cmdBindSRSet(CommandObject& co, size_t frameBufferIndex, const CmdBindSRSet& info);
+        inline Result cmdRenderIndexed(CommandObject& co, size_t frameBufferIndex, const CmdRenderIndexed& info);
+        inline Result cmdRender(CommandObject& co, size_t frameBufferIndex, const CmdRender& info);
+        inline Result cmdBarrier(CommandObject& co, size_t frameBufferIndex, const CmdBarrier& info);
+
+        //ImGui用コマンド構築
+        inline Result cmdImGui(CommandObject& co, size_t frameBufferIndex);
+
+        inline Result createImGuiCommandBuffer(size_t frameBufferIndex);
 
         //アプリケーション名
         std::string mAppName;
@@ -314,5 +334,9 @@ namespace Cutlass
         uint32_t mMaxFrame;
         //初期化確認
         bool mIsInitialized;
+
+        //ImGui用RenderPass, 描画対象はウィンドウ
+        std::optional<VkDescriptorPool> mImGuiDescriptorPool;
+        std::optional<VkRenderPass> mImGuiRenderPass;
     };
 };

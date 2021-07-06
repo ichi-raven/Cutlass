@@ -19,9 +19,9 @@
 int main()
 {
 	//定数
-	constexpr uint16_t windowWidth = 800;
+	constexpr uint16_t windowWidth 	= 800;
 	constexpr uint16_t windowHeight = 600;
-	constexpr uint16_t frameCount = 3;
+	constexpr uint16_t frameCount 	= 3;
 
 	//アプリケーション実体作成
 	Engine::Application<SceneList, MyCommonRegion> app
@@ -31,9 +31,9 @@ int main()
 	);
 	
 	//情報セット
-	app.mCommonRegion->width = windowWidth;
-	app.mCommonRegion->height = windowHeight;
-	app.mCommonRegion->frameCount = frameCount;
+	app.mCommonRegion->width 		= windowWidth;
+	app.mCommonRegion->height 		= windowHeight;
+	app.mCommonRegion->frameCount 	= frameCount;
 
 	//シーン追加
 	app.addScene<TestScene>(SceneList::eTest);

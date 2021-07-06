@@ -32,8 +32,8 @@ namespace Cutlass
 
     struct ShaderResourceSet
     {
-        void setUniformBuffer(uint8_t binding, const HBuffer& handle);
-        void setCombinedTexture(uint8_t binding, const HBuffer &handle);
+        void bind(uint8_t binding, const HBuffer& handle);
+        void bind(uint8_t binding, const HTexture& handle);
         
         const std::map<uint8_t, HBuffer>& getUniformBuffers() const;
         const std::map<uint8_t, HTexture>& getCombinedTextures() const;
