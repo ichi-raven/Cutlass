@@ -877,7 +877,7 @@ namespace Cutlass
         VkSwapchainCreateInfoKHR ci{};
         ci.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
         ci.surface = wo.mSurface.value();
-        ci.minImageCount = wo.mMaxFrameNum;
+        ci.minImageCount = wo.mSurfaceCaps.minImageCount;
         ci.imageFormat = wo.mSurfaceFormat.format;
         ci.imageColorSpace = wo.mSurfaceFormat.colorSpace;
         ci.imageExtent = extent;
