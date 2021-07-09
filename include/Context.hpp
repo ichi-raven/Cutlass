@@ -105,10 +105,12 @@ namespace Cutlass
         //テクスチャにデータ書き込み(使用注意, 書き込むデータのサイズはテクスチャのサイズに従うもの以外危険)
         Result writeTexture(const void *const pData, const HTexture& handle);
 
+        Result createRenderPass(const RenderPassInfo& info, HRenderPass& handle_out);
+
         //描画パイプライン構築
         Result createGraphicsPipeline(const GraphicsPipelineInfo& info, HGraphicsPipeline& handle_out);
         Result destroyGraphicsPipeline(const HGraphicsPipeline& handle);
-       
+
         //描画コマンドバッファを作成
         Result createCommandBuffer(const std::vector<CommandList>& commandLists, HCommandBuffer& handle_out);
         Result createCommandBuffer(const CommandList& commandList, HCommandBuffer& handle_out);
@@ -123,7 +125,7 @@ namespace Cutlass
         Result updateCommandBuffer(const CommandList& commandList, const HCommandBuffer& handle);
 
         //現在処理中のフレームバッファのインデックスを取得(0~frameCount)
-        uint32_t getFrameBufferIndex(const HGraphicsPipeline& handle) const;
+        uint32_t getFrameBufferIndex(const HRenderPass& handle) const;
 
         //コマンド実行, バックバッファ表示
         Result execute(const HCommandBuffer& handle);
@@ -270,7 +272,6 @@ namespace Cutlass
         //描画対象オブジェクトをスワップチェインから構築
         inline Result createRenderPass(const HWindow& handle, bool depthTestEnable, HRenderPass& handle_out);
         //普通に構築
-        inline Result createRenderPass(const RenderPass& info, HRenderPass& handle_out);
         inline Result createRenderPass(const std::vector<HTexture>& colors, const bool loadPrevFrame, HRenderPass& handle_out);
         inline Result createRenderPass(const std::vector<HTexture>& colors, const HTexture& depth, const bool loadPrevFrame, HRenderPass& handle_out);
 
@@ -283,7 +284,7 @@ namespace Cutlass
         //各コマンド関数
         // inline Result cmdBeginRenderPass(CommandObject& co, size_t frameBufferIndex, const CmdBeginRenderPass& info);
         // inline Result cmdEndRenderPass(CommandObject& co, const CmdEndRenderPass& info);
-        // inline Result cmdBindGraphicsPipeline(CommandObject& co, const CmdBindGraphicsPipeline& info);
+        inline Result cmdBindGraphicsPipeline(CommandObject& co, size_t frameBufferIndex, const CmdBindGraphicsPipeline& info);
         inline Result cmdBegin(CommandObject& co, size_t frameBufferIndex, const CmdBegin& info);
         inline Result cmdEnd(CommandObject& co, size_t frameBufferIndex, const CmdEnd& info);
         inline Result cmdBindVB(CommandObject &co, size_t frameBufferIndex, const CmdBindVB& info);
@@ -335,7 +336,7 @@ namespace Cutlass
         //初期化確認
         bool mIsInitialized;
 
-        //ImGui用RenderPass, 描画対象はウィンドウ
+        //ImGui用, 描画対象は常にフレームバッファ
         std::optional<VkDescriptorPool> mImGuiDescriptorPool;
         std::optional<VkRenderPass> mImGuiRenderPass;
     };

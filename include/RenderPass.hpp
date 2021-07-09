@@ -9,14 +9,14 @@
 
 namespace Cutlass
 {
-    struct RenderPass
+    struct RenderPassInfo
     {
-        RenderPass() 
+        RenderPassInfo() 
         {
             //do nothing(dangerous)
         };
 
-        RenderPass
+        RenderPassInfo
         (
             const HTexture& colorTarget,
             const HTexture& depthTarget,
@@ -28,7 +28,7 @@ namespace Cutlass
             colorTargets.emplace_back(colorTarget);
         }
 
-        RenderPass
+        RenderPassInfo
         (
             const HTexture& colorTarget,
             const bool loadPrevFrame = false
@@ -38,7 +38,7 @@ namespace Cutlass
             colorTargets.emplace_back(colorTarget);
         }
 
-        RenderPass
+        RenderPassInfo
         (
             const std::vector<HTexture>& colorTargets,
             const HTexture& depthTarget,
@@ -51,7 +51,7 @@ namespace Cutlass
 
         }
 
-        RenderPass
+        RenderPassInfo
         (
             const std::initializer_list<HTexture>& colorTargets,
             const HTexture& depthTarget,
@@ -64,7 +64,7 @@ namespace Cutlass
 
         }
 
-        RenderPass
+        RenderPassInfo
         (
             const std::vector<HTexture>& colorTargets,
             const bool loadPrevFrame = false
@@ -75,7 +75,7 @@ namespace Cutlass
 
         }
 
-        RenderPass
+        RenderPassInfo
         (
             const std::initializer_list<HTexture>& colorTargets,
             const bool loadPrevFrame = false
@@ -86,7 +86,7 @@ namespace Cutlass
             
         }
 
-        RenderPass
+        RenderPassInfo
         (
             const HWindow& window
         )

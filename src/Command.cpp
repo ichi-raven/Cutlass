@@ -1,5 +1,6 @@
 #include "../include/Command.hpp"
 
+#include <iostream>
 
 namespace Cutlass
 {
@@ -50,14 +51,16 @@ namespace Cutlass
     // }
 
     
-    void CommandList::begin(const HGraphicsPipeline& handle, bool clearFlag, const ColorClearValue ccv, const DepthClearValue dcv)
+    void CommandList::begin(const HRenderPass& handle, bool clearFlag, const ColorClearValue ccv, const DepthClearValue dcv)
     {
         mCommands.emplace_back(CommandType::eBegin, CmdBegin{handle, ccv, dcv, clearFlag});
+        begun = true;
     }
 
-    void CommandList::begin(const HGraphicsPipeline& handle, const DepthClearValue dcv, const ColorClearValue ccv)
+    void CommandList::begin(const HRenderPass& handle, const DepthClearValue dcv, const ColorClearValue ccv)
     {
         mCommands.emplace_back(CommandType::eBegin, CmdBegin{handle, ccv, dcv, true});
+        begun = true;
     }
 
     void CommandList::end(bool presentIfRenderedFrameBuffer)
@@ -65,6 +68,20 @@ namespace Cutlass
         mCommands.emplace_back(CommandType::eEnd, CmdEnd{});
         if(presentIfRenderedFrameBuffer)
              mCommands.emplace_back(CommandType::ePresent, CmdPresent{});
+        begun = false;
+        indexed = false;
+        graphicsPipeline = false;
+    }
+
+    void CommandList::bind(const HGraphicsPipeline& handle)
+    {
+        // if(!begun)
+        // {
+        //     std::cerr << "This command list is not begun!\n";
+        //     return;
+        // }
+        mCommands.emplace_back(CommandType::eBindGraphicsPipeline, CmdBindGraphicsPipeline{handle});
+        graphicsPipeline = true;
     }
 
     void CommandList::bind(const HBuffer& VBHandle)
@@ -76,11 +93,25 @@ namespace Cutlass
     {
         mCommands.emplace_back(CommandType::eBindVB, CmdBindVB{VBHandle});
         mCommands.emplace_back(CommandType::eBindIB, CmdBindIB{IBHandle});
+
+        indexed = true;
     }
 
     void CommandList::bind(const uint16_t set, const ShaderResourceSet& shaderResourceSet)
     {
+        // if(!graphicsPipeline)
+        // {
+        //     std::cerr << "bind graphics pipeline first!\n";
+        //     return;
+        // }
+
         mCommands.emplace_back(CommandType::eBindSRSet, CmdBindSRSet{set, shaderResourceSet});
+    }
+
+    void CommandList::bindIndexBuffer(const HBuffer& IBHandle)
+    {
+        mCommands.emplace_back(CommandType::eBindIB, CmdBindIB{IBHandle});
+        indexed = true;
     }
 
     // void CommandList::present()
@@ -97,6 +128,16 @@ namespace Cutlass
             uint32_t firstInstance 
     )
     {
+        // if(!begun)
+        // {
+        //     std::cerr << "This command list is not begun!\n";
+        //     return;
+        // }
+        // if(!indexed)
+        // {
+        //     std::cerr << "index buffer is not set!\n";
+        //     return;
+        // }
         mCommands.emplace_back(CommandType::eRenderIndexed, CmdRenderIndexed{indexCount, instanceCount, firstIndex, vertexOffset, firstInstance});
     }
 
@@ -108,6 +149,11 @@ namespace Cutlass
         uint32_t firstInstance
     )
     {
+        //if(!begun)
+        // {
+        //     std::cerr << "This command list is not begun!\n";
+        //     return;
+        // }
         mCommands.emplace_back(CommandType::eRender, CmdRender{vertexCount, instanceCount, vertexOffset, firstInstance});
     }
 

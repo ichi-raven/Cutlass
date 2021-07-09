@@ -53,8 +53,7 @@ namespace Engine
         , mContext(context)
         , mSystem(system)
         {
-            //これも大して影響ないとは思うけどチューニングしたら速いかも知れない
-            mComponentsVec.reserve(3);
+            mComponentsVec.reserve(4);
         }
 
         //Noncopyable, Nonmovable

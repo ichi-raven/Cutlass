@@ -12,6 +12,7 @@
 
 #include <Engine/Components/MaterialComponent.hpp>
 #include <Engine/Components/CameraComponent.hpp>
+#include <Engine/Components/LightComponent.hpp>
 
 #include <Engine/Utility/Transform.hpp>
 
@@ -34,6 +35,7 @@ void SampleActor::awake()
 	mMesh = addComponent<Engine::MeshComponent>();
 	auto material = addComponent<Engine::MaterialComponent>();
 	auto camera = addComponent<Engine::CameraComponent>();
+	auto light = addComponent<Engine::LightComponent>();
 
 	//ロード
 	//loader->load(Resource::Model::genPath(Resource::Model::testGLTF).c_str(), mMesh, material);
@@ -41,20 +43,27 @@ void SampleActor::awake()
 	//mesh
 	mMesh->createCube(1.f);
 
-	auto VS = Cutlass::Shader(Resource::Shader::genPath(Resource::Shader::objVert), "main");
-	auto FS = Cutlass::Shader(Resource::Shader::genPath(Resource::Shader::frag), "main");
+	// auto VS = Cutlass::Shader(Resource::Shader::genPath(Resource::Shader::objVert), "main");
+	// auto FS = Cutlass::Shader(Resource::Shader::genPath(Resource::Shader::frag), "main");
 
-	material->setVS(VS);
-	material->setFS(FS);
+	// material->setVS(VS);
+	// material->setFS(FS);
 
 	//camera
 	camera->getTransform().setPos(glm::vec3(0, 0, 10.f));
 	camera->setViewParam(glm::vec3(0, 0, -10.f), glm::vec3(0, 1.f, 0));
 	camera->setProjectionParam(45.f, getCommonRegion()->width, getCommonRegion()->height, 0.1f, 1e6);
 
+	//light
+	Engine::LightComponent::DirectionalLightParam data;
+	data.lightDir = glm::vec4(1.f, 1.f, 1.f, 0);
+	data.lightColor = glm::vec4(0.4f, 0.4f, 0.4f, 1.f);
+	light->setAsDirectionalLight(data);
 	//renderer
 	renderer->setCamera(camera);
+	renderer->addLight(light);
 	renderer->regist(mMesh, material);
+	//assert(0);
 }
 
 void SampleActor::init()

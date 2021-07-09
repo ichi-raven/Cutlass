@@ -22,16 +22,16 @@ namespace Cutlass
 
     struct CmdBegin
     {
-        HGraphicsPipeline handle;
+        HRenderPass handle;
         ColorClearValue ccv;
         DepthClearValue dcv;
         bool clear;
     };
 
-    // struct CmdBindGraphicsPipeline
-    // {
-    //     HGraphicsPipeline RPHandle;
-    // };
+    struct CmdBindGraphicsPipeline
+    {
+        HGraphicsPipeline handle;
+    };
 
     struct CmdEnd
     {
@@ -107,7 +107,7 @@ namespace Cutlass
     {
         eBegin,
         eEnd,
-        //eBindGraphicsPipeline,
+        eBindGraphicsPipeline,
         ePresent,
         eBindVB,
         eBindIB,
@@ -123,7 +123,7 @@ namespace Cutlass
     <
         CmdBegin,
         CmdEnd,
-        //CmdBindGraphicsPipeline,
+        CmdBindGraphicsPipeline,
         CmdPresent,
         CmdBindVB,
         CmdBindIB,
@@ -142,14 +142,16 @@ namespace Cutlass
     public:
         CommandList()
         : indexed(false)
+        , begun(false)
+        , graphicsPipeline(false)
         {
 
         }
         // void beginRenderPass(const HRenderPass& RPHandle, bool clearFlag, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f }, const DepthClearValue dcv = { 1.f, 0 });
         // void beginRenderPass(const HRenderPass& RPHandle, const DepthClearValue dcv = { 1.f, 0 }, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f });
 
-        void begin(const HGraphicsPipeline& handle, bool clearFlag, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f }, const DepthClearValue dcv = { 1.f, 0 });
-        void begin(const HGraphicsPipeline& handle, const DepthClearValue dcv = { 1.f, 0 }, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f });
+        void begin(const HRenderPass& handle, bool clearFlag, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f }, const DepthClearValue dcv = { 1.f, 0 });
+        void begin(const HRenderPass& handle, const DepthClearValue dcv = { 1.f, 0 }, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f });
         void end(bool presentIfRenderedFrameBuffer = true);
         
         //void present();
@@ -159,12 +161,17 @@ namespace Cutlass
 
         // void bindShaderResourceSet(const uint32_t set, const ShaderResourceSet &shaderResourceSet);
         
+        void bind(const HGraphicsPipeline& handle);
+
         //bind vertex buffer only
         void bind(const HBuffer& VBHandle);
         //bind vertex buffer and index buffer
         void bind(const HBuffer& VBHandle, const HBuffer& IBHandle);
         //bind shader resource set
         void bind(const uint16_t set, const ShaderResourceSet& shaderSet);
+
+        //option
+        void bindIndexBuffer(const HBuffer& IBHandle);
 
         void renderIndexed
         (
@@ -194,5 +201,7 @@ namespace Cutlass
     private:
         InternalCommandList mCommands;
         bool indexed;
+        bool begun;
+        bool graphicsPipeline;
     };
 }            

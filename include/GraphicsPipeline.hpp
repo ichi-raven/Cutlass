@@ -121,7 +121,7 @@ namespace Cutlass
         (
             const Shader& VS,
             const Shader& FS,
-            const RenderPass& renderPass,
+            const HRenderPass& renderPass,
             const DepthStencilState& depthStencilState = DepthStencilState::eDepth,
             const RasterizerState& rasterizerState = RasterizerState(PolygonMode::eFill, CullMode::eNone, FrontFace::eClockwise),
             const Topology& topology = Topology::eTriangleList,
@@ -149,8 +149,8 @@ namespace Cutlass
         Shader FS;
         std::optional<Viewport> viewport; //左上手前、右下奥3次元(Depthは正規化座標)
         std::optional<Scissor> scissor;  //左上、右下2次元
-		//HRenderPass renderPass;//描画対象
-        RenderPass renderPass;
+		HRenderPass renderPass;//描画対象
+        //RenderPass renderPass;
     };
     
 };

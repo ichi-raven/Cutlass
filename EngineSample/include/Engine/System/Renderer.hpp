@@ -11,7 +11,9 @@
 namespace Engine
 {
     class MeshComponent;
+    class SkeltalMeshComponent;
     class MaterialComponent;
+    class CustomMaterialComponent;
     class LightComponent;
     class CameraComponent;
 
@@ -31,6 +33,8 @@ namespace Engine
         virtual ~Renderer();
 
         virtual void regist(const std::shared_ptr<MeshComponent>& mesh, const std::shared_ptr<MaterialComponent>& material);
+        virtual void regist(const std::shared_ptr<MeshComponent>& mesh, const std::shared_ptr<CustomMaterialComponent>& material);
+        virtual void regist(const std::shared_ptr<SkeltalMeshComponent>& mesh, const std::shared_ptr<CustomMaterialComponent>& material);
 
         virtual void addLight(const std::shared_ptr<LightComponent>& light);
 
@@ -53,28 +57,15 @@ namespace Engine
         std::vector<Cutlass::HWindow> mHWindows;
 
     private:
-        const uint16_t mFrameCount;
-
-        std::vector<Cutlass::HTexture> mDepthBuffers;
-
-        //描画対象・描画パス
-        //テクスチャレンダリングパス
-        std::vector<Cutlass::HTexture> mRTTexs;        
-        enum class RenderPassList
+        struct GBuffer//G-Buffer
         {
-            eTexClear,
-            eTex,
-        };
-        std::unordered_map<RenderPassList, Cutlass::HRenderPass> mTexPasses;
-        
-        //ウィンドウ描画は複数パスが必要
-        struct WindowPass
-        {
+            Cutlass::HTexture albedoRT;
+            Cutlass::HTexture normalRT;
+            Cutlass::HTexture worldPosRT;
+            Cutlass::HTexture depthBuffer;
+
             Cutlass::HRenderPass renderPass;
-            Cutlass::HGraphicsPipeline graphicsPipeline;
         };
-        std::vector<WindowPass> mPresentPasses;
-        std::vector<Cutlass::HCommandBuffer> mPresentCBs;
 
         struct SceneData
         {
@@ -89,19 +80,40 @@ namespace Engine
             std::shared_ptr<MaterialComponent> material;
             
             std::optional<Cutlass::HBuffer> sceneCB;
-            std::optional<Cutlass::HBuffer> lightCB;
             
             Cutlass::HGraphicsPipeline pipeline;
         };
 
+
+        const uint16_t mFrameCount;
+
+        std::vector<Cutlass::HTexture> mDepthBuffers;
+
+        std::vector<Cutlass::HTexture> mRTTexs;
+        std::vector<std::pair<Cutlass::HRenderPass, Cutlass::HGraphicsPipeline>> mPresentPasses;
+
+        GBuffer mGBuffer;
+        Cutlass::Shader mDefferedVS;
+        Cutlass::Shader mDefferedFS;
+        Cutlass::Shader mDefferedSkinVS;
+        Cutlass::Shader mDefferedSkinFS;
+        Cutlass::Shader mLightingVS;
+        Cutlass::Shader mLightingFS;
+
+        Cutlass::HRenderPass mLightingPass;
+        Cutlass::HGraphicsPipeline mLightingPipeline;
+
         std::optional<std::shared_ptr<CameraComponent>> mCamera;
-        std::vector<std::shared_ptr<LightComponent>> mLights;
+        std::vector<Cutlass::HBuffer> mLights;
 
         std::vector<RenderInfo> mRenderInfos;
 
-        std::vector<Cutlass::HCommandBuffer> mCommandBuffers;
+        std::vector<Cutlass::HCommandBuffer> mGeometries;
+        std::vector<Cutlass::HCommandBuffer> mLightings;
+        std::vector<Cutlass::HCommandBuffer> mForwards;
+        std::vector<Cutlass::HCommandBuffer> mPresents;
 
-        Cutlass::HTexture mDebugTex;
+        Cutlass::HTexture mDebugTex;//!
 
         bool mSceneBuilded;
     };

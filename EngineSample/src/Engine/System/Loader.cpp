@@ -184,10 +184,9 @@ namespace Engine
                 param.ambient = real3ToVec4(mtl.ambient);
                 param.diffuse = real3ToVec4(mtl.diffuse);
                 param.specular = real3ToVec4(mtl.specular);
-                param.edgeFlag = glm::uvec1(1);
                 param.useTexture = mtl.diffuse_texname.empty() ? glm::uvec1(0) : glm::uvec1(1);
 
-                material_out->addMaterialParam<MaterialComponent::PhongMaterialParam>
+                material_out->addMaterialParam<MaterialComponent::PhongMaterialParam, MaterialComponent::MaterialType::ePhong>
                 (
                     param, 
                     std::optional(static_cast<std::string_view>(mtl.diffuse_texname)), 
@@ -210,7 +209,7 @@ namespace Engine
 
             std::cerr << "vertex count : " << vertices.size() << "\n";
             std::cerr << "index count : " << indices.size() << "\n";
-            mesh_out->create<MeshComponent::Vertex>(vertices, indices);
+            mesh_out->create(vertices, indices);
             mesh_out->setTopology(Cutlass::Topology::eTriangleList);
             mesh_out->setRasterizerState(Cutlass::RasterizerState(Cutlass::PolygonMode::eFill, Cutlass::CullMode::eBack, Cutlass::FrontFace::eCounterClockwise));
         }
@@ -249,7 +248,7 @@ namespace Engine
         }
 
         {
-            std::vector<MeshComponent::GLTFVertex> vertices;
+            std::vector<MeshComponent::Vertex> vertices;
             std::vector<uint32_t> indices;
             for(const auto& mesh : model.meshes)
             for (size_t j = 0; j < mesh.primitives.size(); j++) 
@@ -336,19 +335,21 @@ namespace Engine
 
                     for (size_t v = 0; v < posAccessor.count; v++) 
                     {
-                        MeshComponent::GLTFVertex vert;
+                        MeshComponent::Vertex vert;
                         vert.pos = glm::make_vec3(&bufferPos[v * posByteStride]);//glm::vec4(glm::make_vec3(&bufferPos[v * posByteStride]), 1.0f);
                         vert.normal = -glm::normalize(glm::vec3(bufferNormals ? glm::make_vec3(&bufferNormals[v * normByteStride]) : glm::vec3(0.0f)));
-                        vert.uv0 = bufferTexCoordSet0 ? glm::make_vec2(&bufferTexCoordSet0[v * uv0ByteStride]) : glm::vec3(0.0f);
-                        vert.uv1 = bufferTexCoordSet1 ? glm::make_vec2(&bufferTexCoordSet1[v * uv1ByteStride]) : glm::vec3(0.0f);
+                        vert.color = glm::vec4(1.f);
+                        vert.UV = bufferTexCoordSet0 ? glm::make_vec2(&bufferTexCoordSet0[v * uv0ByteStride]) : glm::vec3(0.0f);
+                        // vert.uv0 = bufferTexCoordSet0 ? glm::make_vec2(&bufferTexCoordSet0[v * uv0ByteStride]) : glm::vec3(0.0f);
+                        // vert.uv1 = bufferTexCoordSet1 ? glm::make_vec2(&bufferTexCoordSet1[v * uv1ByteStride]) : glm::vec3(0.0f);
                         
-                        vert.joint0 = hasSkin ? glm::vec4(glm::make_vec4(&bufferJoints[v * jointByteStride])) : glm::vec4(0.0f);
-                        vert.weight0 = hasSkin ? glm::make_vec4(&bufferWeights[v * weightByteStride]) : glm::vec4(0.0f);
+                        // vert.joint0 = hasSkin ? glm::vec4(glm::make_vec4(&bufferJoints[v * jointByteStride])) : glm::vec4(0.0f);
+                        // vert.weight0 = hasSkin ? glm::make_vec4(&bufferWeights[v * weightByteStride]) : glm::vec4(0.0f);
                         //Fix for all zero weights
-                        if (glm::length(vert.weight0) == 0.0f) 
-                        {
-                            vert.weight0 = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
-                        }
+                        // if (glm::length(vert.weight0) == 0.0f) 
+                        // {
+                        //     vert.weight0 = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
+                        // }
 
                         vertices.emplace_back(vert);
                     }
@@ -400,7 +401,7 @@ namespace Engine
 
                 }					
             }
-            mesh_out->create<MeshComponent::GLTFVertex>(vertices, indices);
+            mesh_out->create(vertices, indices);
             mesh_out->setTopology(Cutlass::Topology::eTriangleList);
             mesh_out->setRasterizerState(Cutlass::RasterizerState(Cutlass::PolygonMode::eFill, Cutlass::CullMode::eNone, Cutlass::FrontFace::eClockwise));
         }

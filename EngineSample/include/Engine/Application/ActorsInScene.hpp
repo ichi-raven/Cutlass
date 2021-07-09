@@ -39,7 +39,7 @@ namespace Engine
 		, mBeforeActorNum(0)
 		{
 			//チューニング対象?
-			mActorsVec.reserve(5);
+			mActorsVec.reserve(8);
 		}
 
 		//autoInitをオンにするとinitを自分で呼ぶ必要がなくなりますが、循環参照を起こす可能性があります

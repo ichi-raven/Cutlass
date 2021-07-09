@@ -40,56 +40,15 @@ namespace Engine
             }
         };
 
-        struct GLTFVertex
-        {
-            glm::vec3 pos;
-            glm::vec3 normal;
-            glm::vec2 uv0;
-            glm::vec2 uv1;
-            glm::vec4 joint0;
-            glm::vec4 weight0;
-
-            bool operator==(const GLTFVertex& another) const 
-            {
-                return EQ(pos) && EQ(normal) && EQ(uv0) && EQ(uv1) && EQ(joint0) && EQ(weight0);
-            }
-        };
-
         MeshComponent();
         virtual ~MeshComponent();
 
         //メッシュを構築する
-        template<typename VertexType>
         void create
         (
-            const std::vector<VertexType>& vertices,
+            const std::vector<Vertex>& vertices,
             const std::vector<uint32_t>& indices
-        )
-        {
-            auto&& context = getContext();
-            mVisible = mEnabled = true;
-            {//ボトルネック
-                mVertices.resize(vertices.size());
-                for(uint32_t i = 0; i < mVertices.size(); ++i)
-                    mVertices[i].pos = vertices[i].pos;
-            }
-
-            mIndices = indices;
-
-            {//頂点バッファ構築
-                Cutlass::BufferInfo bi;
-                bi.setVertexBuffer<Vertex>(vertices.size());
-                context->createBuffer(bi, mVB);
-                context->writeBuffer(vertices.size() * sizeof(VertexType), vertices.data(), mVB);
-            }
-
-            {//インデックスバッファ構築
-                Cutlass::BufferInfo bi;
-                bi.setIndexBuffer<uint32_t>(mIndices.size());
-                context->createBuffer(bi, mIB);
-                context->writeBuffer(mIndices.size() * sizeof(decltype(mIndices[0])), mIndices.data(), mIB);
-            }
-        }
+        );
 
         //基本スタティックメッシュ構築
         void createCube(const double& edgeLength);
@@ -120,7 +79,7 @@ namespace Engine
 
         virtual void update() override;
 
-    private:
+    protected:
 
         bool mVisible;
         bool mEnabled;

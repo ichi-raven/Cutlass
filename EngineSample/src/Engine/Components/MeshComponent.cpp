@@ -16,7 +16,7 @@ namespace Engine
 
     MeshComponent::~MeshComponent()
     {
-        auto&& context = getContext();
+        //auto&& context = getContext();
         //context->destroyBuffer(mIB);
         //context->destroyBuffer(mVB);
     }
@@ -97,28 +97,27 @@ namespace Engine
         return mRasterizerState;
     }
 
-    // void MeshComponent::create(Cutlass::Context& context, const std::vector<MeshComponent::Vertex>& vertices, const std::vector<uint32_t>& indices)
-    // {
-    //     mVisible = mEnabled = true;
+    void MeshComponent::create(const std::vector<MeshComponent::Vertex>& vertices, const std::vector<uint32_t>& indices)
+    {
+        auto& context = getContext();
+        mVisible = mEnabled = true;
 
-        
+        mIndices = indices;
 
-    //     mIndices = indices;
+        {//頂点バッファ構築
+            Cutlass::BufferInfo bi;
+            bi.setVertexBuffer<Vertex>(mVertices.size());
+            context->createBuffer(bi, mVB);
+            context->writeBuffer(mVertices.size() * sizeof(decltype(mVertices[0])), mVertices.data(), mVB);
+        }
 
-    //     {//頂点バッファ構築
-    //         Cutlass::BufferInfo bi;
-    //         bi.setVertexBuffer<Vertex>(mVertices.size());
-    //         context.createBuffer(bi, mVB);
-    //         context.writeBuffer(mVertices.size() * sizeof(decltype(mVertices[0])), mVertices.data(), mVB);
-    //     }
-
-    //     {//インデックスバッファ構築
-    //         Cutlass::BufferInfo bi;
-    //         bi.setIndexBuffer<uint32_t>(mIndices.size());
-    //         context.createBuffer(bi, mIB);
-    //         context.writeBuffer(mIndices.size() * sizeof(decltype(mIndices[0])), mIndices.data(), mIB);
-    //     }
-    // }
+        {//インデックスバッファ構築
+            Cutlass::BufferInfo bi;
+            bi.setIndexBuffer<uint32_t>(mIndices.size());
+            context->createBuffer(bi, mIB);
+            context->writeBuffer(mIndices.size() * sizeof(decltype(mIndices[0])), mIndices.data(), mIB);
+        }
+    }
 
     void MeshComponent::createCube(const double& edgeLength)
     {

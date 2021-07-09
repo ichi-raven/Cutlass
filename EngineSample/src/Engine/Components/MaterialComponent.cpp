@@ -6,14 +6,8 @@ namespace Engine
 {
     MaterialComponent::MaterialComponent()
     {
-        //一応アップデートは不要なものとしておく
         setUpdateFlag(false);
 
-        mColorBlend = Cutlass::ColorBlend::eDefault;
-        mMultiSampleState = Cutlass::MultiSampleState::eDefault;
-
-        mVS = Cutlass::Shader(Resource::Shader::genPath(Resource::Shader::objVert), "main");
-	    mFS = Cutlass::Shader(Resource::Shader::genPath(Resource::Shader::frag), "main");
     }
 
     MaterialComponent::~MaterialComponent()
@@ -48,45 +42,45 @@ namespace Engine
         return mMaterialSets;
     }
 
-    void MaterialComponent::setVS(const Cutlass::Shader& vertexShader)
-    {
-        mVS = vertexShader;
-    }
+    // void MaterialComponent::setVS(const Cutlass::Shader& vertexShader)
+    // {
+    //     mVS = vertexShader;
+    // }
 
-    const Cutlass::Shader& MaterialComponent::getVS() const
-    {
-        return mVS;
-    }
+    // const Cutlass::Shader& MaterialComponent::getVS() const
+    // {
+    //     return mVS;
+    // }
 
-    void MaterialComponent::setFS(const Cutlass::Shader& fragmentShader)
-    {
-        mFS = fragmentShader;
-    }
+    // void MaterialComponent::setFS(const Cutlass::Shader& fragmentShader)
+    // {
+    //     mFS = fragmentShader;
+    // }
 
-    const Cutlass::Shader& MaterialComponent::getFS() const
-    {
-        return mFS;
-    }
+    // const Cutlass::Shader& MaterialComponent::getFS() const
+    // {
+    //     return mFS;
+    // }
 
-    void MaterialComponent::setColorBlend(Cutlass::ColorBlend colorBlend)
-    {
-        mColorBlend = colorBlend;
-    }
+    // void MaterialComponent::setColorBlend(Cutlass::ColorBlend colorBlend)
+    // {
+    //     mColorBlend = colorBlend;
+    // }
 
-    Cutlass::ColorBlend MaterialComponent::getColorBlend() const
-    {
-        return mColorBlend;
-    }
+    // Cutlass::ColorBlend MaterialComponent::getColorBlend() const
+    // {
+    //     return mColorBlend;
+    // }
 
-    void MaterialComponent::setMultiSampleState(Cutlass::MultiSampleState multiSampleState)
-    {
-        mMultiSampleState = multiSampleState;
-    }
+    // void MaterialComponent::setMultiSampleState(Cutlass::MultiSampleState multiSampleState)
+    // {
+    //     mMultiSampleState = multiSampleState;
+    // }
 
-    Cutlass::MultiSampleState MaterialComponent::getMultiSampleState() const
-    {
-        return mMultiSampleState;
-    }
+    // Cutlass::MultiSampleState MaterialComponent::getMultiSampleState() const
+    // {
+    //     return mMultiSampleState;
+    // }
 
     void MaterialComponent::update()
     {

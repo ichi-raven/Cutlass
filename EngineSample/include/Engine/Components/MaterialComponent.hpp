@@ -13,11 +13,22 @@ namespace Engine
         //フォンシェーディングする時のマテリアル型
         struct PhongMaterialParam
         {
-            glm::vec4 diffuse;
             glm::vec4 ambient;
+            glm::vec4 diffuse;
             glm::vec4 specular;
             glm::uvec1 useTexture;
-            glm::uvec1 edgeFlag;
+        };
+
+        struct SimpleMaterialParam
+        {
+            glm::vec4 color;
+        };
+
+        enum class MaterialType
+        {
+            ePhong,
+            ePBR,
+            eSimple
         };
 
         //ビルド済みマテリアルデータ
@@ -26,18 +37,20 @@ namespace Engine
             std::optional<uint32_t> useIndexNum;
             std::optional<Cutlass::HTexture> texture;
             Cutlass::HBuffer paramBuffer;
+            MaterialType type;
         };
 
         MaterialComponent();
         virtual ~MaterialComponent() override;
 
-        template<typename MaterialParamType>
+        template<typename MaterialParamType, MaterialType materialType>
         void addMaterialParam(const MaterialParamType& material, std::optional<std::string_view> texturePath, std::optional<uint32_t> useIndexNum)
         {
             auto&& tmp = mMaterialSets.emplace_back();
             auto&& context = getContext();
 
             tmp.useIndexNum = useIndexNum;
+            tmp.type = materialType;
 
             Cutlass::HBuffer hBuffer;
             {
@@ -53,33 +66,33 @@ namespace Engine
                 Cutlass::HTexture htex;
                 if(Cutlass::Result::eSuccess != context->createTextureFromFile(texturePath.value().data(), htex))
                     assert(!"Failed to create material texture!");
-                tmp.texture = htex; 
+                tmp.texture = htex;
             }
         }
 
         const std::vector<MaterialSet>& getMaterialSets() const;
 
-        void setVS(const Cutlass::Shader& shader);
-        const Cutlass::Shader& getVS() const;
+        // void setVS(const Cutlass::Shader& shader);
+        // const Cutlass::Shader& getVS() const;
 
-        void setFS(const Cutlass::Shader& shader); 
-        const Cutlass::Shader& getFS() const;
+        // void setFS(const Cutlass::Shader& shader); 
+        // const Cutlass::Shader& getFS() const;
 
-        void setColorBlend(Cutlass::ColorBlend colorBlend);
-        Cutlass::ColorBlend getColorBlend() const;
+        // void setColorBlend(Cutlass::ColorBlend colorBlend);
+        // Cutlass::ColorBlend getColorBlend() const;
 
-        void setMultiSampleState(Cutlass::MultiSampleState multiSampleState);
-        Cutlass::MultiSampleState getMultiSampleState() const;
+        // void setMultiSampleState(Cutlass::MultiSampleState multiSampleState);
+        // Cutlass::MultiSampleState getMultiSampleState() const;
 
         virtual void update() override;
 
-    private:
+    protected:
 
         std::vector<MaterialSet> mMaterialSets;
 
-        Cutlass::Shader mVS;
-        Cutlass::Shader mFS;
-        Cutlass::ColorBlend mColorBlend;
-        Cutlass::MultiSampleState mMultiSampleState;
+        // Cutlass::Shader mVS;
+        // Cutlass::Shader mFS;
+        // Cutlass::ColorBlend mColorBlend;
+        // Cutlass::MultiSampleState mMultiSampleState;
     };
 }

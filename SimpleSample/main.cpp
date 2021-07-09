@@ -169,6 +169,14 @@ int main()
             assert(!"Failed to create render target texture!");
     }
 
+    HRenderPass contourPass, texPass, presentPass;
+    if(Result::eSuccess != context.createRenderPass(RenderPassInfo(target, depthTarget), contourPass))
+        assert(!"Failed to create contour render pass!");
+    if(Result::eSuccess != context.createRenderPass(RenderPassInfo(target, depthTarget, true), texPass))
+        assert(!"Failed to create contour render pass!");
+    if(Result::eSuccess != context.createRenderPass(RenderPassInfo(window), presentPass))
+        assert(!"Failed to create contour render pass!");
+
     HGraphicsPipeline contourPipeline, renderPipeline, presentPipeline;
     {//テクスチャ描画用パス、ウィンドウ描画用パスを定義
 
@@ -191,7 +199,7 @@ int main()
         (
             Shader("../Shaders/TexturedCube/vert2.spv", "main"),
             Shader("../Shaders/TexturedCube/frag2.spv", "main"),
-            RenderPass(target),
+            contourPass,
             DepthStencilState::eDepth,  
             RasterizerState(PolygonMode::eFill, CullMode::eBack, FrontFace::eClockwise)
         );
@@ -200,7 +208,7 @@ int main()
         (
             VS,
             FS,
-            RenderPass(target, true),
+            texPass,
             DepthStencilState::eDepth,
             RasterizerState(PolygonMode::eFill, CullMode::eBack, FrontFace::eClockwise)
         );
@@ -217,7 +225,7 @@ int main()
         (
             Shader("../Shaders/present/vert.spv", "main"),
             Shader("../Shaders/present/frag.spv", "main"),
-            RenderPass(window),
+            presentPass,
             DepthStencilState::eNone,
             RasterizerState(PolygonMode::eFill, CullMode::eNone, FrontFace::eClockwise),
             Topology::eTriangleStrip
@@ -250,7 +258,8 @@ int main()
         DepthClearValue dcv(1.f, 0);
 
         {
-            contourCL.begin(contourPipeline, true, ccv, dcv);
+            contourCL.begin(contourPass, true, ccv, dcv);
+            contourCL.bind(contourPipeline);
             contourCL.bind(vertexBuffer, indexBuffer);
             contourCL.bind(0, contourSet);
             contourCL.renderIndexed(indices.size(), 1, 0, 0, 0);
@@ -258,7 +267,8 @@ int main()
         }
         
         {
-            renderCL.begin(renderPipeline, true);
+            renderCL.begin(texPass, true);
+            renderCL.bind(renderPipeline);
             renderCL.bind(vertexBuffer, indexBuffer);
             renderCL.bind(0, renderSet);
             renderCL.renderIndexed(indices.size(), 1, 0, 0, 0);
@@ -268,7 +278,8 @@ int main()
         for(size_t i = 0; i < presentCL.size(); ++i)
         {
             presentCL[i].barrier(target);
-            presentCL[i].begin(presentPipeline, true, ccv, dcv);
+            presentCL[i].begin(presentPass, true, ccv, dcv);
+            presentCL[i].bind(presentPipeline);
             presentCL[i].bind(0, presentSets[i]);
             presentCL[i].render(4, 1, 0, 0);
             presentCL[i].end();
@@ -284,7 +295,6 @@ int main()
         if (Result::eSuccess != context.createCommandBuffer(presentCL, presentCB))
             assert(!"Failed to create command buffer");
     }
-
     {//メインループ
         int frame = 0;
 
@@ -340,7 +350,7 @@ int main()
                 ubo.proj = glm::perspective(glm::radians(45.f), 1.f * width / height, 1.f, 1000.f);
                 ubo.proj[1][1] *= -1;
 
-                uint32_t frameIndex = context.getFrameBufferIndex(presentPipeline);
+                uint32_t frameIndex = context.getFrameBufferIndex(presentPass);
                 if (Result::eSuccess != context.writeBuffer(sizeof(Uniform), &ubo, renderUB))
                     assert(!"Failed to write uniform buffer!");
             }

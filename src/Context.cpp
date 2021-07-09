@@ -2191,6 +2191,8 @@ namespace Cutlass
 
             vkFreeCommandBuffers(mDevice, mCommandPool, 1, &commandBuffer);
         }
+
+        return result;
     }
 
     Result Context::createShaderModule(const Shader &shader, const VkShaderStageFlagBits &stage, VkPipelineShaderStageCreateInfo *pSSCI)
@@ -2231,7 +2233,7 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Context::createRenderPass(const RenderPass& info, HRenderPass& handle_out)
+    Result Context::createRenderPass(const RenderPassInfo& info, HRenderPass& handle_out)
     {
         if(info.window)
         {
@@ -2269,7 +2271,6 @@ namespace Cutlass
             std::cerr << "invalid swapchain handle\n";
             return Result::eFailure;
         }
-
         rpo.mHWindow = handle;
         auto& swapchain = mWindowMap[handle];
 
@@ -2897,22 +2898,12 @@ namespace Cutlass
         Result result;
         GraphicsPipelineObject gpo;
 
-        HRenderPass renderPass;
-        
-        if (Result::eSuccess != createRenderPass(info.renderPass, renderPass))
-        {
-            std::cerr << "invalid renderPass handle!\n";
-            return Result::eFailure;
-        }
-
-        RenderPassObject& rpo = mRPMap[renderPass];
-        gpo.mHRenderPass = renderPass;
+        RenderPassObject& rpo = mRPMap[info.renderPass];
+        gpo.mHRenderPass = info.renderPass;
         gpo.mVS = info.VS;
         gpo.mFS = info.FS;
 
-        //pWO
         {
-            
             VkVertexInputBindingDescription ib;
             
             std::vector<VkVertexInputAttributeDescription> ia_vec;
@@ -3038,7 +3029,6 @@ namespace Cutlass
                 visci.vertexAttributeDescriptionCount = 0;
                 visci.pVertexAttributeDescriptions = nullptr;
             }
-
             //color blend
             std::vector<VkPipelineColorBlendAttachmentState> blendAttachments;
             blendAttachments.reserve(rpo.colorTargets.size() + 1);
@@ -3102,7 +3092,6 @@ namespace Cutlass
             VkPipelineViewportStateCreateInfo vpsci{};
             VkViewport viewport{};
             VkRect2D scissor{};
-
             {
                 if (info.viewport)
                 {
@@ -3273,7 +3262,6 @@ namespace Cutlass
                     break;
                 }
             }
-
             std::array<VkPipelineShaderStageCreateInfo, 2> ssciArr{};
             result = createShaderModule(info.VS, VK_SHADER_STAGE_VERTEX_BIT, &ssciArr[0]);
             if(Result::eSuccess != result)
@@ -3289,12 +3277,12 @@ namespace Cutlass
             }
 
             auto layoutTable = info.VS.getLayoutTable();
-            {//VSとFSのレイアウトを統合する
+            {//integrate VS and FS layout
                 auto fsLayoutTable = info.FS.getLayoutTable();
                 layoutTable.merge(fsLayoutTable);
             }
 
-            if(mDebugFlag)
+            if (mDebugFlag)
             {
                 for(const auto& p : layoutTable)
                 {
@@ -3388,14 +3376,14 @@ namespace Cutlass
                 if(ubcount > 0)
                 {
                     sizes.emplace_back();
-                    sizes.back().descriptorCount = ubcount * mMaxFrame;//ここです
+                    sizes.back().descriptorCount = ubcount * mMaxFrame;//here
                     sizes.back().type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
                 }
 
                 if(ctcount > 0)
                 {
                     sizes.emplace_back();
-                    sizes.back().descriptorCount = ctcount * mMaxFrame;//ここです2
+                    sizes.back().descriptorCount = ctcount * mMaxFrame;//here PART2
                     sizes.back().type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                 }
                 
@@ -3488,7 +3476,7 @@ namespace Cutlass
         Result result = Result::eSuccess;
 
         CommandObject co;
-        co.mPresentFlag = false; //事前設定
+        co.mPresentFlag = false; //preset
 
         uint32_t index = 0;
         co.mCommandBuffers.resize(commandLists.size());
@@ -3527,7 +3515,7 @@ namespace Cutlass
 
             for (const auto& command : cmdData)
             {
-                switch (command.first) //RTTI...
+                switch (command.first) //RIP RTTI
                 {
                 // case CommandType::eBeginRenderPass:
                 //     if (!std::holds_alternative<CmdBeginRenderPass>(command.second))
@@ -3539,11 +3527,6 @@ namespace Cutlass
                 //         return Result::eFailure;
                 //     result = cmdEndRenderPass(co, std::get<CmdEndRenderPass>(command.second));
                 //     break;
-                // case CommandType::eBindGraphicsPipeline:
-                //     if (!std::holds_alternative<CmdBindGraphicsPipeline>(command.second))
-                //         return Result::eFailure;
-                //     result = cmdBindGraphicsPipeline(co, std::get<CmdBindGraphicsPipeline>(command.second));
-                //     break;
                 case CommandType::eBegin:
                     if (!std::holds_alternative<CmdBegin>(command.second))
                         return Result::eFailure;
@@ -3553,6 +3536,11 @@ namespace Cutlass
                     if (!std::holds_alternative<CmdEnd>(command.second))
                         return Result::eFailure;
                     result = cmdEnd(co, index, std::get<CmdEnd>(command.second));
+                    break;
+                case CommandType::eBindGraphicsPipeline:
+                    if (!std::holds_alternative<CmdBindGraphicsPipeline>(command.second))
+                        return Result::eFailure;
+                    result = cmdBindGraphicsPipeline(co, index, std::get<CmdBindGraphicsPipeline>(command.second));
                     break;
                 case CommandType::ePresent:
                     if (!std::holds_alternative<CmdPresent>(command.second))
@@ -3715,11 +3703,6 @@ namespace Cutlass
                 //         return Result::eFailure;
                 //     result = cmdEndRenderPass(co, std::get<CmdEndRenderPass>(command.second));
                 //     break;
-                // case CommandType::eBindGraphicsPipeline:
-                //     if (!std::holds_alternative<CmdBindGraphicsPipeline>(command.second))
-                //         return Result::eFailure;
-                //     result = cmdBindGraphicsPipeline(co, std::get<CmdBindGraphicsPipeline>(command.second));
-                //     break;
                 case CommandType::eBegin:
                     if (!std::holds_alternative<CmdBegin>(command.second))
                         return Result::eFailure;
@@ -3729,6 +3712,11 @@ namespace Cutlass
                     if (!std::holds_alternative<CmdEnd>(command.second))
                         return Result::eFailure;
                     result = cmdEnd(co, index, std::get<CmdEnd>(command.second));
+                    break;
+                case CommandType::eBindGraphicsPipeline:
+                    if (!std::holds_alternative<CmdBindGraphicsPipeline>(command.second))
+                        return Result::eFailure;
+                    result = cmdBindGraphicsPipeline(co, index, std::get<CmdBindGraphicsPipeline>(command.second));
                     break;
                 case CommandType::ePresent:
                     if (!std::holds_alternative<CmdPresent>(command.second))
@@ -3849,10 +3837,15 @@ namespace Cutlass
         Result result = Result::eSuccess;
 
         auto& command = co.mCommandBuffers[frameBufferIndex];
-        auto& gpo = mGPMap[info.handle];
-        auto& rpo = mRPMap[gpo.mHRenderPass];
+        if(mDebugFlag && mRPMap.count(info.handle) <= 0)
+        {
+            std::cerr << "invalid render pass!\n";
+            return Result::eFailure;
+        }
 
-        co.mHRenderPass = gpo.mHRenderPass;
+        auto& rpo = mRPMap[info.handle];
+
+        co.mHRenderPass = info.handle;
 
         VkRenderPassBeginInfo bi{};
 
@@ -3944,12 +3937,6 @@ namespace Cutlass
         bi.framebuffer = rpo.mFramebuffers[frameBufferIndex % rpo.mFramebuffers.size()].value();
         vkCmdBeginRenderPass(command, &bi, VK_SUBPASS_CONTENTS_INLINE);
 
-        co.mHGPO = info.handle;
-        vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, gpo.mPipeline.value());
-
-        //allocate descriptor set
-        co.mDescriptorSets.emplace_back().resize(gpo.mDescriptorSetLayouts.size());
-
         return Result::eSuccess;
     }
 
@@ -3983,24 +3970,23 @@ namespace Cutlass
             return Result::eFailure;
         auto& ibo = mBufferMap[info.IBHandle];
 
-
         vkCmdBindIndexBuffer(co.mCommandBuffers[index], ibo.mBuffer.value(), 0, VK_INDEX_TYPE_UINT32);
 
         return Result::eSuccess;
     }
 
-    // Result Context::cmdBindGraphicsPipeline(CommandObject& co, const CmdBindGraphicsPipeline& info)
-    // {
-    //     auto& gpo = mGPMap[info.RPHandle];
-    //     co.mHGPO = info.RPHandle;
-    //     auto& command = co.mCommandBuffers.back();
-    //     vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, gpo.mPipeline.value());
+    Result Context::cmdBindGraphicsPipeline(CommandObject& co, size_t index, const CmdBindGraphicsPipeline& info)
+    {
+        auto& gpo = mGPMap[info.handle];
+        co.mHGPO = info.handle;
+        auto& command = co.mCommandBuffers[index];
+        vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, gpo.mPipeline.value());
 
-    //     //DescriptorSetを確保しておく
-    //     co.mDescriptorSets.emplace_back().resize(gpo.mDescriptorSetLayouts.size());
+        //allocate descriptor sets
+        co.mDescriptorSets.emplace_back().resize(gpo.mDescriptorSetLayouts.size());
 
-    //     return Result::eSuccess;
-    // }
+        return Result::eSuccess;
+    }
 
     Result Context::cmdBindSRSet(CommandObject& co, size_t index, const CmdBindSRSet &info)
     {
@@ -4021,11 +4007,10 @@ namespace Cutlass
         }
         
         //if already descrioptor set was allocated
-        if(co.mDescriptorSets[index].size() >= info.set && co.mDescriptorSets[index][info.set])
+        if (co.mDescriptorSets[index].size() >= info.set && co.mDescriptorSets[index][info.set])
         {
             vkFreeDescriptorSets(mDevice, gpo.mDescriptorPool.value(), 1, &co.mDescriptorSets[index][info.set].value());
         }
-
 
         auto&& UBs = info.SRSet.getUniformBuffers();
         auto&& CTs = info.SRSet.getCombinedTextures();
@@ -4241,7 +4226,7 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    uint32_t Context::getFrameBufferIndex(const HGraphicsPipeline& handle) const
+    uint32_t Context::getFrameBufferIndex(const HRenderPass& handle) const
     {
         if (!mIsInitialized)
         {
@@ -4249,21 +4234,13 @@ namespace Cutlass
             return 0;
         }
 
-        if (mGPMap.count(handle) <= 0)
-        {
-            std::cerr << "invalid handle!\n";
-            return 0;
-        }
-
-        auto& gpo = mGPMap.at(handle);
-
-        if (mRPMap.count(gpo.mHRenderPass) <= 0)
+        if (mRPMap.count(handle) <= 0)
         {
             std::cerr << "invalid renderpass handle!\n";
             return 0;
         }
 
-        return mRPMap.at(gpo.mHRenderPass).mFrameBufferIndex;
+        return mRPMap.at(handle).mFrameBufferIndex;
     }
 
     // Result Context::cmdImGui(CommandObject& co, size_t frameBufferIndex)
