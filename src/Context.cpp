@@ -3513,90 +3513,7 @@ namespace Cutlass
                 }
             }
 
-            for (const auto& command : cmdData)
-            {
-                switch (command.first) //RIP RTTI
-                {
-                // case CommandType::eBeginRenderPass:
-                //     if (!std::holds_alternative<CmdBeginRenderPass>(command.second))
-                //         return Result::eFailure;
-                //     result = cmdBeginRenderPass(co, index, std::get<CmdBeginRenderPass>(command.second));
-                //     break;
-                // case CommandType::eEndRenderPass:
-                //     if (!std::holds_alternative<CmdEndRenderPass>(command.second))
-                //         return Result::eFailure;
-                //     result = cmdEndRenderPass(co, std::get<CmdEndRenderPass>(command.second));
-                //     break;
-                case CommandType::eBegin:
-                    if (!std::holds_alternative<CmdBegin>(command.second))
-                        return Result::eFailure;
-                    result = cmdBegin(co, index, std::get<CmdBegin>(command.second));
-                    break;
-                case CommandType::eEnd:
-                    if (!std::holds_alternative<CmdEnd>(command.second))
-                        return Result::eFailure;
-                    result = cmdEnd(co, index, std::get<CmdEnd>(command.second));
-                    break;
-                case CommandType::eBindGraphicsPipeline:
-                    if (!std::holds_alternative<CmdBindGraphicsPipeline>(command.second))
-                        return Result::eFailure;
-                    result = cmdBindGraphicsPipeline(co, index, std::get<CmdBindGraphicsPipeline>(command.second));
-                    break;
-                case CommandType::ePresent:
-                    if (!std::holds_alternative<CmdPresent>(command.second))
-                        return Result::eFailure;
-                    co.mPresentFlag = true;
-                    //result = cmdImGui(co, index);
-                    break;
-                case CommandType::eBindVB:
-                    if (!std::holds_alternative<CmdBindVB>(command.second))
-                        return Result::eFailure;
-                    result = cmdBindVB(co, index, std::get<CmdBindVB>(command.second));
-                    break;
-                case CommandType::eBindIB:
-                    if (!std::holds_alternative<CmdBindIB>(command.second))
-                        return Result::eFailure;
-                    result = cmdBindIB(co, index, std::get<CmdBindIB>(command.second));
-                    break;
-                case CommandType::eBindSRSet:
-                    if (!std::holds_alternative<CmdBindSRSet>(command.second))
-                        return Result::eFailure;
-                    result = cmdBindSRSet(co, index, std::get<CmdBindSRSet>(command.second));
-                    break;
-                // case CommandType::eBindUB:
-                //     if(!std::holds_alternative<CmdBindUniformBuffer>(command.second))
-                //         return Result::eFailure;
-                //     result = cmdBindUB(co, std::get<CmdBindUniformBuffer>(command.second));
-                //     break;
-                // case CommandType::eBindTex:
-                //     if(!std::holds_alternative<CmdBindTexture>(command.second))
-                //         return Result::eFailure;
-                //     result = cmdBindTex(co, std::get<CmdBindTexture>(command.second));
-                //     break;
-                case CommandType::eRender:
-                    if (!std::holds_alternative<CmdRender>(command.second))
-                        return Result::eFailure;
-                    result = cmdRender(co, index, std::get<CmdRender>(command.second));
-                    break;
-                case CommandType::eRenderIndexed:
-                    if (!std::holds_alternative<CmdRenderIndexed>(command.second))
-                        return Result::eFailure;
-                    result = cmdRenderIndexed(co, index, std::get<CmdRenderIndexed>(command.second));
-                    break;
-                case CommandType::eBarrier:
-                    if (!std::holds_alternative<CmdBarrier>(command.second))
-                        return Result::eFailure;
-                    result = cmdBarrier(co, index, std::get<CmdBarrier>(command.second));
-                    break;
-                default:
-                    std::cerr << "invalid command!\nrequested command : " << static_cast<int>(command.first) << "\n";
-                    return Result::eFailure;
-                    break;
-                }
-
-                if(result != Result::eSuccess)
-                    return result;
-            }
+            writeCommandInternal(co, index, cmdData, commandList.useSubCommand());
 
             {//end command buffer
                 result = checkVkResult(vkEndCommandBuffer(co.mCommandBuffers[index]));
@@ -3620,6 +3537,99 @@ namespace Cutlass
     Result Context::createCommandBuffer(const CommandList& commandList, HCommandBuffer& handle_out)
     {
         return createCommandBuffer(std::vector<CommandList>(1, commandList), handle_out);
+    }
+
+    Result Context::createSubCommandBuffer(const SubCommandList& subCommandList, HCommandBuffer& handle_out)
+    {
+        return createSubCommandBuffer(std::vector<SubCommandList>(1, subCommandList), handle_out);
+    }
+
+    Result Context::createSubCommandBuffer(const std::vector<SubCommandList>& subCommandLists, HCommandBuffer& handle_out)
+    {
+        if (!mIsInitialized)
+        {
+            std::cerr << "context did not initialize yet!\n";
+            return Result::eFailure;
+        }
+
+        Result result = Result::eSuccess;
+
+        CommandObject co;
+        co.mPresentFlag = false; //preset
+        co.mSubCommand = true;
+
+        uint32_t index = 0;
+        co.mCommandBuffers.resize(subCommandLists.size());
+        //get internal(public) command info vector
+        for (const auto& subCommandList : subCommandLists)
+        {
+            {
+                VkCommandBufferAllocateInfo ai{};
+                ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+                ai.commandPool = mCommandPool;
+                ai.commandBufferCount = 1;
+                ai.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+                result = checkVkResult(vkAllocateCommandBuffers(mDevice, &ai, &co.mCommandBuffers[index]));
+                if (Result::eSuccess != result)
+                {
+                    std::cerr << "Failed to allocate command buffers!\n";
+                    return result;
+                }
+            }
+
+            const auto& cmdData = subCommandList.getInternalCommandData();
+
+            {//begin command buffer
+                if(mDebugFlag && mRPMap.count(subCommandList.getRenderPass()) <= 0)
+                {
+                    std::cerr << "invalid render pass handle!\n";
+                    return Result::eFailure;
+                }
+                auto& rpo = mRPMap[subCommandList.getRenderPass()];
+
+                VkCommandBufferInheritanceInfo commandii{};
+                commandii.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+                commandii.pNext = nullptr;
+                commandii.renderPass = rpo.mRenderPass.value();
+                commandii.framebuffer = rpo.mFramebuffers[index].value();
+                commandii.subpass = 0;
+                commandii.occlusionQueryEnable = VK_FALSE;
+                commandii.queryFlags = 0;
+                commandii.pipelineStatistics = 0;
+
+
+                VkCommandBufferBeginInfo commandBI{};
+                commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+                commandBI.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+                commandBI.pInheritanceInfo = &commandii;
+
+                result = checkVkResult(vkBeginCommandBuffer(co.mCommandBuffers[index], &commandBI));
+                if (result != Result::eSuccess)
+                {
+                    std::cerr << "Failed to begin command buffer!\n";
+                    return result;
+                }
+            }
+
+            writeCommandInternal(co, index, cmdData);
+
+            {//end command buffer
+                result = checkVkResult(vkEndCommandBuffer(co.mCommandBuffers[index]));
+
+                if (result != Result::eSuccess)
+                {
+                    std::cerr << "Failed to end command buffer!\n";
+                    return result;
+                }
+            }
+
+            ++index;//next command
+        }
+
+        handle_out = mNextCBHandle++;
+        mCommandBufferMap.emplace(handle_out, co);
+
+        return result;
     }
 
     Result Context::updateCommandBuffer(const std::vector<CommandList>& commandLists, const HCommandBuffer& handle)
@@ -3649,7 +3659,6 @@ namespace Cutlass
         }
 
         //for present command
-        //vkDeviceWaitIdle(mDevice);//HACK
         if(co.mHRenderPass && mRPMap.count(co.mHRenderPass.value()) > 0)
         {
             auto& rpo = mRPMap[co.mHRenderPass.value()];
@@ -3689,80 +3698,7 @@ namespace Cutlass
                 }
             }
 
-            for (const auto& command : cmdData)
-            {
-                switch (command.first) //RIP RTTI
-                {
-                // case CommandType::eBeginRenderPass:
-                //     if (!std::holds_alternative<CmdBeginRenderPass>(command.second))
-                //         return Result::eFailure;
-                //     result = cmdBeginRenderPass(co, index, std::get<CmdBeginRenderPass>(command.second));
-                //     break;
-                // case CommandType::eEndRenderPass:
-                //     if (!std::holds_alternative<CmdEndRenderPass>(command.second))
-                //         return Result::eFailure;
-                //     result = cmdEndRenderPass(co, std::get<CmdEndRenderPass>(command.second));
-                //     break;
-                case CommandType::eBegin:
-                    if (!std::holds_alternative<CmdBegin>(command.second))
-                        return Result::eFailure;
-                    result = cmdBegin(co, index, std::get<CmdBegin>(command.second));
-                    break;
-                case CommandType::eEnd:
-                    if (!std::holds_alternative<CmdEnd>(command.second))
-                        return Result::eFailure;
-                    result = cmdEnd(co, index, std::get<CmdEnd>(command.second));
-                    break;
-                case CommandType::eBindGraphicsPipeline:
-                    if (!std::holds_alternative<CmdBindGraphicsPipeline>(command.second))
-                        return Result::eFailure;
-                    result = cmdBindGraphicsPipeline(co, index, std::get<CmdBindGraphicsPipeline>(command.second));
-                    break;
-                case CommandType::ePresent:
-                    if (!std::holds_alternative<CmdPresent>(command.second))
-                        return Result::eFailure;
-                    co.mPresentFlag = true;
-                    //result = cmdImGui(co, index);
-                    break;
-                case CommandType::eBindVB:
-                    if (!std::holds_alternative<CmdBindVB>(command.second))
-                        return Result::eFailure;
-                    result = cmdBindVB(co, index, std::get<CmdBindVB>(command.second));
-                    break;
-                case CommandType::eBindIB:
-                    if (!std::holds_alternative<CmdBindIB>(command.second))
-                        return Result::eFailure;
-                    result = cmdBindIB(co, index, std::get<CmdBindIB>(command.second));
-                    break;
-                case CommandType::eBindSRSet:
-                    if (!std::holds_alternative<CmdBindSRSet>(command.second))
-                        return Result::eFailure;
-                    result = cmdBindSRSet(co, index, std::get<CmdBindSRSet>(command.second));
-                    break;
-                case CommandType::eRender:
-                    if (!std::holds_alternative<CmdRender>(command.second))
-                        return Result::eFailure;
-                    result = cmdRender(co, index, std::get<CmdRender>(command.second));
-                    break;
-                case CommandType::eRenderIndexed:
-                    if (!std::holds_alternative<CmdRenderIndexed>(command.second))
-                        return Result::eFailure;
-                    result = cmdRenderIndexed(co, index, std::get<CmdRenderIndexed>(command.second));
-                    break;
-                case CommandType::eBarrier:
-                    if (!std::holds_alternative<CmdBarrier>(command.second))
-                        return Result::eFailure;
-                    result = cmdBarrier(co, index, std::get<CmdBarrier>(command.second));
-                    break;
-                default:
-                    std::cerr << "invalid command!\nrequested command : " << static_cast<int>(command.first) << "\n";
-                    return Result::eFailure;
-                    break;
-                }
-
-                if(result != Result::eSuccess)
-                    return result;
-            }
+            writeCommandInternal(co, index, cmdData, commandList.useSubCommand());
 
             {//end command buffer
                 result = checkVkResult(vkEndCommandBuffer(co.mCommandBuffers[index]));
@@ -3773,7 +3709,7 @@ namespace Cutlass
                 }
             }
 
-            ++index;//next command
+            ++index;
         }
 
         mCommandBufferMap.at(handle) = co;
@@ -3784,6 +3720,172 @@ namespace Cutlass
     Result Context::updateCommandBuffer(const CommandList& commandList, const HCommandBuffer& handle)
     {
         return updateCommandBuffer(std::vector<CommandList>(1, commandList), handle);
+    }
+
+    Result Context::updateSubCommandBuffer(const SubCommandList& subCommandList, const HCommandBuffer& handle)
+    {
+        return updateSubCommandBuffer(std::vector<SubCommandList>(1, subCommandList), handle);
+    }
+
+    Result Context::updateSubCommandBuffer(const std::vector<SubCommandList>& subCommandLists, const HCommandBuffer& handle)
+    {
+         if (!mIsInitialized)
+        {
+            std::cerr << "context did not initialize yet!\n";
+            return Result::eFailure;
+        }
+        
+        Result result = Result::eSuccess;
+        
+        if(mCommandBufferMap.count(handle) <= 0)
+        {
+            std::cerr << "create command buffer first!\n";
+            return Result::eFailure;
+        }
+
+        CommandObject& co = mCommandBufferMap[handle];
+        co.mPresentFlag = false;
+
+        uint32_t index = 0;
+        if(co.mCommandBuffers.size() != subCommandLists.size())
+        {
+            std::cerr << "invalid rewriting commandlist size!\n";
+            return Result::eFailure;
+        }
+
+        //for present command
+        if(co.mHRenderPass && mRPMap.count(co.mHRenderPass.value()) > 0)
+        {
+            auto& rpo = mRPMap[co.mHRenderPass.value()];
+            if(rpo.mHWindow)
+            {
+                auto& wo = mWindowMap[rpo.mHWindow.value()];
+                for(size_t i = 0; i < wo.mMaxFrameInFlight; ++i)  
+                {
+                    result = checkVkResult(vkWaitForFences(mDevice, 1, &rpo.mFences[i], VK_TRUE, UINT64_MAX));
+                    if (result != Result::eSuccess)
+                    {
+                        std::cerr << "Failed to wait fence!\n";
+                        return result;
+                    }
+                }
+            }
+        }
+
+        //get internal(public) command info vector
+        for (const auto& subCommandList : subCommandLists)
+        {
+            const auto& cmdData = subCommandList.getInternalCommandData();
+
+            vkResetCommandBuffer(co.mCommandBuffers[index], 0);
+
+            {//begin command buffer
+                VkCommandBufferBeginInfo commandBI{};
+                commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+                commandBI.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+                commandBI.pInheritanceInfo = nullptr;
+
+                result = checkVkResult(vkBeginCommandBuffer(co.mCommandBuffers[index], &commandBI));
+                if (result != Result::eSuccess)
+                {
+                    std::cerr << "Failed to begin command buffer!\n";
+                    return result;
+                }
+            }
+
+            writeCommandInternal(co, index, cmdData);
+
+            {//end command buffer
+                result = checkVkResult(vkEndCommandBuffer(co.mCommandBuffers[index]));
+                if (result != Result::eSuccess)
+                {
+                    std::cerr << "Failed to end command buffer!\n";
+                    return result;
+                }
+            }
+
+            ++index;
+        }
+
+        mCommandBufferMap.at(handle) = co;
+
+        return result;
+    }
+
+    Result Context::writeCommandInternal(CommandObject& co, size_t index, const InternalCommandList& icl, const bool useSecondary)
+    {
+        Result result = Result::eSuccess;
+
+        for (const auto& command : icl)
+        {
+            switch (command.first) //RIP RTTI
+            {
+            case CommandType::eBegin:
+                if (!std::holds_alternative<CmdBegin>(command.second))
+                    return Result::eFailure;
+                result = cmdBegin(co, index, std::get<CmdBegin>(command.second), useSecondary);
+                break;
+            case CommandType::eEnd:
+                if (!std::holds_alternative<CmdEnd>(command.second))
+                    return Result::eFailure;
+                result = cmdEnd(co, index, std::get<CmdEnd>(command.second));
+                break;
+            case CommandType::eBindGraphicsPipeline:
+                if (!std::holds_alternative<CmdBindGraphicsPipeline>(command.second))
+                    return Result::eFailure;
+                result = cmdBindGraphicsPipeline(co, index, std::get<CmdBindGraphicsPipeline>(command.second));
+                break;
+            case CommandType::ePresent:
+                if (!std::holds_alternative<CmdPresent>(command.second))
+                    return Result::eFailure;
+                co.mPresentFlag = true;
+                break;
+            case CommandType::eBindVB:
+                if (!std::holds_alternative<CmdBindVB>(command.second))
+                    return Result::eFailure;
+                result = cmdBindVB(co, index, std::get<CmdBindVB>(command.second));
+                break;
+            case CommandType::eBindIB:
+                if (!std::holds_alternative<CmdBindIB>(command.second))
+                    return Result::eFailure;
+                result = cmdBindIB(co, index, std::get<CmdBindIB>(command.second));
+                break;
+            case CommandType::eBindSRSet:
+                if (!std::holds_alternative<CmdBindSRSet>(command.second))
+                    return Result::eFailure;
+                result = cmdBindSRSet(co, index, std::get<CmdBindSRSet>(command.second));
+                break;
+            case CommandType::eRender:
+                if (!std::holds_alternative<CmdRender>(command.second))
+                    return Result::eFailure;
+                result = cmdRender(co, index, std::get<CmdRender>(command.second));
+                break;
+            case CommandType::eRenderIndexed:
+                if (!std::holds_alternative<CmdRenderIndexed>(command.second))
+                    return Result::eFailure;
+                result = cmdRenderIndexed(co, index, std::get<CmdRenderIndexed>(command.second));
+                break;
+            case CommandType::eBarrier:
+                if (!std::holds_alternative<CmdBarrier>(command.second))
+                    return Result::eFailure;
+                result = cmdBarrier(co, index, std::get<CmdBarrier>(command.second));
+                break;
+            case CommandType::eExecuteSubCommand:
+                if (!std::holds_alternative<CmdExecuteSubCommand>(command.second))
+                    return Result::eFailure;
+                result = cmdExecuteSubCommand(co, index, std::get<CmdExecuteSubCommand>(command.second));
+                break;
+            default:
+                std::cerr << "invalid command!\nrequested command : " << static_cast<int>(command.first) << "\n";
+                return Result::eFailure;
+                break;
+            }
+
+            if(result != Result::eSuccess)
+                return result;
+        }
+
+        return Result::eSuccess;
     }
 
     Result Context::releaseShaderResourceSet(const HCommandBuffer& handle)
@@ -3832,7 +3934,7 @@ namespace Cutlass
         return Result::eFailure;
     }
 
-    Result Context::cmdBegin(CommandObject& co, size_t frameBufferIndex, const CmdBegin& info)
+    Result Context::cmdBegin(CommandObject& co, size_t frameBufferIndex, const CmdBegin& info, const bool useSecondary)
     {
         Result result = Result::eSuccess;
 
@@ -3935,7 +4037,11 @@ namespace Cutlass
         bi.renderArea.offset = { 0, 0 };
         bi.renderArea.extent = { rpo.mExtent.value().width, rpo.mExtent.value().height };
         bi.framebuffer = rpo.mFramebuffers[frameBufferIndex % rpo.mFramebuffers.size()].value();
-        vkCmdBeginRenderPass(command, &bi, VK_SUBPASS_CONTENTS_INLINE);
+        
+        if(useSecondary)
+            vkCmdBeginRenderPass(command, &bi, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+        else
+            vkCmdBeginRenderPass(command, &bi, VK_SUBPASS_CONTENTS_INLINE);
 
         return Result::eSuccess;
     }
@@ -4106,34 +4212,6 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    // Result Context::cmdBindUB(CommandObject& co, const CmdBindUniformBuffer& info)
-    // {
-    //     Result result = Result::eSuccess;
-
-    //     if (!co.mHRPO)
-    //     {
-    //         std::cerr << "graphics pipeline object is not registered yet!\n";
-    //         return Result::eFailure;
-    //     }
-
-    //     auto& gpo = mGPMap[co.mHGPO.value()];
-
-
-    // }
-
-    // Result Context::cmdBindTex(CommandObject& co, const CmdBindTexture& info)
-    // {
-    //     Result result = Result::eSuccess;
-
-    //     if (!co.mHRPO)
-    //     {
-    //         std::cerr << "graphics pipeline object is not registered yet!\n";
-    //         return Result::eFailure;
-    //     }
-
-    //     auto& gpo = mGPMap[co.mHGPO.value()];
-    // }
-
     Result Context::cmdRenderIndexed(CommandObject &co, size_t index, const CmdRenderIndexed &info)
     {
         auto& gpo = mGPMap[co.mHGPO.value()];
@@ -4192,7 +4270,6 @@ namespace Cutlass
             nullptr
         );
         
-
         vkCmdDraw
         (
             co.mCommandBuffers[index],
@@ -4223,6 +4300,26 @@ namespace Cutlass
         );
         io.currentLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
+        return Result::eSuccess;
+    }
+
+    Result Context::cmdExecuteSubCommand(CommandObject& co, size_t frameBufferIndex, const CmdExecuteSubCommand& info)
+    {
+        if(mDebugFlag && mCommandBufferMap.count(info.handle) <= 0)
+        {
+            std::cerr << "invalid sub command buffer handle!\n";
+            return Result::eFailure;
+        }
+
+        auto&& subCO = mCommandBufferMap[info.handle];
+        if(mDebugFlag && !subCO.mSubCommand)
+        {
+            std::cerr << "thi command buffer is primary!\n";
+            return Result::eFailure;
+        }
+
+        vkCmdExecuteCommands(co.mCommandBuffers[frameBufferIndex], 1, &subCO.mCommandBuffers[frameBufferIndex]);
+    
         return Result::eSuccess;
     }
 
@@ -4317,6 +4414,12 @@ namespace Cutlass
         if (!co.mHRenderPass)
         {
             std::cerr << "renderPass of this command is invalid!\n";
+            return Result::eFailure;
+        }
+
+        if(co.mSubCommand)
+        {
+            std::cerr << "this command buffer is sub(secondary)!\n";
             return Result::eFailure;
         }
 

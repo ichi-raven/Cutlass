@@ -102,6 +102,11 @@ namespace Cutlass
         HTexture handle;
     };
 
+    struct CmdExecuteSubCommand
+    {
+        HCommandBuffer handle;
+    };
+
     //コマンド追加時はここ
     enum class CommandType
     {
@@ -116,6 +121,7 @@ namespace Cutlass
         eRender,
         //eRenderImGui,
         eBarrier,
+        eExecuteSubCommand,
     };
 
     //とここ
@@ -131,12 +137,64 @@ namespace Cutlass
         CmdRenderIndexed,
         CmdRender,
         //CmdRenderImGui,
-        CmdBarrier
+        CmdBarrier,
+        CmdExecuteSubCommand
     >;
 
     using InternalCommandList = std::vector<std::pair<CommandType, CommandInfoVariant>>;
 
-    //ただのヘルパークラス 要速度検証
+    class SubCommandList
+    {
+    public: 
+        SubCommandList(const HRenderPass& usedInMainCommand);
+
+        void bind(const HGraphicsPipeline& handle);
+
+        //bind vertex buffer only
+        void bind(const HBuffer& VBHandle);
+        //bind vertex buffer and index buffer
+        void bind(const HBuffer& VBHandle, const HBuffer& IBHandle);
+        //bind shader resource set
+        void bind(const uint16_t set, const ShaderResourceSet& shaderSet);
+
+        //option
+        void bindIndexBuffer(const HBuffer& IBHandle);
+
+        void renderIndexed
+        (
+            uint32_t indexCount,    //いくつインデックスを描画するか
+            uint32_t instanceCount, //インスタンシング描画しない場合は1
+            uint32_t firstIndex,    //何番目のインデックスから描画を開始するか
+            uint32_t vertexOffset,  //描画し終わった頂点だけずらす、普通は0
+            uint32_t firstInstance  //インスタンシング描画しないなら0
+        );
+        void render
+        (
+            uint32_t vertexCount,   //描画する頂点の個数
+            uint32_t instanceCount, //インスタンシング描画しない場合は1
+            uint32_t vertexOffset,  //描画し終わった頂点だけずらす、普通は0
+            uint32_t firstInstance //インスタンシング描画しないなら0
+        );
+
+        //void renderImGui(ImDrawData* data = nullptr);
+
+        void barrier(const HTexture& handle);
+
+        //現在のCommandListに接続する
+        void append(SubCommandList& commandList);
+
+        const InternalCommandList& getInternalCommandData() const;
+
+        const HRenderPass& getRenderPass() const;
+
+    private:
+        InternalCommandList mCommands;
+        bool indexed;
+        bool graphicsPipeline;
+        HRenderPass mainRenderPass;
+    };
+
+
     class CommandList
     {
     public:
@@ -144,11 +202,10 @@ namespace Cutlass
         : indexed(false)
         , begun(false)
         , graphicsPipeline(false)
+        , useSub(false)
         {
 
         }
-        // void beginRenderPass(const HRenderPass& RPHandle, bool clearFlag, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f }, const DepthClearValue dcv = { 1.f, 0 });
-        // void beginRenderPass(const HRenderPass& RPHandle, const DepthClearValue dcv = { 1.f, 0 }, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f });
 
         void begin(const HRenderPass& handle, bool clearFlag, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f }, const DepthClearValue dcv = { 1.f, 0 });
         void begin(const HRenderPass& handle, const DepthClearValue dcv = { 1.f, 0 }, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f });
@@ -193,15 +250,20 @@ namespace Cutlass
 
         void barrier(const HTexture& handle);
 
+        //サブコマンド(セカンダリコマンド)呼び出し
+        void executeSubCommand(const HCommandBuffer& handle);
+
         //現在のCommandListに接続する
         void append(CommandList& commandList);
 
         const InternalCommandList& getInternalCommandData() const;
 
+        const bool useSubCommand() const;
     private:
         InternalCommandList mCommands;
         bool indexed;
         bool begun;
         bool graphicsPipeline;
+        bool useSub;
     };
-}            
+}

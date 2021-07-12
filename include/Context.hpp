@@ -114,6 +114,10 @@ namespace Cutlass
         //描画コマンドバッファを作成
         Result createCommandBuffer(const std::vector<CommandList>& commandLists, HCommandBuffer& handle_out);
         Result createCommandBuffer(const CommandList& commandList, HCommandBuffer& handle_out);
+        
+        Result createSubCommandBuffer(const std::vector<SubCommandList>& subCommandLists, HCommandBuffer& handle_out);
+        Result createSubCommandBuffer(const SubCommandList& subCommandList, HCommandBuffer& handle_out);
+
         //破棄
         Result destroyCommandBuffer(const HCommandBuffer& handle);
       
@@ -123,6 +127,9 @@ namespace Cutlass
         //すでに割り当てたコマンドの中身を書き換える
         Result updateCommandBuffer(const std::vector<CommandList>& commandLists, const HCommandBuffer& handle);
         Result updateCommandBuffer(const CommandList& commandList, const HCommandBuffer& handle);
+
+        Result updateSubCommandBuffer(const std::vector<SubCommandList>& subCommandLists, const HCommandBuffer& handle);
+        Result updateSubCommandBuffer(const SubCommandList& subCommandList, const HCommandBuffer& handle);
 
         //現在処理中のフレームバッファのインデックスを取得(0~frameCount)
         uint32_t getFrameBufferIndex(const HRenderPass& handle) const;
@@ -241,6 +248,7 @@ namespace Cutlass
         {
             CommandObject()
             : mPresentFlag(false)
+            , mSubCommand(false)
             {}
 
             std::vector<VkCommandBuffer> mCommandBuffers;
@@ -248,6 +256,7 @@ namespace Cutlass
             std::optional<HGraphicsPipeline> mHGPO;
             std::vector<std::vector<std::optional<VkDescriptorSet>>> mDescriptorSets;
             bool mPresentFlag;
+            bool mSubCommand;
         };
 
         static inline Result checkVkResult(VkResult);
@@ -282,10 +291,11 @@ namespace Cutlass
         inline Result createShaderModule(const Shader &shader, const VkShaderStageFlagBits &stage, VkPipelineShaderStageCreateInfo *pSSCI);
 
         //各コマンド関数
+        inline Result writeCommandInternal(CommandObject& co, size_t frameBufferIndex, const InternalCommandList& icl, const bool useSecondary = false);
         // inline Result cmdBeginRenderPass(CommandObject& co, size_t frameBufferIndex, const CmdBeginRenderPass& info);
         // inline Result cmdEndRenderPass(CommandObject& co, const CmdEndRenderPass& info);
         inline Result cmdBindGraphicsPipeline(CommandObject& co, size_t frameBufferIndex, const CmdBindGraphicsPipeline& info);
-        inline Result cmdBegin(CommandObject& co, size_t frameBufferIndex, const CmdBegin& info);
+        inline Result cmdBegin(CommandObject& co, size_t frameBufferIndex, const CmdBegin& info, const bool useSecondary = false);
         inline Result cmdEnd(CommandObject& co, size_t frameBufferIndex, const CmdEnd& info);
         inline Result cmdBindVB(CommandObject &co, size_t frameBufferIndex, const CmdBindVB& info);
         inline Result cmdBindIB(CommandObject& co, size_t frameBufferIndex, const CmdBindIB& info);
@@ -293,6 +303,7 @@ namespace Cutlass
         inline Result cmdRenderIndexed(CommandObject& co, size_t frameBufferIndex, const CmdRenderIndexed& info);
         inline Result cmdRender(CommandObject& co, size_t frameBufferIndex, const CmdRender& info);
         inline Result cmdBarrier(CommandObject& co, size_t frameBufferIndex, const CmdBarrier& info);
+        inline Result cmdExecuteSubCommand(CommandObject& co, size_t frameBufferIndex, const CmdExecuteSubCommand& info);
 
         //ImGui用コマンド構築
         inline Result cmdImGui(CommandObject& co, size_t frameBufferIndex);
