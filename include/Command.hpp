@@ -92,10 +92,10 @@ namespace Cutlass
 
     // struct ImDrawData;
 
-    // struct CmdRenderImGui
-    // {
-    //     ImDrawData* data;
-    // };
+    struct CmdRenderImGui
+    {
+
+    };
 
     struct CmdBarrier
     {
@@ -119,7 +119,7 @@ namespace Cutlass
         eBindSRSet,
         eRenderIndexed,
         eRender,
-        //eRenderImGui,
+        eRenderImGui,
         eBarrier,
         eExecuteSubCommand,
     };
@@ -136,7 +136,7 @@ namespace Cutlass
         CmdBindSRSet,
         CmdRenderIndexed,
         CmdRender,
-        //CmdRenderImGui,
+        CmdRenderImGui,
         CmdBarrier,
         CmdExecuteSubCommand
     >;
@@ -176,7 +176,7 @@ namespace Cutlass
             uint32_t firstInstance //インスタンシング描画しないなら0
         );
 
-        //void renderImGui(ImDrawData* data = nullptr);
+        void renderImGui();
 
         void barrier(const HTexture& handle);
 
@@ -184,6 +184,8 @@ namespace Cutlass
         void append(SubCommandList& commandList);
 
         const InternalCommandList& getInternalCommandData() const;
+            
+        void clear();
 
         const HRenderPass& getRenderPass() const;
 
@@ -246,7 +248,7 @@ namespace Cutlass
             uint32_t firstInstance //インスタンシング描画しないなら0
         );
 
-        //void renderImGui(ImDrawData* data = nullptr);
+        void renderImGui();
 
         void barrier(const HTexture& handle);
 
@@ -255,6 +257,8 @@ namespace Cutlass
 
         //現在のCommandListに接続する
         void append(CommandList& commandList);
+
+        void clear();
 
         const InternalCommandList& getInternalCommandData() const;
 

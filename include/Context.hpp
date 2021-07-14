@@ -306,9 +306,9 @@ namespace Cutlass
         inline Result cmdExecuteSubCommand(CommandObject& co, size_t frameBufferIndex, const CmdExecuteSubCommand& info);
 
         //ImGui用コマンド構築
-        inline Result cmdImGui(CommandObject& co, size_t frameBufferIndex);
+        inline Result cmdRenderImGui(CommandObject& co, size_t frameBufferIndex);
 
-        inline Result createImGuiCommandBuffer(size_t frameBufferIndex);
+        //inline Result createImGuiCommandBuffer(size_t frameBufferIndex);
 
         //アプリケーション名
         std::string mAppName;

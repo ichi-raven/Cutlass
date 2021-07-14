@@ -8,12 +8,14 @@ namespace Cutlass
     {
         mCommands.emplace_back(CommandType::eBegin, CmdBegin{handle, ccv, dcv, clearFlag});
         begun = true;
+        useSub = false;
     }
 
     void CommandList::begin(const HRenderPass& handle, const DepthClearValue dcv, const ColorClearValue ccv)
     {
         mCommands.emplace_back(CommandType::eBegin, CmdBegin{handle, ccv, dcv, true});
         begun = true;
+        useSub = false;
     }
 
     void CommandList::end(bool presentIfRenderedFrameBuffer)
@@ -115,11 +117,26 @@ namespace Cutlass
         mCommands.emplace_back(CommandType::eBarrier, CmdBarrier{handle});//, std::nullopt});
     }
 
+    void CommandList::renderImGui()
+    {
+        if(!begun)
+        {
+            std::cerr << "This command list is not begun!\n";
+            return;
+        }
+        mCommands.emplace_back(CommandType::eRenderImGui, CmdRenderImGui{});
+    }
+
     void CommandList::append(CommandList& commandList)
     {
         auto& icl = commandList.getInternalCommandData();
         mCommands.reserve(icl.size());
         std::copy(icl.begin(), icl.end(), std::back_inserter(mCommands));
+    }
+
+    void CommandList::clear()
+    {
+        mCommands.clear();
     }
 
     void CommandList::executeSubCommand(const HCommandBuffer& handle)
@@ -131,6 +148,7 @@ namespace Cutlass
         }
 
         mCommands.emplace_back(CommandType::eExecuteSubCommand, CmdExecuteSubCommand{handle});
+        useSub = true;
     }
 
     const std::vector<std::pair<CommandType, CommandInfoVariant>>& CommandList::getInternalCommandData() const
@@ -172,11 +190,11 @@ namespace Cutlass
 
     void SubCommandList::bind(const uint16_t set, const ShaderResourceSet& shaderResourceSet)
     {
-        if(!graphicsPipeline)
-        {
-            std::cerr << "bind graphics pipeline first!\n";
-            return;
-        }
+        // if(!graphicsPipeline)
+        // {
+        //     std::cerr << "bind graphics pipeline first!\n";
+        //     return;
+        // }
 
         mCommands.emplace_back(CommandType::eBindSRSet, CmdBindSRSet{set, shaderResourceSet});
     }
@@ -220,11 +238,21 @@ namespace Cutlass
         mCommands.emplace_back(CommandType::eBarrier, CmdBarrier{handle});//, std::nullopt});
     }
 
+    void SubCommandList::renderImGui()
+    {
+        mCommands.emplace_back(CommandType::eRenderImGui, CmdRenderImGui{});
+    }
+
     void SubCommandList::append(SubCommandList& commandList)
     {
         auto& icl = commandList.getInternalCommandData();
         mCommands.reserve(icl.size());
         std::copy(icl.begin(), icl.end(), std::back_inserter(mCommands));
+    }
+
+    void SubCommandList::clear()
+    {
+        mCommands.clear();
     }
 
     const std::vector<std::pair<CommandType, CommandInfoVariant>>& SubCommandList::getInternalCommandData() const

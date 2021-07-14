@@ -2,9 +2,9 @@
 #extension GL_ARB_separate_shader_objects : enable
 
 layout(binding = 0) uniform sampler2D texSampler;
-layout(binding = 1) uniform sampler2D albedoSampler;
-layout(binding = 2) uniform sampler2D normalSampler;
-layout(binding = 3) uniform sampler2D worldPosSampler;
+// layout(binding = 1) uniform sampler2D albedoSampler;
+// layout(binding = 2) uniform sampler2D normalSampler;
+// layout(binding = 3) uniform sampler2D worldPosSampler;
 
 layout(location = 0) in vec2 inUV;
 
@@ -25,34 +25,35 @@ vec4 meanBlur(sampler2D s, vec2 uv)
 
 void main()
 {
-    vec2 uv;
-    if(inUV.x <= 0.5)
-    {
-        uv.x = inUV.x * 2.f;
-        if(inUV.y <= 0.5)//target
-        {
-            uv.y = inUV.y * 2.f;
-            outColor = meanBlur(texSampler, uv);
-        }
-        else//albedo
-        {
-            uv.y = ((inUV.y - 0.5f) * 2.f);
-            outColor = meanBlur(albedoSampler, uv);
-        }
-    }
-    else
-    {
-        uv.x = ((inUV.x - 0.5f) * 2.f);
-        if(inUV.y <= 0.5)//normal
-        {
-            uv.y = inUV.y * 2.f;
-            outColor = meanBlur(normalSampler, uv);
-        }
-        else//worldPos
-        {
-            uv.y = ((inUV.y - 0.5f) * 2.f);
-            outColor = meanBlur(worldPosSampler, uv);
-        }
-    }
+    outColor = meanBlur(texSampler, inUV);
+    //vec2 uv;
+    // if(inUV.x <= 0.5)
+    // {
+    //     uv.x = inUV.x * 2.f;
+    //     if(inUV.y <= 0.5)//target
+    //     {
+    //         uv.y = inUV.y * 2.f;
+    //         outColor = meanBlur(texSampler, uv);
+    //     }
+    //     else//albedo
+    //     {
+    //         uv.y = ((inUV.y - 0.5f) * 2.f);
+    //         outColor = meanBlur(albedoSampler, uv);
+    //     }
+    // }
+    // else
+    // {
+    //     uv.x = ((inUV.x - 0.5f) * 2.f);
+    //     if(inUV.y <= 0.5)//normal
+    //     {
+    //         uv.y = inUV.y * 2.f;
+    //         outColor = meanBlur(normalSampler, uv);
+    //     }
+    //     else//worldPos
+    //     {
+    //         uv.y = ((inUV.y - 0.5f) * 2.f);
+    //         outColor = meanBlur(worldPosSampler, uv);
+    //     }
+    // }
 
 }

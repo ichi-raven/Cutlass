@@ -84,7 +84,6 @@ namespace Engine
             Cutlass::HGraphicsPipeline pipeline;
         };
 
-
         const uint16_t mFrameCount;
 
         std::vector<Cutlass::HTexture> mDepthBuffers;
@@ -93,6 +92,8 @@ namespace Engine
         std::vector<std::pair<Cutlass::HRenderPass, Cutlass::HGraphicsPipeline>> mPresentPasses;
 
         GBuffer mGBuffer;
+        Cutlass::Shader mShadowVS;
+        Cutlass::Shader mShadowPS;
         Cutlass::Shader mDefferedVS;
         Cutlass::Shader mDefferedFS;
         Cutlass::Shader mDefferedSkinVS;
@@ -108,10 +109,28 @@ namespace Engine
 
         std::vector<RenderInfo> mRenderInfos;
 
-        std::vector<Cutlass::HCommandBuffer> mGeometries;
-        std::vector<Cutlass::HCommandBuffer> mLightings;
-        std::vector<Cutlass::HCommandBuffer> mForwards;
-        std::vector<Cutlass::HCommandBuffer> mPresents;
+        Cutlass::HCommandBuffer mShadowCB;
+        Cutlass::HCommandBuffer mGeometryCB;
+        Cutlass::HCommandBuffer mLightingCB;
+        Cutlass::HCommandBuffer mForwardCB;
+        Cutlass::HCommandBuffer mPostEffectCB;
+        Cutlass::HCommandBuffer mSpriteCB;
+        std::vector<Cutlass::HCommandBuffer> mPresentCBs;
+
+        //サブコマンドバッファ
+        std::vector<Cutlass::HCommandBuffer> mShadowSubs;
+        std::vector<Cutlass::HCommandBuffer> mGeometrySubs;
+        std::vector<Cutlass::HCommandBuffer> mLightingSubs;
+        std::vector<Cutlass::HCommandBuffer> mForwardSubs;
+        std::vector<Cutlass::HCommandBuffer> mPostEffectSubs;
+        std::vector<Cutlass::HCommandBuffer> mSpriteSubs;
+
+        bool mShadowAdded;
+        bool mGeometryAdded;
+        bool mLightingAdded;
+        bool mForwardAdded;
+        bool mPostEffectAdded;
+        bool mSpriteAdded;
 
         Cutlass::HTexture mDebugTex;//!
 

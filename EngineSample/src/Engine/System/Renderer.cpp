@@ -20,11 +20,18 @@ namespace Engine
     , mHWindows(hwindows)
     , mFrameCount(frameCount)
     , mSceneBuilded(false)
+    , mShadowAdded(false)
+    , mGeometryAdded(false)
+    , mLightingAdded(false)
+    , mForwardAdded(false)
+    , mPostEffectAdded(false)
+    , mSpriteAdded(false)
     {
         assert(Result::eSuccess == mContext->createTextureFromFile("../resources/textures/texture.png", mDebugTex));
 
         mRTTexs.reserve(hwindows.size());
         uint32_t maxWidth = 0, maxHeight = 0;
+
         for(const auto& hw : hwindows)
         {
             HRenderPass rp;
@@ -55,7 +62,7 @@ namespace Engine
             if(maxHeight < height)
                 maxHeight = height;
                 
-            ti.setRTTex2D(width, height);
+            ti.setRTTex2DColor(width, height);
             mContext->createTexture(ti, mRTTexs.emplace_back());
             ti.setRTTex2DDepth(width, height);
             mContext->createTexture(ti, mDepthBuffers.emplace_back());
@@ -84,19 +91,22 @@ namespace Engine
                         cls[i].end();
                     }
 
-                    mPresents.emplace_back();
-                    mContext->createCommandBuffer(cls, mPresents.back());
+                    mPresentCBs.emplace_back();
+                    mContext->createCommandBuffer(cls, mPresentCBs.back());
                 }
             }
         }
 
+
         //デフォルトシェーダ
-        mDefferedVS = Shader("../resources/shaders/HLSLDeffered/GBuffer_vert.spv", "VSMain");
-        mDefferedFS = Shader("../resources/shaders/HLSLDeffered/GBuffer_frag.spv", "PSMain");
-        mDefferedSkinVS = Shader("../resources/shaders/HLSLDefferedGLTFSkin/GBuffer_vert.spv", "VSMain");
-        mDefferedSkinFS = Shader("../resources/shaders/HLSLDefferedGLTFSkin/GBuffer_frag.spv", "PSMain");
-        mLightingVS = Shader("../resources/shaders/HLSLDeffered/Lighting_vert.spv", "VSMain");
-        mLightingFS = Shader("../resources/shaders/HLSLDeffered/Lighting_frag.spv", "PSMain");
+        mShadowVS           = Shader("../resources/shaders/HLSLShadow/shadow_vert.spv", "VSMain");
+        mShadowPS           = Shader("../resources/shaders/HLSLShadow/shadow_frag.spv", "PSMain");
+        mDefferedVS         = Shader("../resources/shaders/HLSLDeffered/GBuffer_vert.spv", "VSMain");
+        mDefferedFS         = Shader("../resources/shaders/HLSLDeffered/GBuffer_frag.spv", "PSMain");
+        mDefferedSkinVS     = Shader("../resources/shaders/HLSLDefferedGLTFSkin/GBuffer_vert.spv", "VSMain");
+        mDefferedSkinFS     = Shader("../resources/shaders/HLSLDefferedGLTFSkin/GBuffer_frag.spv", "PSMain");
+        mLightingVS         = Shader("../resources/shaders/HLSLDeffered/Lighting_vert.spv", "VSMain");
+        mLightingFS         = Shader("../resources/shaders/HLSLDeffered/Lighting_frag.spv", "PSMain");
 
         {//G-Buffer 構築
             Cutlass::TextureInfo ti;
@@ -108,7 +118,7 @@ namespace Engine
             ti.setRTTex2DDepth(maxWidth, maxHeight);
             mContext->createTexture(ti, mGBuffer.depthBuffer);
 
-            mContext->createRenderPass(RenderPassInfo({mGBuffer.albedoRT, mGBuffer.worldPosRT, mGBuffer.normalRT}, mGBuffer.depthBuffer, true), mGBuffer.renderPass);
+            mContext->createRenderPass(RenderPassInfo({mGBuffer.albedoRT, mGBuffer.worldPosRT, mGBuffer.normalRT}, mGBuffer.depthBuffer), mGBuffer.renderPass);
         }
 
         {//ライティング用パス
@@ -128,6 +138,23 @@ namespace Engine
             mContext->createGraphicsPipeline(gpi, mLightingPipeline);
         }
 
+        //デフォルトコマンド構築
+        //std::cerr << "command build start\n";
+        CommandList cl;
+        cl.clear();
+        mContext->createCommandBuffer(cl, mShadowCB);
+        //std::cerr << "shadow\n";
+        mContext->createCommandBuffer(cl, mGeometryCB);
+        //std::cerr << "geom\n";
+        mContext->createCommandBuffer(cl, mLightingCB);
+        //std::cerr << "lighting\n";
+        mContext->createCommandBuffer(cl, mForwardCB);
+        //std::cerr << "forward\n";
+        mContext->createCommandBuffer(cl, mPostEffectCB);
+        //std::cerr << "posteffect\n";
+        mContext->createCommandBuffer(cl, mSpriteCB);
+        //std::cerr << "sprite\n";
+        
     }
 
     Renderer::~Renderer()
@@ -137,6 +164,7 @@ namespace Engine
 
     void Renderer::regist(const std::shared_ptr<MeshComponent>& mesh, const std::shared_ptr<MaterialComponent>& material)
     {
+        std::cerr << "regist start\n";
         auto& tmp = mRenderInfos.emplace_back();
         tmp.mesh = mesh;
         tmp.material = material;
@@ -155,7 +183,6 @@ namespace Engine
  
         if(Cutlass::Result::eSuccess != mContext->createGraphicsPipeline(gpi, tmp.pipeline))
             assert(!"failed to create graphics pipeline");
-
         {//コマンド作成
             //ジオメトリ固有パラメータセット
             {
@@ -169,29 +196,30 @@ namespace Engine
             ShaderResourceSet bufferSet;
             ShaderResourceSet textureSet;
             bufferSet.bind(0, tmp.sceneCB.value());
-
-            bufferSet.bind(1, material->getMaterialSets().back().paramBuffer);
+            if(!material->getMaterialSets().empty())
+                bufferSet.bind(1, material->getMaterialSets().back().paramBuffer);
             textureSet.bind(0, mDebugTex);
 
-            CommandList cl;
-            cl.begin(mGBuffer.renderPass);
-            cl.bind(tmp.pipeline);
-            cl.bind(mesh->getVB(), mesh->getIB());
-            cl.bind(0, bufferSet);
-            cl.bind(1, textureSet);
-            cl.renderIndexed(mesh->getIndexNum(), 1, 0, 0, 0);
-            cl.end();
+            SubCommandList scl(mGBuffer.renderPass);
+            scl.bind(tmp.pipeline);
+            scl.bind(mesh->getVB(), mesh->getIB());
+            scl.bind(0, bufferSet);
+            scl.bind(1, textureSet);
+            scl.renderIndexed(mesh->getIndexNum(), 1, 0, 0, 0);
 
             HCommandBuffer cb;
-            if(Cutlass::Result::eSuccess != mContext->createCommandBuffer(cl, cb))
+            if(Cutlass::Result::eSuccess != mContext->createSubCommandBuffer(scl, cb))
                 assert(!"failed to create command buffer!");
-            mGeometries.emplace_back(cb);
+            mGeometrySubs.emplace_back(cb);
         }
+
+        mGeometryAdded = true;
+        std::cerr << "registed\n";
     }
 
     void Renderer::regist(const std::shared_ptr<MeshComponent>& mesh, const std::shared_ptr<CustomMaterialComponent>& material)
     {
-
+        mForwardAdded = true;
     }
 
     void Renderer::regist(const std::shared_ptr<SkeltalMeshComponent>& mesh, const std::shared_ptr<CustomMaterialComponent>& material)
@@ -201,6 +229,7 @@ namespace Engine
 
     void Renderer::addLight(const std::shared_ptr<LightComponent>& light)
     {
+        std::cerr << "light start\n";
         mLights.emplace_back(light->getLightCB().value());
 
         switch(light->getType())
@@ -226,23 +255,17 @@ namespace Engine
             textureSet.bind(2, mGBuffer.worldPosRT);
         }
 
-        CommandList cl;
-        cl.barrier(mGBuffer.albedoRT);
-        cl.barrier(mGBuffer.normalRT);
-        cl.barrier(mGBuffer.worldPosRT);
-
-        cl.begin(mLightingPass);
-        cl.bind(mLightingPipeline);
-        cl.bind(0, bufferSet);
-        cl.bind(1, textureSet);
-        cl.render(4, 1, 0, 0);
-        cl.end();
+        SubCommandList scl(mLightingPass);
+        scl.bind(mLightingPipeline);
+        scl.bind(0, bufferSet);
+        scl.bind(1, textureSet);
+        scl.render(4, 1, 0, 0);
 
         HCommandBuffer cb;
-        mContext->createCommandBuffer(cl, cb);
+        mContext->createSubCommandBuffer(scl, cb);
 
-        mLightings.emplace_back(cb);
-
+        mLightingSubs.emplace_back(cb);
+        mLightingAdded = true;
     }
 
     void Renderer::setCamera(const std::shared_ptr<CameraComponent>& camera)
@@ -264,24 +287,42 @@ namespace Engine
 
         mRenderInfos.clear();
 
-        for(const auto& cb : mGeometries)
+        for(const auto& cb : mShadowSubs)
         {
             mContext->destroyCommandBuffer(cb);
         }
 
-        for(const auto& cb : mLightings)
+        for(const auto& cb : mGeometrySubs)
         {
             mContext->destroyCommandBuffer(cb);
         }
 
-        for(const auto& cb : mForwards)
+        for(const auto& cb : mLightingSubs)
         {
             mContext->destroyCommandBuffer(cb);
         }
 
-        mGeometries.clear();
-        mLights.clear();
-        mForwards.clear();
+        for(const auto& cb : mForwardSubs)
+        {
+            mContext->destroyCommandBuffer(cb);
+        }
+
+        for(const auto& cb : mPostEffectSubs)
+        {
+            mContext->destroyCommandBuffer(cb);
+        }
+
+        for(const auto& cb : mSpriteSubs)
+        {
+            mContext->destroyCommandBuffer(cb);
+        }
+
+        mShadowSubs.clear();
+        mGeometrySubs.clear();
+        mLightingSubs.clear();
+        mForwardSubs.clear();
+        mPostEffectSubs.clear();
+        mSpriteSubs.clear();
     }
 
     void Renderer::build()
@@ -299,12 +340,58 @@ namespace Engine
                 sceneData.proj = mCamera.value()->getProjectionMatrix();
             }
 
-            for(auto& geom : mRenderInfos)
+            for(auto& ri : mRenderInfos)
             {
                 //ジオメトリ固有パラメータセット
-                sceneData.world = geom.mesh->getTransform().getWorldMatrix();
-                mContext->writeBuffer(sizeof(SceneData), &sceneData, geom.sceneCB.value());
+                sceneData.world = ri.mesh->getTransform().getWorldMatrix();
+                mContext->writeBuffer(sizeof(SceneData), &sceneData, ri.sceneCB.value());
             }
+        }
+
+        //サブコマンドバッファ積み込み
+        if(mShadowAdded)
+        {
+            mShadowAdded = false;
+        }
+        if(mGeometryAdded)
+        {
+            CommandList cl;
+            cl.barrier(mGBuffer.albedoRT);
+            cl.barrier(mGBuffer.normalRT);
+            cl.barrier(mGBuffer.worldPosRT);
+            cl.begin(mGBuffer.renderPass);
+            for(const auto& sub : mGeometrySubs)
+                cl.executeSubCommand(sub);
+            cl.end();
+            mContext->updateCommandBuffer(cl, mGeometryCB);
+            mGeometryAdded = false;
+        }
+        if(mLightingAdded)
+        {
+            CommandList cl;
+            cl.begin(mLightingPass);
+            for(const auto& sub : mLightingSubs)
+                cl.executeSubCommand(sub);
+            cl.end();
+            mContext->updateCommandBuffer(cl, mLightingCB);
+            mLightingAdded = false;
+        }
+        // if(mForwardAdded)
+        // {
+        //     CommandList cl;
+        //     cl.begin();
+        //     for(const auto& sub : mLightingSubs)
+        //         cl.executeSubCommand(sub);
+        //     cl.end();
+        //     mContext->updateCommandBuffer(cl, mLightingCB);
+        // }
+        if(mPostEffectAdded)
+        {
+            mPostEffectAdded = false;
+        }
+        if(mSpriteAdded)
+        {
+            mSpriteAdded = false;
         }
 
         mSceneBuilded = true;
@@ -318,16 +405,18 @@ namespace Engine
             mSceneBuilded = false;
         }
 
-        for(const auto& cb : mGeometries)
-            mContext->execute(cb);
+        //mContext->execute(mShadowCB);
+        std::cerr << "render start\n";
+        mContext->execute(mGeometryCB);
+        std::cerr << "geom\n";
+        mContext->execute(mLightingCB);
+        std::cerr << "light\n";
+        //mContext->execute(mForwardCB);
+        //mContext->execute(mPostEffectCB);
+        //mContext->execute(mSpriteCB);
 
-        for(const auto& cb : mLightings)
+        for(const auto& cb : mPresentCBs)
             mContext->execute(cb);
-
-        for(const auto& cb : mForwards)
-            mContext->execute(cb);
-
-        for(const auto& cb : mPresents)
-            mContext->execute(cb);
+        //assert(0);
     }
 }

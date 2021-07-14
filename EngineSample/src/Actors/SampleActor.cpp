@@ -57,12 +57,15 @@ void SampleActor::awake()
 	//light
 	Engine::LightComponent::DirectionalLightParam data;
 	data.lightDir = glm::vec4(1.f, 1.f, 1.f, 0);
-	data.lightColor = glm::vec4(0.4f, 0.4f, 0.4f, 1.f);
+	data.lightColor = glm::vec4(0.5f, 0.5f, 0.5f, 1.f);
 	light->setAsDirectionalLight(data);
 	//renderer
 	renderer->setCamera(camera);
+	std::cerr << "camera\n";
 	renderer->addLight(light);
+	std::cerr << "light\n\n";
 	renderer->regist(mMesh, material);
+	std::cerr << "regist\n\n";
 	//assert(0);
 }
 

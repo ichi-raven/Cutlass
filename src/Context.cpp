@@ -3600,7 +3600,7 @@ namespace Cutlass
 
                 VkCommandBufferBeginInfo commandBI{};
                 commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-                commandBI.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+                commandBI.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT | VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
                 commandBI.pInheritanceInfo = &commandii;
 
                 result = checkVkResult(vkBeginCommandBuffer(co.mCommandBuffers[index], &commandBI));
@@ -3685,6 +3685,7 @@ namespace Cutlass
             vkResetCommandBuffer(co.mCommandBuffers[index], 0);
 
             {//begin command buffer
+
                 VkCommandBufferBeginInfo commandBI{};
                 commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
                 commandBI.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
@@ -3780,10 +3781,21 @@ namespace Cutlass
             vkResetCommandBuffer(co.mCommandBuffers[index], 0);
 
             {//begin command buffer
+                auto& rpo = mRPMap[subCommandList.getRenderPass()];
+                VkCommandBufferInheritanceInfo commandii{};
+                commandii.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+                commandii.pNext = nullptr;
+                commandii.renderPass = rpo.mRenderPass.value();
+                commandii.framebuffer = rpo.mFramebuffers[index].value();
+                commandii.subpass = 0;
+                commandii.occlusionQueryEnable = VK_FALSE;
+                commandii.queryFlags = 0;
+                commandii.pipelineStatistics = 0;
+
                 VkCommandBufferBeginInfo commandBI{};
                 commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-                commandBI.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-                commandBI.pInheritanceInfo = nullptr;
+                commandBI.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT | VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+                commandBI.pInheritanceInfo = &commandii;
 
                 result = checkVkResult(vkBeginCommandBuffer(co.mCommandBuffers[index], &commandBI));
                 if (result != Result::eSuccess)
@@ -3870,6 +3882,11 @@ namespace Cutlass
                     return Result::eFailure;
                 result = cmdBarrier(co, index, std::get<CmdBarrier>(command.second));
                 break;
+            case CommandType::eRenderImGui:
+                if (!std::holds_alternative<CmdRenderImGui>(command.second))
+                    return Result::eFailure;
+                result = cmdRenderImGui(co, index);
+            break;
             case CommandType::eExecuteSubCommand:
                 if (!std::holds_alternative<CmdExecuteSubCommand>(command.second))
                     return Result::eFailure;
@@ -4048,9 +4065,9 @@ namespace Cutlass
 
     Result Context::cmdEnd(CommandObject &co, size_t index, const CmdEnd &info)
     {
-        if(mRPMap[co.mHRenderPass.value()].mHWindow)
-            if(mWindowMap[mRPMap[co.mHRenderPass.value()].mHWindow.value()].useImGui && ImGui::GetDrawData())
-                ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), co.mCommandBuffers[index]);
+        // if(mRPMap[co.mHRenderPass.value()].mHWindow)
+        //     if(mWindowMap[mRPMap[co.mHRenderPass.value()].mHWindow.value()].useImGui && ImGui::GetDrawData())
+        //         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), co.mCommandBuffers[index]);
             
         vkCmdEndRenderPass(co.mCommandBuffers[index]);
 
@@ -4340,57 +4357,22 @@ namespace Cutlass
         return mRPMap.at(handle).mFrameBufferIndex;
     }
 
-    // Result Context::cmdImGui(CommandObject& co, size_t frameBufferIndex)
-    // {
-    //     Result result = Result::eSuccess;
+    Result Context::cmdRenderImGui(CommandObject& co, size_t frameBufferIndex)
+    {
+        Result result = Result::eSuccess;
 
-    //     if(!co.mHRenderPass)
-    //     {
-    //         std::cerr << "renderpass is not registered!\n";
-    //         return Result::eFailure;
-    //     }
+        // Record dear imgui primitives into command buffer
+        auto* pData = ImGui::GetDrawData();
+        if(!pData)
+        {
+            std::cerr << "invalid ImGui command call!\n";
+            return Result::eFailure;
+        }
 
-    //     std::vector<VkClearValue> clearValues;
-    //     clearValues.resize(2);
-    //     clearValues[0].color = 
-    //     {
-    //         0.2, 0.2, 0.2, 0.2
-    //     };
-    //     clearValues[1].depthStencil = 
-    //     {
-    //         1.0, 0
-    //     };
+        ImGui_ImplVulkan_RenderDrawData(pData, co.mCommandBuffers[frameBufferIndex]);
 
-    //     if(!mImGuiRenderPass)
-    //     {
-    //         std::cerr << "invalid ImGui render pass!\n";
-    //         return Result::eFailure;
-    //     }
-
-    //     auto& rpo = mRPMap[co.mHRenderPass.value()];
-    //     VkRenderPassBeginInfo bi = {};
-    //     {
-    //         bi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    //         bi.renderPass = mImGuiRenderPass.value();
-    //         bi.renderArea.offset = { 0, 0 };
-    //         bi.renderArea.extent = { rpo.mExtent.value().width, rpo.mExtent.value().height };
-    //         bi.framebuffer = rpo.mFramebuffers[frameBufferIndex % rpo.mFramebuffers.size()].value();
-    //         // bi.clearValueCount = clearValues.size();
-    //         // bi.pClearValues = clearValues.data();
-    //         bi.clearValueCount = 0;
-    //         bi.pClearValues = nullptr;
-    //     }
-
-    //     vkCmdBeginRenderPass(co.mCommandBuffers[frameBufferIndex], &bi, VK_SUBPASS_CONTENTS_INLINE);
-
-    //     // Record dear imgui primitives into command buffer
-    //     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), co.mCommandBuffers[frameBufferIndex]);
-
-    //     // Submit command buffer
-    //     vkCmdEndRenderPass(co.mCommandBuffers[frameBufferIndex]);
-
-    //     return result;
-    // }
+        return result;
+    }
 
 
     Result Context::execute(const HCommandBuffer &handle)
@@ -4413,7 +4395,7 @@ namespace Cutlass
         auto& co = mCommandBufferMap[handle];
         if (!co.mHRenderPass)
         {
-            std::cerr << "renderPass of this command is invalid!\n";
+            std::cerr << "render pass of this command is invalid!\n";
             return Result::eFailure;
         }
 

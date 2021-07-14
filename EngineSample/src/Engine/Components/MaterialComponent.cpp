@@ -7,7 +7,6 @@ namespace Engine
     MaterialComponent::MaterialComponent()
     {
         setUpdateFlag(false);
-
     }
 
     MaterialComponent::~MaterialComponent()
