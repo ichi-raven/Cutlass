@@ -93,7 +93,7 @@ namespace Engine
         std::optional<std::vector<std::shared_ptr<RequiredComponent>>>& getComponents()
         {
             const auto& iter = mComponents.find(typeid(RequiredComponent).hash_code());
-            return (iter != mComponents.end()) ? std::make_optional(std::dynamic_pointer_cast<RequiredComponent>(iter->second)) : std::nullopt;
+            return (iter != mComponents.end()) ? std::make_optional(iter->second) : std::nullopt;
         }
 
     protected:

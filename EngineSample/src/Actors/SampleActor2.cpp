@@ -18,15 +18,15 @@ SampleActor2::~SampleActor2()
 
 void SampleActor2::awake()
 {
-	// auto mesh = addComponent<Engine::MeshComponent>();
-	// if(!mesh)
-	// 	return;
-	// mesh->createPlane(10.f, 10.f);
-	// mesh->getTransform().setPos(glm::vec3(0, -1.5f, -2.f));
+	auto mesh = addComponent<Engine::MeshComponent>();
+	if(!mesh)
+		return;
+	mesh->createPlane(10.f, 10.f);
+	mesh->getTransform().setPos(glm::vec3(0, -1.5f, -2.f));
 
-	// auto material = addComponent<Engine::MaterialComponent>();
+	auto material = addComponent<Engine::MaterialComponent>();
 
-	// getSystem()->mRenderer->regist(mesh, material);
+	getSystem()->mRenderer->regist(mesh, material);
 }
 
 void SampleActor2::init()

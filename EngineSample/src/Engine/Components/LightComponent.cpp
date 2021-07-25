@@ -20,7 +20,7 @@ namespace Engine
         bi.setUniformBuffer<PointLightParam>();
         Cutlass::HBuffer tmp;
         getContext()->createBuffer(bi, tmp);
-        mLightCB = tmp;
+        //mLightCB = tmp;
     }
 
     void LightComponent::setAsDirectionalLight(const DirectionalLightParam& param)
@@ -30,10 +30,14 @@ namespace Engine
         mParam = param;
         Cutlass::BufferInfo bi;
         bi.setUniformBuffer<DirectionalLightParam>();
-        Cutlass::HBuffer tmp;
-        context->createBuffer(bi, tmp);
-        //assert(0);
-        mLightCB = tmp;
+        if(!mUB)
+        {
+            Cutlass::HBuffer tmp;
+            context->createBuffer(bi, tmp);
+            mUB = tmp;
+        }
+
+        context->writeBuffer(sizeof(DirectionalLightParam), &param, mUB.value());
     }
 
     const LightComponent::LightType LightComponent::getType() const
@@ -41,9 +45,14 @@ namespace Engine
         return mType;
     }
 
-    const std::optional<Cutlass::HBuffer>& LightComponent::getLightCB() const
+    const std::variant<LightComponent::PointLightParam, LightComponent::DirectionalLightParam>& LightComponent::getParam() const
     {
-        return mLightCB;
+        return mParam;
+    }
+
+    const std::optional<Cutlass::HBuffer>& LightComponent::getLightUB() const
+    {
+        return mUB;
     }
 
     void LightComponent::setEnable(bool flag)
@@ -79,5 +88,21 @@ namespace Engine
     void LightComponent::update()
     {
         mTransform.update();
+
+        // if(!mLightCB)
+        //     return;
+
+        // switch(mType)
+        // {
+        //     case LightComponent::LightType::eDirectionalLight:
+        //         getContext()->writeBuffer(sizeof(DirectionalLightParam), &std::get<DirectionalLightParam>(mParam), mLightCB.value());
+        //     break;
+        //     case LightComponent::LightType::ePointLight:
+        //         assert(!"TODO");
+        //     break;
+        //     default:
+        //         assert(!"invalid light type!");
+        //     break;
+        // }
     }
 }

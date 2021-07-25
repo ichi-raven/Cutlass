@@ -10,6 +10,7 @@
 #include <iostream>
 
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 using namespace Cutlass;
 
@@ -21,7 +22,7 @@ namespace Engine
     , mFrameCount(frameCount)
     , mSceneBuilded(false)
     , mShadowAdded(false)
-    , mGeometryAdded(false)
+    , mGeometryAdded(true)
     , mLightingAdded(false)
     , mForwardAdded(false)
     , mPostEffectAdded(false)
@@ -31,6 +32,33 @@ namespace Engine
 
         mRTTexs.reserve(hwindows.size());
         uint32_t maxWidth = 0, maxHeight = 0;
+
+        for(const auto& hw : hwindows)
+        {
+            uint32_t width, height;
+            mContext->getWindowSize(hw, width, height);
+            if(maxWidth < width)
+                maxWidth = width;
+            if(maxHeight < height)
+                maxHeight = height;
+        }
+
+        {//G-Buffer 構築
+            Cutlass::TextureInfo ti;
+            constexpr float coef = 1.5;
+            ti.setRTTex2DColor(maxWidth * coef, maxHeight * coef);
+            mContext->createTexture(ti, mGBuffer.albedoRT);
+            ti.format = Cutlass::ResourceType::eF32Vec4;
+            mContext->createTexture(ti, mGBuffer.normalRT);
+            mContext->createTexture(ti, mGBuffer.worldPosRT);
+            ti.setRTTex2DDepth(maxWidth * coef, maxHeight * coef);
+            mContext->createTexture(ti, mGBuffer.depthBuffer);
+
+            if(Result::eSuccess != mContext->createRenderPass(RenderPassInfo({mGBuffer.albedoRT, mGBuffer.normalRT, mGBuffer.worldPosRT}, mGBuffer.depthBuffer, false), mGBuffer.renderPass))
+            {
+                assert(!"failed to create G-Buffer renderpass!");
+            }
+        }
 
         for(const auto& hw : hwindows)
         {
@@ -57,10 +85,6 @@ namespace Engine
             TextureInfo ti;
             uint32_t width, height;
             mContext->getWindowSize(hw, width, height);
-            if(maxWidth < width)
-                maxWidth = width;
-            if(maxHeight < height)
-                maxHeight = height;
                 
             ti.setRTTex2DColor(width, height);
             mContext->createTexture(ti, mRTTexs.emplace_back());
@@ -108,19 +132,6 @@ namespace Engine
         mLightingVS         = Shader("../resources/shaders/HLSLDeffered/Lighting_vert.spv", "VSMain");
         mLightingFS         = Shader("../resources/shaders/HLSLDeffered/Lighting_frag.spv", "PSMain");
 
-        {//G-Buffer 構築
-            Cutlass::TextureInfo ti;
-            ti.setRTTex2DColor(maxWidth, maxHeight);
-            mContext->createTexture(ti, mGBuffer.albedoRT);
-            ti.format = Cutlass::ResourceType::eF32Vec4;
-            mContext->createTexture(ti, mGBuffer.normalRT);
-            mContext->createTexture(ti, mGBuffer.worldPosRT);
-            ti.setRTTex2DDepth(maxWidth, maxHeight);
-            mContext->createTexture(ti, mGBuffer.depthBuffer);
-
-            mContext->createRenderPass(RenderPassInfo({mGBuffer.albedoRT, mGBuffer.worldPosRT, mGBuffer.normalRT}, mGBuffer.depthBuffer), mGBuffer.renderPass);
-        }
-
         {//ライティング用パス
             if(Result::eSuccess != mContext->createRenderPass(RenderPassInfo(mRTTexs.back(), true), mLightingPass))
                 assert(!"failed to create lighting renderpass!");
@@ -132,29 +143,57 @@ namespace Engine
                 mLightingPass,
                 DepthStencilState::eNone,
                 RasterizerState(PolygonMode::eFill, CullMode::eNone, FrontFace::eClockwise),
-                Topology::eTriangleStrip
+                Topology::eTriangleStrip,
+                ColorBlend::eAlphaBlend
             );
 
             mContext->createGraphicsPipeline(gpi, mLightingPipeline);
         }
 
         //デフォルトコマンド構築
-        //std::cerr << "command build start\n";
         CommandList cl;
         cl.clear();
         mContext->createCommandBuffer(cl, mShadowCB);
-        //std::cerr << "shadow\n";
         mContext->createCommandBuffer(cl, mGeometryCB);
-        //std::cerr << "geom\n";
         mContext->createCommandBuffer(cl, mLightingCB);
-        //std::cerr << "lighting\n";
         mContext->createCommandBuffer(cl, mForwardCB);
-        //std::cerr << "forward\n";
         mContext->createCommandBuffer(cl, mPostEffectCB);
-        //std::cerr << "posteffect\n";
         mContext->createCommandBuffer(cl, mSpriteCB);
-        //std::cerr << "sprite\n";
         
+        {//カメラ用バッファを作成しておく
+            BufferInfo bi;
+            bi.setUniformBuffer<CameraData>();
+            if(Result::eSuccess != mContext->createBuffer(bi, mCameraUB))
+                assert(!"failed to create camera UB!");
+        }
+        
+        {//ライト用バッファも作成しておく
+            BufferInfo bi;
+            bi.setUniformBuffer<LightData>();
+            if(Result::eSuccess != mContext->createBuffer(bi, mLightUB))
+                assert(!"failed to create light UB!");
+        }
+
+        // {//ライティング用コマンドバッファ
+        //     ShaderResourceSet bufferSet, textureSet;
+        //     {
+        //         bufferSet.bind(0, mLightUB);
+        //         bufferSet.bind(1, mCameraUB);
+
+        //         textureSet.bind(0, mGBuffer.albedoRT);
+        //         textureSet.bind(0, mGBuffer.normalRT);
+        //         textureSet.bind(0, mGBuffer.worldPosRT);
+        //     }
+
+        //     CommandList cl;
+        //     cl.begin(mLightingPass);
+        //     cl.bind(mLightingPipeline);
+        //     cl.bind(0, bufferSet);
+        //     cl.bind(1, textureSet);
+        //     cl.render(4, 1, 0, 0);
+        //     cl.end();
+        //     mContext->updateCommandBuffer(cl, mLightingCB);
+        // }
     }
 
     Renderer::~Renderer()
@@ -176,13 +215,12 @@ namespace Engine
             mGBuffer.renderPass,
             DepthStencilState::eDepth,
             mesh->getRasterizerState(),
-            mesh->getTopology(),
-            ColorBlend::eDefault,
-            MultiSampleState::eDefault
+            mesh->getTopology()
         );
  
         if(Cutlass::Result::eSuccess != mContext->createGraphicsPipeline(gpi, tmp.pipeline))
             assert(!"failed to create graphics pipeline");
+        
         {//コマンド作成
             //ジオメトリ固有パラメータセット
             {
@@ -195,11 +233,18 @@ namespace Engine
 
             ShaderResourceSet bufferSet;
             ShaderResourceSet textureSet;
-            bufferSet.bind(0, tmp.sceneCB.value());
-            if(!material->getMaterialSets().empty())
-                bufferSet.bind(1, material->getMaterialSets().back().paramBuffer);
-            textureSet.bind(0, mDebugTex);
+            {
+                bufferSet.bind(0, tmp.sceneCB.value());
+                if(!material->getMaterialSets().empty())
+                    bufferSet.bind(1, material->getMaterialSets().back().paramBuffer);
+                else
+                {
+                    //マテリアル読む
+                }
+                textureSet.bind(0, mDebugTex);
+            }
 
+            //ジオメトリパス
             SubCommandList scl(mGBuffer.renderPass);
             scl.bind(tmp.pipeline);
             scl.bind(mesh->getVB(), mesh->getIB());
@@ -229,8 +274,12 @@ namespace Engine
 
     void Renderer::addLight(const std::shared_ptr<LightComponent>& light)
     {
-        std::cerr << "light start\n";
-        mLights.emplace_back(light->getLightCB().value());
+        //std::cerr << "light start\n";
+        mLights.emplace_back(light);
+        if(!light->getLightUB())
+        {
+            assert(!"not builded light!");
+        }
 
         switch(light->getType())
         {
@@ -246,9 +295,9 @@ namespace Engine
         }
 
         ShaderResourceSet bufferSet, textureSet;
-        {//テクスチャレンダリングパスのリソースセット
-            bufferSet.bind(0, mLights.back());
-            //bufferSet.bind(1, sceneUB);
+        {
+            bufferSet.bind(0, light->getLightUB().value());
+            bufferSet.bind(1, mCameraUB);
 
             textureSet.bind(0, mGBuffer.albedoRT);
             textureSet.bind(1, mGBuffer.normalRT);
@@ -263,6 +312,16 @@ namespace Engine
 
         HCommandBuffer cb;
         mContext->createSubCommandBuffer(scl, cb);
+
+        // HCommandBuffer cb;
+        // CommandList cl;
+        // cl.begin(mLightingPass);
+        // cl.bind(mLightingPipeline);
+        // cl.bind(0, bufferSet);
+        // cl.bind(1, textureSet);
+        // cl.render(4, 1, 0, 0);
+        // cl.end();
+        //mContext->createCommandBuffer(cl, cb);
 
         mLightingSubs.emplace_back(cb);
         mLightingAdded = true;
@@ -297,10 +356,10 @@ namespace Engine
             mContext->destroyCommandBuffer(cb);
         }
 
-        for(const auto& cb : mLightingSubs)
-        {
-            mContext->destroyCommandBuffer(cb);
-        }
+        // for(const auto& cb : mLightingSubs)
+        // {
+        //     mContext->destroyCommandBuffer(cb);
+        // }
 
         for(const auto& cb : mForwardSubs)
         {
@@ -319,7 +378,7 @@ namespace Engine
 
         mShadowSubs.clear();
         mGeometrySubs.clear();
-        mLightingSubs.clear();
+        //mLightingSubs.clear();
         mForwardSubs.clear();
         mPostEffectSubs.clear();
         mSpriteSubs.clear();
@@ -346,6 +405,52 @@ namespace Engine
                 sceneData.world = ri.mesh->getTransform().getWorldMatrix();
                 mContext->writeBuffer(sizeof(SceneData), &sceneData, ri.sceneCB.value());
             }
+
+            {//カメラ
+                CameraData data;
+                data.cameraPos = mCamera.value()->getTransform().getPos();
+                //std::cerr << "camera pos : " << glm::to_string(data.cameraPos) << "\n";
+                mContext->writeBuffer(sizeof(CameraData), &data, mCameraUB);
+            }
+
+            // {//ライト
+            //     LightData data;
+            //     //auto limit = std::min(static_cast<size_t>(MAXLIGHTNUM), mLights.size());
+            //     //data.lightNum = limit;
+            //     LightComponent::DirectionalLightParam dparam;
+            //     dparam = std::get<LightComponent::DirectionalLightParam>(mLights[0]->getParam());
+            //     data.lightDir = dparam.lightDir;
+            //     data.lightColor = dparam.lightColor;
+            //     // for(size_t i = 0; i < MAXLIGHTNUM; ++i)
+            //     // {
+            //     //     if(i >= mLights.size())
+            //     //     {
+            //     //         //data.lightDir[i] = glm::vec4(0, 1.f, 1.f, 0);
+            //     //         //data.lightColor[i] = glm::vec4(0.3f, 0.3f, 0.3f, 1.f);
+            //     //         continue;
+            //     //     }
+            //     //     switch(mLights[i]->getType())
+            //     //     {
+            //     //         case LightComponent::LightType::eDirectionalLight:
+            //     //         break;
+            //     //         case LightComponent::LightType::ePointLight:
+            //     //             assert(!"TODO");
+            //     //         break;
+            //     //         default:
+            //     //             assert(!"invalid light type!");
+            //     //         break;
+            //     //     }
+
+            //     //     data.lightDir = dparam.lightDir;
+            //     //     data.lightColor = dparam.lightColor;
+            //     // }
+
+            //     if(Result::eSuccess != mContext->writeBuffer(sizeof(LightData), &data, mLightUB))
+            //     {
+            //         assert(!"failed to create light buffer!");
+            //     }
+
+            // }
         }
 
         //サブコマンドバッファ積み込み
@@ -355,6 +460,7 @@ namespace Engine
         }
         if(mGeometryAdded)
         {
+            //assert(!"came");
             CommandList cl;
             cl.barrier(mGBuffer.albedoRT);
             cl.barrier(mGBuffer.normalRT);
@@ -368,8 +474,9 @@ namespace Engine
         }
         if(mLightingAdded)
         {
+            ColorClearValue ccv = {0.4f, 0.4f, 0.4f, 1.f};
             CommandList cl;
-            cl.begin(mLightingPass);
+            cl.begin(mLightingPass, true, ccv);
             for(const auto& sub : mLightingSubs)
                 cl.executeSubCommand(sub);
             cl.end();
@@ -399,18 +506,22 @@ namespace Engine
 
     void Renderer::render()
     {
-        if(!mSceneBuilded)
-        {
-            build();
-            mSceneBuilded = false;
-        }
+        // if(!mSceneBuilded)
+        // {
+        //     build();
+        //     mSceneBuilded = false;
+        // }
 
         //mContext->execute(mShadowCB);
         std::cerr << "render start\n";
         mContext->execute(mGeometryCB);
         std::cerr << "geom\n";
         mContext->execute(mLightingCB);
+
+        // for(const auto& cb : mLightingSubs)
+        //     mContext->execute(cb);
         std::cerr << "light\n";
+
         //mContext->execute(mForwardCB);
         //mContext->execute(mPostEffectCB);
         //mContext->execute(mSpriteCB);

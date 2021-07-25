@@ -35,43 +35,39 @@ void SampleActor::awake()
 	mMesh = addComponent<Engine::MeshComponent>();
 	auto material = addComponent<Engine::MaterialComponent>();
 	auto camera = addComponent<Engine::CameraComponent>();
-	auto light = addComponent<Engine::LightComponent>();
-
+	mLight = addComponent<Engine::LightComponent>();
+	auto light2 = addComponent<Engine::LightComponent>();
 	//ロード
 	//loader->load(Resource::Model::genPath(Resource::Model::testGLTF).c_str(), mMesh, material);
 
 	//mesh
 	mMesh->createCube(1.f);
 
-	// auto VS = Cutlass::Shader(Resource::Shader::genPath(Resource::Shader::objVert), "main");
-	// auto FS = Cutlass::Shader(Resource::Shader::genPath(Resource::Shader::frag), "main");
-
-	// material->setVS(VS);
-	// material->setFS(FS);
-
 	//camera
-	camera->getTransform().setPos(glm::vec3(0, 0, 10.f));
+	camera->getTransform().setPos(glm::vec3(0, 0, 5.f));
 	camera->setViewParam(glm::vec3(0, 0, -10.f), glm::vec3(0, 1.f, 0));
-	camera->setProjectionParam(45.f, getCommonRegion()->width, getCommonRegion()->height, 0.1f, 1e6);
+	camera->setProjectionParam(45.f, getCommonRegion()->width, getCommonRegion()->height, 0.1f, 1000.f);
 
 	//light
 	Engine::LightComponent::DirectionalLightParam data;
-	data.lightDir = glm::vec4(1.f, 1.f, 1.f, 0);
-	data.lightColor = glm::vec4(0.5f, 0.5f, 0.5f, 1.f);
-	light->setAsDirectionalLight(data);
+	data.lightDir = glm::vec4(0.f, 1.f, 1.f, 0);
+	data.lightColor = glm::vec4(0.7f, 0.3f, 0.3f, 1.f);
+	mLight->setAsDirectionalLight(data);
+	data.lightDir = glm::vec4(0.f, 1.f, -1.f, 0);
+	data.lightColor = glm::vec4(0.2f, 0.4f, 0.4f, 1.f);
+	light2->setAsDirectionalLight(data);
+
 	//renderer
 	renderer->setCamera(camera);
-	std::cerr << "camera\n";
-	renderer->addLight(light);
-	std::cerr << "light\n\n";
+	renderer->addLight(mLight);
+	renderer->addLight(light2);
 	renderer->regist(mMesh, material);
-	std::cerr << "regist\n\n";
-	//assert(0);
 }
 
 void SampleActor::init()
 {
 	//他アクタに関連する処理用,関数名はUnity準拠
+	//assert(getComponents<Engine::LightComponent>().value().size() == 2);
 }
 
 void SampleActor::update()
@@ -104,12 +100,23 @@ void SampleActor::update()
 		if (context->getKey(Key::Space))
 		{
 			transform.setRotation(glm::vec3(0, 0, 1.f), 90.f);
-			transform.setRotAcc(0.f);
+			transform.setRotVel(0.f);
 			camera->setLookAt(transform.getPos());
 		}
 
 		transform.setVel(vel);
 		transform.setRotAxis(glm::vec3(0, 1.f, 0));
 		transform.setRotAcc(rot);
+	}
+
+	if(getCommonRegion()->frame % 120 == 0)
+	{
+		srand(time(NULL));
+		float random[] = {1.f * rand() / RAND_MAX, 1.f * rand() / RAND_MAX, 1.f * rand() / RAND_MAX};
+		float random2[] = {1.f * (rand() % 5), 1.f * (rand() % 5)};
+		Engine::LightComponent::DirectionalLightParam data;
+		data.lightDir = glm::vec4(random2[0], random2[1], -1.f, 0);
+		data.lightColor = glm::vec4(random[0], random[1], random[2], 1.f);
+		mLight->setAsDirectionalLight(data);
 	}
 }

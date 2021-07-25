@@ -23,7 +23,7 @@ SamplerState testSampler : register(s0, space1);
 struct VSInput
 {
 	float3 pos : POSITION;
-	float3 color : COLOR;
+	float4 color : COLOR;
 	float3 normal : NORMAL;
 	float2 uv : TEXCOORD;
 };
@@ -61,6 +61,7 @@ PSOut PSMain(VSOutput input)
 {
 	PSOut psOut;
 	psOut.albedo = tex.Sample(testSampler, input.uv);
+	//補正
 	psOut.normal = float4((input.normal / 2.f + 0.5f), 1.f);
 	psOut.worldPos = input.worldPos;
 

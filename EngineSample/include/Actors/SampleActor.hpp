@@ -7,6 +7,7 @@
 namespace Engine
 {
     class MeshComponent;
+    class LightComponent;
 }
 
 
@@ -18,4 +19,5 @@ public:
 
 private:
     std::shared_ptr<Engine::MeshComponent> mMesh;
+    std::shared_ptr<Engine::LightComponent> mLight;
 };

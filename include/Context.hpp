@@ -28,6 +28,9 @@
 namespace Cutlass
 {
     constexpr const char* ENGINE_NAME = "CutlassEngine";
+    //{major, minor, patch}
+    constexpr uint8_t version[3] = {0, 8, 1};
+
 
     struct WindowInfo
     {

@@ -34,6 +34,7 @@ int main()
 	app.mCommonRegion->width 		= windowWidth;
 	app.mCommonRegion->height 		= windowHeight;
 	app.mCommonRegion->frameCount 	= frameCount;
+	app.mCommonRegion->frame		= 0;
 
 	//シーン追加
 	app.addScene<TestScene>(SceneList::eTest);
@@ -42,7 +43,6 @@ int main()
 	app.init(SceneList::eTest);
 
 	{//メインループ
-		uint32_t frame = 0;
 		std::array<float, 10> times;//10f平均でfpsを計測
 		std::chrono::high_resolution_clock::time_point now, prev = std::chrono::high_resolution_clock::now();
 
@@ -50,8 +50,8 @@ int main()
 		{
 			{//frame数, fps
                 now = std::chrono::high_resolution_clock::now();
-                times[frame % 10] = app.mCommonRegion->deltatime = std::chrono::duration_cast<std::chrono::microseconds>(now - prev).count() / 1000000.;
-                std::cerr << "now frame : " << frame << "\n";
+                times[app.mCommonRegion->frame % 10] = app.mCommonRegion->deltatime = std::chrono::duration_cast<std::chrono::microseconds>(now - prev).count() / 1000000.;
+                std::cerr << "now frame : " << app.mCommonRegion->frame << "\n";
                 std::cerr << "FPS : " << 1. / (std::accumulate(times.begin(), times.end(), 0.) / 10.) << "\n";
             }
 
@@ -59,7 +59,7 @@ int main()
 			app.update();
 
 			{//フレーム, 時刻更新
-                ++frame;
+                ++app.mCommonRegion->frame;
                 prev = now;
             }
 		}

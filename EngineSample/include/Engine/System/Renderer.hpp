@@ -74,6 +74,21 @@ namespace Engine
             glm::mat4 proj;
         };
 
+        struct CameraData
+        {
+            glm::vec3 cameraPos;
+        };
+
+        //#define MAXLIGHTNUM (64)
+        struct LightData//固定長64個まで
+        {
+            glm::vec4 lightDir;
+            glm::vec4 lightColor;
+            // glm::vec4 lightDir[MAXLIGHTNUM];
+            // glm::vec4 lightColor[MAXLIGHTNUM];
+            //uint32_t lightNum;
+        };
+
         struct RenderInfo
         {
             std::shared_ptr<MeshComponent> mesh;
@@ -105,7 +120,9 @@ namespace Engine
         Cutlass::HGraphicsPipeline mLightingPipeline;
 
         std::optional<std::shared_ptr<CameraComponent>> mCamera;
-        std::vector<Cutlass::HBuffer> mLights;
+        Cutlass::HBuffer mCameraUB;
+        std::vector<std::shared_ptr<LightComponent>> mLights;
+        Cutlass::HBuffer mLightUB;
 
         std::vector<RenderInfo> mRenderInfos;
 

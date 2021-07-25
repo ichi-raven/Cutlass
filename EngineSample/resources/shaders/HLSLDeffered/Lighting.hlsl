@@ -4,13 +4,10 @@ cbuffer DirectionLight : register(b0, space0)
     float4 lightColor;        // ライトのカラー
 };
 
-//cbuffer Scene : register(b1, space0)
-// {
-// 	float4x4 world;
-// 	float4x4 view;
-// 	float4x4 proj;
-// 	float3 cameraPos;
-// }
+cbuffer Scene : register(b1, space0)
+{
+	float3 cameraPos;
+}
 
 //combined image sampler(set : 1, binding : 0)
 Texture2D<float4> albedoTex : register(t0, space1);
@@ -68,5 +65,6 @@ float4 PSMain(VSOutput input) : SV_Target0
 
 	float4 light = ambient + lightDiffuse + lightSpecular;
 
+	//return float4((albedo * light).xyz, 0.5f); 
 	return float4((albedo * light).xyz, albedo.w); 
 }

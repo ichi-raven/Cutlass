@@ -8,5 +8,6 @@ struct MyCommonRegion
 	uint16_t height;
 	uint16_t frameCount;
 
+	uint32_t frame;
 	double deltatime;
 };

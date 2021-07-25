@@ -220,7 +220,7 @@ namespace Engine
         mVisible = mEnabled = true;
         mRasterizerState.cullMode = Cutlass::CullMode::eNone;
 
-        constexpr glm::vec3 nu(0, 1.f, 0);
+        constexpr glm::vec3 nu(0, -1.f, 0);
         constexpr glm::vec2 lb(0.0f, 0.0f);
         constexpr glm::vec2 lt(0.0f, 1.0f);
         constexpr glm::vec2 rb(1.0f, 0.0f);

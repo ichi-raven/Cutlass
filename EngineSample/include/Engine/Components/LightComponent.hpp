@@ -44,7 +44,10 @@ namespace Engine
         const Transform& getTransform() const;
 
         const LightType getType() const;
-        const std::optional<Cutlass::HBuffer>& getLightCB() const;
+        const std::variant<PointLightParam, DirectionalLightParam>& getParam() const;
+
+        const std::optional<Cutlass::HBuffer>& getLightUB() const;
+
 
         void setEnable(bool flag);
         void setEnable();
@@ -55,8 +58,8 @@ namespace Engine
     private:
         bool mEnable;
         Transform mTransform;
-        std::optional<Cutlass::HBuffer> mLightCB;
         LightType mType;
         std::variant<PointLightParam, DirectionalLightParam> mParam;
+        std::optional<Cutlass::HBuffer> mUB;
     };
 }

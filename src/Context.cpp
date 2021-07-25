@@ -129,7 +129,7 @@ namespace Cutlass
             {
                 return result;
             }
-            std::cout << "debug report enabled\n";
+            std::cerr << "debug report enabled\n";
         }
 
 
@@ -554,13 +554,13 @@ namespace Cutlass
     {
         Result result;
 
-        std::vector<const char *> extensions;
+        std::vector<const char*> extensions;
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
         appInfo.pApplicationName = mAppName.c_str();
         appInfo.pEngineName = ENGINE_NAME;
-        appInfo.apiVersion = VK_API_VERSION_1_1;
-        appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+        appInfo.apiVersion = VK_API_VERSION_1_2;
+        appInfo.engineVersion = VK_MAKE_VERSION(version[0], version[1], version[2]);
 
         //get extention properties
         std::vector<VkExtensionProperties> props;
@@ -580,11 +580,11 @@ namespace Cutlass
                 return result;
             }
 
-            std::cout << "enabled extensions : \n";
+            std::cerr << "enabled extensions : \n";
             for (const auto& v : props)
             {
                 extensions.push_back(v.extensionName);
-                std::cout << v.extensionName << "\n";
+                std::cerr << v.extensionName << "\n";
             }
         }
 
@@ -790,7 +790,7 @@ namespace Cutlass
         result = selectSurfaceFormat(wo, VK_FORMAT_B8G8R8A8_UNORM);
         if (Result::eSuccess != result)
         {
-            std::cout << "Failed to select surface format!\n";
+            std::cerr << "Failed to select surface format!\n";
             return result;
         }
 
@@ -3286,18 +3286,18 @@ namespace Cutlass
             {
                 for(const auto& p : layoutTable)
                 {
-                    std::cout << "set: " << static_cast<int>(p.first.first) << ", binding: " << static_cast<int>(p.first.second) << "\n";
+                    std::cerr << "set: " << static_cast<int>(p.first.first) << ", binding: " << static_cast<int>(p.first.second) << "\n";
 
                     switch(p.second)
                     {
                         case Shader::ShaderResourceType::eUniformBuffer:
-                            std::cout << " UniformBuffer\n";
+                            std::cerr << " UniformBuffer\n";
                             break; 
                         case Shader::ShaderResourceType::eCombinedTexture:
-                            std::cout << " CombinedTexture\n";
+                            std::cerr << " CombinedTexture\n";
                             break; 
                         case Shader::ShaderResourceType::eSampler:
-                            std::cout << " sampler\n";
+                            std::cerr << " sampler\n";
                             break; 
                     }
                 }
