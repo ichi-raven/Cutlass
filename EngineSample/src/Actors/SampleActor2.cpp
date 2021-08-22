@@ -22,7 +22,7 @@ void SampleActor2::awake()
 	if(!mesh)
 		return;
 	mesh->createPlane(10.f, 10.f);
-	mesh->getTransform().setPos(glm::vec3(0, -1.5f, -2.f));
+	mesh->getTransform().setPos(glm::vec3(0, -1.5f, -4.f));
 
 	auto material = addComponent<Engine::MaterialComponent>();
 

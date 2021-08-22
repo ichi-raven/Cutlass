@@ -19,34 +19,25 @@ namespace Engine
             ePointLight, 
             eDirectionalLight,
         };
-        
-        struct PointLightParam
-        {
-            glm::vec4 lightColor;
-        };
-
-        struct DirectionalLightParam
-        {
-            glm::vec4 lightDir;
-            glm::vec4 lightColor; 
-        };
 
         LightComponent();
  
         virtual ~LightComponent(){}
 
-        void setAsPointLight(const PointLightParam& param);
+        void setAsPointLight(const glm::vec4& color);
 
-        void setAsDirectionalLight(const DirectionalLightParam& param);
+        void setAsDirectionalLight(const glm::vec4& color, const glm::vec3& direction);
 
         void setTransform(const Transform& transform);
         Transform& getTransform();
         const Transform& getTransform() const;
 
         const LightType getType() const;
-        const std::variant<PointLightParam, DirectionalLightParam>& getParam() const;
 
-        const std::optional<Cutlass::HBuffer>& getLightUB() const;
+        const glm::vec4& getColor() const;
+        const glm::vec3& getDirection() const;
+
+        //const std::optional<Cutlass::HBuffer>& getLightUB() const;
 
 
         void setEnable(bool flag);
@@ -59,7 +50,10 @@ namespace Engine
         bool mEnable;
         Transform mTransform;
         LightType mType;
-        std::variant<PointLightParam, DirectionalLightParam> mParam;
-        std::optional<Cutlass::HBuffer> mUB;
+        
+        glm::vec4 mColor;
+        glm::vec3 mDirection;
+
+        //std::optional<Cutlass::HBuffer> mUB;
     };
 }

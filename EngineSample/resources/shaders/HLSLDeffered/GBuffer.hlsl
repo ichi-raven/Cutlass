@@ -23,7 +23,6 @@ SamplerState testSampler : register(s0, space1);
 struct VSInput
 {
 	float3 pos : POSITION;
-	float4 color : COLOR;
 	float3 normal : NORMAL;
 	float2 uv : TEXCOORD;
 };

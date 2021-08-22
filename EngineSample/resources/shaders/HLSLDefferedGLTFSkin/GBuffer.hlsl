@@ -18,7 +18,8 @@ cbuffer MaterialCB : register(b1, space0)
 
 cbuffer BoneCB : register(b2, space0)
 {
-	float4x4 jointMat[256];
+	uint useBone;//if use bone 1 else 0
+	float4x4 boneMat[128];
 }
 
 //combined image sampler(set : 1, binding : 0)
@@ -30,7 +31,6 @@ struct VSInput
 	float3 pos : POSITION;
 	float3 normal : NORMAL;
 	float2 uv0 : TEXCOORD0;
-	float2 uv1 : TEXCOORD1;
 	float4 joint0;
 	float4 weight0;
 };
@@ -40,7 +40,6 @@ struct VSOutput
 	float4 pos : SV_Position;
 	float3 normal : Normal;
 	float2 uv0 : Texcoord0;
-	float2 uv1 : Texcoord1;
 	float4 worldPos;
 };
 
@@ -54,19 +53,26 @@ struct PSOut
 VSOutput VSMain(VSInput input)
 {
 	VSOutput output;
-	float4 inPos = float4(input.pos.xyz, 1.0f);
-	float4x4 boneAll = 
-	jointMat[int(input.joint0.x)] * input.weight0.x + 
-	jointMat[int(input.joint0.y)] * input.weight0.y +
-	jointMat[int(input.joint0.z)] * input.weight0.z +
-	jointMat[int(input.joint0.w)] * input.weight0.w;
+
+	float4 skinnedPos = float4(input.pos.xyz, 1.0f);
+
+	if(useBone)
+	{
+		float4x4 boneAll = 
+		boneMat[int(input.joint0.x)] * input.weight0.x + 
+		boneMat[int(input.joint0.y)] * input.weight0.y +
+		boneMat[int(input.joint0.z)] * input.weight0.z +
+		boneMat[int(input.joint0.w)] * input.weight0.w;
 	
-	output.pos = mul(mul(mul(mul(proj, view), world), boneAll), inPos);
+		skinnedPos = mul(boneAll, float4(input.pos.xyz, 1.0f));
+	}
+	
+
+	output.pos = mul(mul(mul(proj, view), world), skinnedPos);
 	output.normal = mul(world, float4(input.normal, 0.f)).xyz;
 	output.uv0 = input.uv0;
-	output.uv1 = float2(0, 0);
 	//output.worldPos = mul(world, inPos);
-	output.worldPos = mul(mul(world, boneAll), inPos);
+	output.worldPos = mul(world, skinnedPos);
 
 	return output;
 }

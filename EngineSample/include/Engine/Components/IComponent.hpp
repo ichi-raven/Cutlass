@@ -25,15 +25,15 @@ namespace Engine
 
         virtual void update() = 0;
         
-        void setContext(const std::shared_ptr<Cutlass::Context>& context)
-        {
-            mContext = context;
-        }
+        // void setContext(const std::shared_ptr<Cutlass::Context>& context)
+        // {
+        //     mContext = context;
+        // }
 
-        const std::shared_ptr<Cutlass::Context>& getContext()
-        {
-            return mContext;
-        }
+        // const std::shared_ptr<Cutlass::Context>& getContext()
+        // {
+        //     return mContext;
+        // }
 
         //どうしても識別したいときに使う        
         uint32_t getID() const

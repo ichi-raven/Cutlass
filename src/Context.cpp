@@ -1495,9 +1495,9 @@ namespace Cutlass
             sci.pNext = nullptr;
             sci.minFilter = VK_FILTER_LINEAR;
             sci.magFilter = VK_FILTER_LINEAR;
-            sci.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            sci.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            sci.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            sci.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            sci.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            sci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
             sci.maxAnisotropy = 1.f;
             sci.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
             VkSampler sampler;
@@ -1625,9 +1625,10 @@ namespace Cutlass
             sci.pNext = nullptr;
             sci.minFilter = VK_FILTER_LINEAR;
             sci.magFilter = VK_FILTER_LINEAR;
-            sci.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            sci.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            sci.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            
+            sci.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            sci.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            sci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
             sci.anisotropyEnable = VK_FALSE;
             sci.maxAnisotropy = 16.f;
             sci.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;

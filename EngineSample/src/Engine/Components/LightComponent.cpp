@@ -5,39 +5,54 @@ namespace Engine
     LightComponent::LightComponent()
     : mEnable(true)
     {
-        DirectionalLightParam data;
-        data.lightDir = glm::vec4(1.f, 1.f, 1.f, 0);
-        data.lightColor = glm::vec4(0.5f, 0.5f, 0.5f, 1.f);
+        //とりあえず
+        // DirectionalLightParam data;
+        mColor = glm::vec4(0.9f, 0.9f, 0.9f, 1.f);
+        mDirection = glm::vec3(0);//glm::vec3(0, 0.7071f, 0.7071f);
         //setAsDirectionalLight(data);
     }
 
-    void LightComponent::setAsPointLight(const PointLightParam& param)
+    //void LightComponent::setAsPointLight(const PointLightParam& param)
+    // {
+    //     assert(!"TODO");
+    //     mType = LightType::ePointLight;
+    //     mParam = param;
+    //     // Cutlass::BufferInfo bi;
+    //     // bi.setUniformBuffer<PointLightParam>();
+    //     // Cutlass::HBuffer tmp;
+    //     // getContext()->createBuffer(bi, tmp);
+    //     //mLightCB = tmp;
+    // }
+
+    // void LightComponent::setAsDirectionalLight(const DirectionalLightParam& param)
+    // {
+    //     //auto& context = getContext();
+    //     mType = LightType::eDirectionalLight;
+    //     mParam = param;
+    //     // Cutlass::BufferInfo bi;
+    //     // bi.setUniformBuffer<DirectionalLightParam>();
+    //     // if(!mUB)
+    //     // {
+    //     //     Cutlass::HBuffer tmp;
+    //     //     context->createBuffer(bi, tmp);
+    //     //     mUB = tmp;
+    //     // }
+
+    //     //context->writeBuffer(sizeof(DirectionalLightParam), &param, mUB.value());
+    // }
+
+    void LightComponent::setAsPointLight(const glm::vec4& color)
     {
-        assert(!"TODO");
         mType = LightType::ePointLight;
-        mParam = param;
-        Cutlass::BufferInfo bi;
-        bi.setUniformBuffer<PointLightParam>();
-        Cutlass::HBuffer tmp;
-        getContext()->createBuffer(bi, tmp);
-        //mLightCB = tmp;
+        mColor = color;
+        //mDirection = glm::vec3(0);
     }
 
-    void LightComponent::setAsDirectionalLight(const DirectionalLightParam& param)
+    void LightComponent::setAsDirectionalLight(const glm::vec4& color, const glm::vec3& direction)
     {
-        auto& context = getContext();
         mType = LightType::eDirectionalLight;
-        mParam = param;
-        Cutlass::BufferInfo bi;
-        bi.setUniformBuffer<DirectionalLightParam>();
-        if(!mUB)
-        {
-            Cutlass::HBuffer tmp;
-            context->createBuffer(bi, tmp);
-            mUB = tmp;
-        }
-
-        context->writeBuffer(sizeof(DirectionalLightParam), &param, mUB.value());
+        mColor = color;
+        mDirection = glm::normalize(direction);
     }
 
     const LightComponent::LightType LightComponent::getType() const
@@ -45,15 +60,25 @@ namespace Engine
         return mType;
     }
 
-    const std::variant<LightComponent::PointLightParam, LightComponent::DirectionalLightParam>& LightComponent::getParam() const
+    const glm::vec4& LightComponent::getColor() const
     {
-        return mParam;
+        return mColor;
     }
 
-    const std::optional<Cutlass::HBuffer>& LightComponent::getLightUB() const
+    const glm::vec3& LightComponent::getDirection() const
     {
-        return mUB;
+        return mDirection;
     }
+
+    // const std::variant<LightComponent::PointLightParam, LightComponent::DirectionalLightParam>& LightComponent::getParam() const
+    // {
+    //     return mParam;
+    // }
+
+    //const std::optional<Cutlass::HBuffer>& LightComponent::getLightUB() const
+    // {
+    //     return mUB;
+    // }
 
     void LightComponent::setEnable(bool flag)
     {

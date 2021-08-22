@@ -16,9 +16,7 @@ namespace Engine
 
     MeshComponent::~MeshComponent()
     {
-        //auto&& context = getContext();
-        //context->destroyBuffer(mIB);
-        //context->destroyBuffer(mVB);
+
     }
 
     void MeshComponent::setVisible(bool flag)
@@ -61,15 +59,25 @@ namespace Engine
         return mIndices.size();
     }
 
-    const Cutlass::HBuffer& MeshComponent::getVB() const
+    // const Cutlass::HBuffer& MeshComponent::getVB() const
+    // {
+    //     return mVB;
+    // }
+
+    // const Cutlass::HBuffer& MeshComponent::getIB() const
+    // {
+    //     return mIB;
+    // }
+
+    const std::vector<MeshComponent::Vertex>& MeshComponent::getVertices() const
     {
-        return mVB;
+        return mVertices;
     }
 
-    const Cutlass::HBuffer& MeshComponent::getIB() const
+    const std::vector<uint32_t>& MeshComponent::getIndices() const
     {
-        return mIB;
-    }
+        return mIndices;
+    } 
 
     void MeshComponent::update()
     {
@@ -99,38 +107,40 @@ namespace Engine
 
     void MeshComponent::create(const std::vector<MeshComponent::Vertex>& vertices, const std::vector<uint32_t>& indices)
     {
-        auto& context = getContext();
+        //auto& context = getContext();
         mVisible = mEnabled = true;
 
         mIndices = indices;
 
-        {//頂点バッファ構築
-            Cutlass::BufferInfo bi;
-            bi.setVertexBuffer<Vertex>(mVertices.size());
-            context->createBuffer(bi, mVB);
-            context->writeBuffer(mVertices.size() * sizeof(decltype(mVertices[0])), mVertices.data(), mVB);
-        }
+        // {//頂点バッファ構築
+        //     Cutlass::BufferInfo bi;
+        //     bi.setVertexBuffer<Vertex>(mVertices.size());
+        //     context->createBuffer(bi, mVB);
+        //     context->writeBuffer(mVertices.size() * sizeof(decltype(mVertices[0])), mVertices.data(), mVB);
+        // }
 
-        {//インデックスバッファ構築
-            Cutlass::BufferInfo bi;
-            bi.setIndexBuffer<uint32_t>(mIndices.size());
-            context->createBuffer(bi, mIB);
-            context->writeBuffer(mIndices.size() * sizeof(decltype(mIndices[0])), mIndices.data(), mIB);
-        }
+        // {//インデックスバッファ構築
+        //     Cutlass::BufferInfo bi;
+        //     bi.setIndexBuffer<uint32_t>(mIndices.size());
+        //     context->createBuffer(bi, mIB);
+        //     context->writeBuffer(mIndices.size() * sizeof(decltype(mIndices[0])), mIndices.data(), mIB);
+        // }
     }
 
     void MeshComponent::createCube(const double& edgeLength)
     {
         mVisible = mEnabled = true;
 
-        constexpr glm::vec4 red(1.0f, 0.0f, 0.0f, 1.f);
-        constexpr glm::vec4 green(0.0f, 1.0f, 0.0f, 1.f);
-        constexpr glm::vec4 blue(0.0f, 0.0f, 1.0f, 1.f);
-        constexpr glm::vec4 white(1.0f);
-        constexpr glm::vec4 black(0.0f);
-        constexpr glm::vec4 yellow(1.0f, 1.0f, 0.0f, 1.f);
-        constexpr glm::vec4 magenta(1.0f, 0.0f, 1.0f, 1.f);
-        constexpr glm::vec4 cyan(0.0f, 1.0f, 1.0f, 1.f);
+        constexpr glm::vec4 zero = glm::vec4(0, 0, 0, 0);
+
+        // constexpr glm::vec4 red(1.0f, 0.0f, 0.0f, 1.f);
+        // constexpr glm::vec4 green(0.0f, 1.0f, 0.0f, 1.f);
+        // constexpr glm::vec4 blue(0.0f, 0.0f, 1.0f, 1.f);
+        // constexpr glm::vec4 white(1.0f);
+        // constexpr glm::vec4 black(0.0f);
+        // constexpr glm::vec4 yellow(1.0f, 1.0f, 0.0f, 1.f);
+        // constexpr glm::vec4 magenta(1.0f, 0.0f, 1.0f, 1.f);
+        // constexpr glm::vec4 cyan(0.0f, 1.0f, 1.0f, 1.f);
 
         constexpr glm::vec2 lb(0.0f, 0.0f);
         constexpr glm::vec2 lt(0.0f, 1.0f);
@@ -144,42 +154,41 @@ namespace Engine
         constexpr glm::vec3 nu(0, 1.f, 0);
         constexpr glm::vec3 nd(0, -1.f, 0);
 
-        std::vector<Vertex> vertices;
-        vertices.resize(24);
+        mVertices.resize(24);
         mIndices.resize(36);
 
-        vertices = 
+        mVertices = 
         {
             // 正面
-            {glm::vec3(-edgeLength, edgeLength, edgeLength), yellow, nf, lb},
-            {glm::vec3(-edgeLength, -edgeLength, edgeLength), red, nf, lt},
-            {glm::vec3(edgeLength, edgeLength, edgeLength), white, nf, rb},
-            {glm::vec3(edgeLength, -edgeLength, edgeLength), magenta, nf, rt},
+            {glm::vec3(-edgeLength, edgeLength, edgeLength), nf, lb, zero, zero},
+            {glm::vec3(-edgeLength, -edgeLength, edgeLength), nf, lt, zero, zero},
+            {glm::vec3(edgeLength, edgeLength, edgeLength), nf, rb, zero, zero},
+            {glm::vec3(edgeLength, -edgeLength, edgeLength), nf, rt, zero, zero},
             // 右
-            {glm::vec3(edgeLength, edgeLength, edgeLength), white, nr, lb},
-            {glm::vec3(edgeLength, -edgeLength, edgeLength), magenta, nr, lt},
-            {glm::vec3(edgeLength, edgeLength, -edgeLength), cyan, nr, rb},
-            {glm::vec3(edgeLength, -edgeLength, -edgeLength), blue, nr, rt},
+            {glm::vec3(edgeLength, edgeLength, edgeLength), nr, lb, zero, zero},
+            {glm::vec3(edgeLength, -edgeLength, edgeLength), nr, lt, zero, zero},
+            {glm::vec3(edgeLength, edgeLength, -edgeLength), nr, rb, zero, zero},
+            {glm::vec3(edgeLength, -edgeLength, -edgeLength), nr, rt, zero, zero},
             // 左
-            {glm::vec3(-edgeLength, edgeLength, -edgeLength), green, nl, lb},
-            {glm::vec3(-edgeLength, -edgeLength, -edgeLength), black, nl, lt},
-            {glm::vec3(-edgeLength, edgeLength, edgeLength), yellow, nl, rb},
-            {glm::vec3(-edgeLength, -edgeLength, edgeLength), red, nl, rt},
+            {glm::vec3(-edgeLength, edgeLength, -edgeLength), nl, lb, zero, zero},
+            {glm::vec3(-edgeLength, -edgeLength, -edgeLength), nl, lt, zero, zero},
+            {glm::vec3(-edgeLength, edgeLength, edgeLength), nl, rb, zero, zero},
+            {glm::vec3(-edgeLength, -edgeLength, edgeLength), nl, rt, zero, zero},
             // 裏
-            {glm::vec3(edgeLength, edgeLength, -edgeLength), cyan, nb, lb},
-            {glm::vec3(edgeLength, -edgeLength, -edgeLength), blue, nb, lt},
-            {glm::vec3(-edgeLength, edgeLength, -edgeLength), green, nb, rb},
-            {glm::vec3(-edgeLength, -edgeLength, -edgeLength), black, nb, rt},
+            {glm::vec3(edgeLength, edgeLength, -edgeLength), nb, lb, zero, zero},
+            {glm::vec3(edgeLength, -edgeLength, -edgeLength), nb, lt, zero, zero},
+            {glm::vec3(-edgeLength, edgeLength, -edgeLength), nb, rb, zero, zero},
+            {glm::vec3(-edgeLength, -edgeLength, -edgeLength), nb, rt, zero, zero},
             // 上
-            {glm::vec3(-edgeLength, edgeLength, -edgeLength), green, nu, lb},
-            {glm::vec3(-edgeLength, edgeLength, edgeLength), yellow, nu, lt},
-            {glm::vec3(edgeLength, edgeLength, -edgeLength), cyan, nu, rb},
-            {glm::vec3(edgeLength, edgeLength, edgeLength), white, nu, rt},
+            {glm::vec3(-edgeLength, edgeLength, -edgeLength), nu, lb, zero, zero},
+            {glm::vec3(-edgeLength, edgeLength, edgeLength), nu, lt, zero, zero},
+            {glm::vec3(edgeLength, edgeLength, -edgeLength), nu, rb, zero, zero},
+            {glm::vec3(edgeLength, edgeLength, edgeLength), nu, rt, zero, zero},
             // 底
-            {glm::vec3(-edgeLength, -edgeLength, edgeLength), red, nd, lb},
-            {glm::vec3(-edgeLength, -edgeLength, -edgeLength), black, nd, lt},
-            {glm::vec3(edgeLength, -edgeLength, edgeLength), magenta, nd, rb},
-            {glm::vec3(edgeLength, -edgeLength, -edgeLength), blue, nd, rt},
+            {glm::vec3(-edgeLength, -edgeLength, edgeLength), nd, lb, zero, zero},
+            {glm::vec3(-edgeLength, -edgeLength, -edgeLength), nd, lt, zero, zero},
+            {glm::vec3(edgeLength, -edgeLength, edgeLength), nd, rb, zero, zero},
+            {glm::vec3(edgeLength, -edgeLength, -edgeLength), nd, rt, zero, zero},
         };
 
         mIndices =
@@ -193,63 +202,36 @@ namespace Engine
             20, 22, 21, 21, 22, 23, // bottom
         };
 
-        {//ボトルネック
-            mVertices.resize(vertices.size());
-            for(uint32_t i = 0; i < mVertices.size(); ++i)
-                mVertices[i].pos = vertices[i].pos;
-        }
-
-        auto&& context = getContext();
-        {
-            Cutlass::BufferInfo bi;
-            bi.setVertexBuffer<Vertex>(vertices.size());
-            context->createBuffer(bi, mVB);
-            context->writeBuffer(vertices.size() * sizeof(decltype(vertices[0])), vertices.data(), mVB);
-        }
-
-        {
-            Cutlass::BufferInfo bi;
-            bi.setIndexBuffer<uint32_t>(mIndices.size());
-            context->createBuffer(bi, mIB);
-            context->writeBuffer(mIndices.size() * sizeof(decltype(mIndices[0])), mIndices.data(), mIB);
-        }
     }
 
     void MeshComponent::createPlane(const double& xSize, const double& zSize)
     {
         mVisible = mEnabled = true;
         mRasterizerState.cullMode = Cutlass::CullMode::eNone;
+        mRasterizerState.frontFace = Cutlass::FrontFace::eCounterClockwise;
 
-        constexpr glm::vec3 nu(0, -1.f, 0);
+        constexpr glm::vec3 nu(0, 1.f, 0);
         constexpr glm::vec2 lb(0.0f, 0.0f);
         constexpr glm::vec2 lt(0.0f, 1.0f);
         constexpr glm::vec2 rb(1.0f, 0.0f);
         constexpr glm::vec2 rt(1.0f, 1.0f);
 
-        constexpr glm::vec4 red(1.0f, 0.0f, 0.0f, 1.f);
-        constexpr glm::vec4 green(0.0f, 1.0f, 0.0f, 1.f);
-        constexpr glm::vec4 blue(0.0f, 0.0f, 1.0f, 1.f);
-        constexpr glm::vec4 yellow(1.0f, 1.0f, 0.0f, 1.f);
+        constexpr glm::vec4 zero = glm::vec4(0, 0, 0, 0);
 
-        std::vector<Vertex> vertices;
-        vertices.resize(4);
+        // constexpr glm::vec4 red(1.0f, 0.0f, 0.0f, 1.f);
+        // constexpr glm::vec4 green(0.0f, 1.0f, 0.0f, 1.f);
+        // constexpr glm::vec4 blue(0.0f, 0.0f, 1.0f, 1.f);
+        // constexpr glm::vec4 yellow(1.0f, 1.0f, 0.0f, 1.f);
+
         mVertices.resize(4);
         mIndices.resize(6);
 
-        vertices = 
-        {
-            {glm::vec3(-xSize, 0, zSize), red, nu, lb},
-            {glm::vec3(-xSize, 0, -zSize), green, nu, lt},
-            {glm::vec3(xSize, 0, zSize), blue, nu, rb},
-            {glm::vec3(xSize, 0, -zSize), yellow, nu, rt}
-        };
-
         mVertices = 
         {
-            {glm::vec3(-xSize, 0, zSize)},
-            {glm::vec3(-xSize, 0, -zSize)},
-            {glm::vec3(xSize, 0, zSize)}, 
-            {glm::vec3(xSize, 0, -zSize)},
+            {glm::vec3(-xSize, 0, zSize), nu, lb, zero, zero},
+            {glm::vec3(-xSize, 0, -zSize), nu, lt, zero, zero},
+            {glm::vec3(xSize, 0, zSize), nu, rb, zero, zero},
+            {glm::vec3(xSize, 0, -zSize), nu, rt, zero, zero}
         };
 
         mIndices = 
@@ -257,19 +239,19 @@ namespace Engine
             0, 2, 1, 1, 2, 3
         };
 
-        auto&& context = getContext();
-        {
-            Cutlass::BufferInfo bi;
-            bi.setVertexBuffer<Vertex>(vertices.size());
-            context->createBuffer(bi, mVB);
-            context->writeBuffer(vertices.size() * sizeof(decltype(vertices[0])), vertices.data(), mVB);
-        }
+        // auto&& context = getContext();
+        // {
+        //     Cutlass::BufferInfo bi;
+        //     bi.setVertexBuffer<Vertex>(vertices.size());
+        //     context->createBuffer(bi, mVB);
+        //     context->writeBuffer(vertices.size() * sizeof(decltype(vertices[0])), vertices.data(), mVB);
+        // }
 
-        {
-            Cutlass::BufferInfo bi;
-            bi.setIndexBuffer<uint32_t>(mIndices.size());
-            context->createBuffer(bi, mIB);
-            context->writeBuffer(mIndices.size() * sizeof(decltype(mIndices[0])), mIndices.data(), mIB);
-        }
+        // {
+        //     Cutlass::BufferInfo bi;
+        //     bi.setIndexBuffer<uint32_t>(mIndices.size());
+        //     context->createBuffer(bi, mIB);
+        //     context->writeBuffer(mIndices.size() * sizeof(decltype(mIndices[0])), mIndices.data(), mIB);
+        // }
     }
 }

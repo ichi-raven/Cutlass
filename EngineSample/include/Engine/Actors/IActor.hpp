@@ -102,7 +102,7 @@ namespace Engine
         std::shared_ptr<Component> addComponent()
         {
             auto tmp = std::make_shared<Component>();
-            tmp->setContext(mContext);
+            //tmp->setContext(mContext);
 
             auto&& p = mComponents.emplace(typeid(Component).hash_code(), std::vector<std::shared_ptr<IComponent>>());
             if(p.second)

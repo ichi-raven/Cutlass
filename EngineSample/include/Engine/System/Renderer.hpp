@@ -11,7 +11,7 @@
 namespace Engine
 {
     class MeshComponent;
-    class SkeltalMeshComponent;
+    class SkeletalMeshComponent;
     class MaterialComponent;
     class CustomMaterialComponent;
     class LightComponent;
@@ -34,7 +34,7 @@ namespace Engine
 
         virtual void regist(const std::shared_ptr<MeshComponent>& mesh, const std::shared_ptr<MaterialComponent>& material);
         virtual void regist(const std::shared_ptr<MeshComponent>& mesh, const std::shared_ptr<CustomMaterialComponent>& material);
-        virtual void regist(const std::shared_ptr<SkeltalMeshComponent>& mesh, const std::shared_ptr<CustomMaterialComponent>& material);
+        virtual void regist(const std::shared_ptr<SkeletalMeshComponent>& mesh, const std::shared_ptr<CustomMaterialComponent>& material);
 
         virtual void addLight(const std::shared_ptr<LightComponent>& light);
 
@@ -79,14 +79,30 @@ namespace Engine
             glm::vec3 cameraPos;
         };
 
-        //#define MAXLIGHTNUM (64)
-        struct LightData//固定長64個まで
+        #define MAX_LIGHT_NUM (4)
+        struct LightData
         {
-            glm::vec4 lightDir;
+            uint32_t lightType;
+            glm::vec3 lightDir;
             glm::vec4 lightColor;
-            // glm::vec4 lightDir[MAXLIGHTNUM];
-            // glm::vec4 lightColor[MAXLIGHTNUM];
-            //uint32_t lightNum;
+        };
+
+        struct ShadowData
+        {
+            glm::mat4 lightViewProj;
+            glm::mat4 lightViewProjBias;
+        };
+
+        #define MAX_BONE_NUM (128)
+        struct BoneData
+        {
+            BoneData()
+            : useBone(0)
+            {
+
+            }
+            uint32_t useBone;
+            glm::mat4 boneTransform[MAX_BONE_NUM];
         };
 
         struct RenderInfo
@@ -94,12 +110,19 @@ namespace Engine
             std::shared_ptr<MeshComponent> mesh;
             std::shared_ptr<MaterialComponent> material;
             
-            std::optional<Cutlass::HBuffer> sceneCB;
+            Cutlass::HBuffer VB;
+            Cutlass::HBuffer IB;
+
+            Cutlass::HBuffer sceneCB;
+            Cutlass::HBuffer boneCB;
             
-            Cutlass::HGraphicsPipeline pipeline;
+            Cutlass::HGraphicsPipeline geometryPipeline;
+            Cutlass::HGraphicsPipeline shadowPipeline;
         };
 
         const uint16_t mFrameCount;
+        uint32_t mMaxWidth;
+        uint32_t mMaxHeight;
 
         std::vector<Cutlass::HTexture> mDepthBuffers;
 
@@ -108,13 +131,16 @@ namespace Engine
 
         GBuffer mGBuffer;
         Cutlass::Shader mShadowVS;
-        Cutlass::Shader mShadowPS;
+        Cutlass::Shader mShadowFS;
         Cutlass::Shader mDefferedVS;
         Cutlass::Shader mDefferedFS;
         Cutlass::Shader mDefferedSkinVS;
         Cutlass::Shader mDefferedSkinFS;
         Cutlass::Shader mLightingVS;
         Cutlass::Shader mLightingFS;
+
+        Cutlass::HRenderPass mShadowPass;
+        Cutlass::HTexture mShadowMap;
 
         Cutlass::HRenderPass mLightingPass;
         Cutlass::HGraphicsPipeline mLightingPipeline;
@@ -123,6 +149,8 @@ namespace Engine
         Cutlass::HBuffer mCameraUB;
         std::vector<std::shared_ptr<LightComponent>> mLights;
         Cutlass::HBuffer mLightUB;
+
+        Cutlass::HBuffer mShadowUB;
 
         std::vector<RenderInfo> mRenderInfos;
 

@@ -1,10 +1,19 @@
-cbuffer DirectionLight : register(b0, space0)
+
+static const int MAX_LIGHT_NUM = 4;
+
+struct Light
 {
-    float4 lightDirection;    // ライトの方向
+	uint   lightType;		  //ライトのタイプ(0:directional, 1:point)
+    float3 lightDirection;    // ライトの方向
     float4 lightColor;        // ライトのカラー
 };
 
-cbuffer Scene : register(b1, space0)
+cbuffer LightCB : register(b0, space0)
+{
+	Light lights[MAX_LIGHT_NUM];
+}
+
+cbuffer CameraCB : register(b1, space0)
 {
 	float3 cameraPos;
 }
@@ -59,12 +68,22 @@ float4 PSMain(VSOutput input) : SV_Target0
 	normal = (normal * 2.f) - 1.f;
 	normal.w = 1.f;
 
-	float4 lightDiffuse = lambert(normal.xyz, lightDirection.xyz, lightColor);
+	float4 lightAll = ambient;
+	float4 lightDiffuse, lightSpecular;
 
-	float4 lightSpecular = phong(cameraPos, worldPos.xyz, lightDirection.xyz, normal.xyz, lightColor);
+	for(int i = 0; i < MAX_LIGHT_NUM; ++i)
+	{
+		lightDiffuse = lambert(normal.xyz, lights[i].lightDirection, lights[i].lightColor);
 
-	float4 light = ambient + lightDiffuse + lightSpecular;
+		lightSpecular = phong(cameraPos, worldPos.xyz, lights[i].lightDirection, normal.xyz, lights[i].lightColor);
 
-	//return float4((albedo * light).xyz, 0.5f); 
-	return float4((albedo * light).xyz, albedo.w); 
+		lightAll += (lightDiffuse + lightSpecular);
+	}
+
+	lightAll.x = min(lightAll.x, 1.f);
+	lightAll.y = min(lightAll.y, 1.f);
+	lightAll.z = min(lightAll.z, 1.f);
+	lightAll.w = min(lightAll.w, 1.f);
+
+	return float4((albedo * lightAll).xyz, albedo.w); 
 }

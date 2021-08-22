@@ -15,12 +15,17 @@ cbuffer ShadowCB : register(b1, space0)
 	float4x4 lightViewProjBias;
 };
 
+cbuffer BoneCB : register(b2, space0)
+{
+	uint useBone;//if use bone 1 else 0
+	float4x4 boneMat[128];
+}
+
 struct VSInput
 {
 	float3 pos : POSITION;
 	float3 normal : NORMAL;
 	float2 uv0 : TEXCOORD0;
-	float2 uv1 : TEXCOORD1;
 	float4 joint0;
 	float4 weight0;
 };

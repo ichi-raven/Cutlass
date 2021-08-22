@@ -24,14 +24,13 @@ namespace std
     {
         size_t operator()(Engine::MeshComponent::Vertex const& vertex) const 
         {
-            return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.normal) << 1)) >> 1) ^ (hash<glm::vec2>()(vertex.UV) << 1);
+            return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.normal) << 1)) >> 1) ^ (hash<glm::vec2>()(vertex.uv) << 1);
         }
     };
 }
 
 namespace Engine
 {
-
     inline const glm::vec4 real3ToVec4(const tinyobj::real_t src[], const float w = 1.f)
     {
         return glm::vec4(src[0], src[1], src[2], w);
@@ -140,14 +139,14 @@ namespace Engine
                         model.attrib.vertices[3 * index.vertex_index + 1]
                     };
 
-                    vertex.UV = 
+                    vertex.uv = 
                     {
                         model.attrib.texcoords[2 * index.texcoord_index + 0],
                         1.0f - model.attrib.texcoords[2 * index.texcoord_index + 1]
                     };
 
-                    vertex.color = {1.f, 1.f, 1.f, 1.f};
                     vertex.normal = {1.f, 1.f, 1.f};
+                    vertex.joint = vertex.weight = glm::vec4(0);
                     // {
                     //     model.attrib.normals[3 * index.normal_index + 0],
                     //     model.attrib.normals[3 * index.normal_index + 1],
@@ -338,8 +337,9 @@ namespace Engine
                         MeshComponent::Vertex vert;
                         vert.pos = glm::make_vec3(&bufferPos[v * posByteStride]);//glm::vec4(glm::make_vec3(&bufferPos[v * posByteStride]), 1.0f);
                         vert.normal = -glm::normalize(glm::vec3(bufferNormals ? glm::make_vec3(&bufferNormals[v * normByteStride]) : glm::vec3(0.0f)));
-                        vert.color = glm::vec4(1.f);
-                        vert.UV = bufferTexCoordSet0 ? glm::make_vec2(&bufferTexCoordSet0[v * uv0ByteStride]) : glm::vec3(0.0f);
+                        //vert.color = glm::vec4(1.f);
+                        vert.uv = bufferTexCoordSet0 ? glm::make_vec2(&bufferTexCoordSet0[v * uv0ByteStride]) : glm::vec3(0.0f);
+                        vert.joint = vert.weight = glm::vec4(0);
                         // vert.uv0 = bufferTexCoordSet0 ? glm::make_vec2(&bufferTexCoordSet0[v * uv0ByteStride]) : glm::vec3(0.0f);
                         // vert.uv1 = bufferTexCoordSet1 ? glm::make_vec2(&bufferTexCoordSet1[v * uv1ByteStride]) : glm::vec3(0.0f);
                         

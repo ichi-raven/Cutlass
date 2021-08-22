@@ -20,25 +20,26 @@ namespace Engine
         struct Vertex
         {
             glm::vec3 pos;
-            glm::vec4 color;
             glm::vec3 normal;
-            glm::vec2 UV;
+            glm::vec2 uv;
+            glm::vec4 joint;
+            glm::vec4 weight;
 
             bool operator==(const Vertex& another) const 
             {
-                return EQ(pos) && EQ(color) && EQ(normal) && EQ(UV);
+                return EQ(pos) && EQ(normal) && EQ(uv) && EQ(joint) && EQ(weight);
             }
         };
 
-        struct CPUVertex
-        {
-            glm::vec3 pos;
+        // struct CPUVertex
+        // {
+        //     glm::vec3 pos;
 
-            bool operator==(const CPUVertex& another) const 
-            {
-                return EQ(pos);
-            }
-        };
+        //     bool operator==(const CPUVertex& another) const 
+        //     {
+        //         return EQ(pos);
+        //     }
+        // };
 
         MeshComponent();
         virtual ~MeshComponent();
@@ -73,9 +74,12 @@ namespace Engine
         const uint32_t getVertexNum() const;
         const uint32_t getIndexNum() const;
 
-        const Cutlass::HBuffer& getVB() const;
+        const std::vector<Vertex>& getVertices() const;
+        const std::vector<uint32_t>& getIndices() const; 
 
-        const Cutlass::HBuffer& getIB() const;
+        // const Cutlass::HBuffer& getVB() const;
+
+        // const Cutlass::HBuffer& getIB() const;
 
         virtual void update() override;
 
@@ -85,13 +89,13 @@ namespace Engine
         bool mEnabled;
         Transform mTransform;
 
-        std::vector<CPUVertex> mVertices;
+        std::vector<Vertex> mVertices;
         std::vector<uint32_t> mIndices;
 
         Cutlass::Topology mTopology;
         Cutlass::RasterizerState mRasterizerState;
 
-        Cutlass::HBuffer mVB;
-        Cutlass::HBuffer mIB;
+        // Cutlass::HBuffer mVB;
+        // Cutlass::HBuffer mIB;
     };
 };

@@ -46,28 +46,28 @@ namespace Engine
         template<typename MaterialParamType, MaterialType materialType>
         void addMaterialParam(const MaterialParamType& material, std::optional<std::string_view> texturePath, std::optional<uint32_t> useIndexNum)
         {
-            auto&& tmp = mMaterialSets.emplace_back();
-            auto&& context = getContext();
+            // auto&& tmp = mMaterialSets.emplace_back();
+            // auto&& context = getContext();
 
-            tmp.useIndexNum = useIndexNum;
-            tmp.type = materialType;
+            // tmp.useIndexNum = useIndexNum;
+            // tmp.type = materialType;
 
-            Cutlass::HBuffer hBuffer;
-            {
-                if(Cutlass::Result::eSuccess != context->createBuffer(Cutlass::BufferInfo(sizeof(MaterialParamType), Cutlass::BufferUsage::eUniform, true), hBuffer))
-                    assert(!"Failed to create material param buffer!");
-                if(Cutlass::Result::eSuccess != context->writeBuffer(sizeof(MaterialParamType), &material, hBuffer))
-                    assert(!"Faield to write material buffer!");
-                tmp.paramBuffer = hBuffer;
-            }
+            // Cutlass::HBuffer hBuffer;
+            // {
+            //     if(Cutlass::Result::eSuccess != context->createBuffer(Cutlass::BufferInfo(sizeof(MaterialParamType), Cutlass::BufferUsage::eUniform, true), hBuffer))
+            //         assert(!"Failed to create material param buffer!");
+            //     if(Cutlass::Result::eSuccess != context->writeBuffer(sizeof(MaterialParamType), &material, hBuffer))
+            //         assert(!"Faield to write material buffer!");
+            //     tmp.paramBuffer = hBuffer;
+            // }
 
-            if(texturePath)
-            {
-                Cutlass::HTexture htex;
-                if(Cutlass::Result::eSuccess != context->createTextureFromFile(texturePath.value().data(), htex))
-                    assert(!"Failed to create material texture!");
-                tmp.texture = htex;
-            }
+            // if(texturePath)
+            // {
+            //     Cutlass::HTexture htex;
+            //     if(Cutlass::Result::eSuccess != context->createTextureFromFile(texturePath.value().data(), htex))
+            //         assert(!"Failed to create material texture!");
+            //     tmp.texture = htex;
+            // }
         }
 
         const std::vector<MaterialSet>& getMaterialSets() const;

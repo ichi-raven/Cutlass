@@ -11,13 +11,13 @@ namespace Engine
 
     MaterialComponent::~MaterialComponent()
     {
-        auto&& context = getContext();
-        for(const auto& material : mMaterialSets)
-        {
-            context->destroyBuffer(material.paramBuffer);
-            if(material.texture)
-                context->destroyTexture(material.texture.value());
-        }
+        //auto&& context = getContext();
+        // for(const auto& material : mMaterialSets)
+        // {
+        //     context->destroyBuffer(material.paramBuffer);
+        //     if(material.texture)
+        //         context->destroyTexture(material.texture.value());
+        // }
     }
 
     // void MaterialComponent::addMaterialParam(const PhongMaterialParam& material, std::optional<std::string_view> texturePath, std::optional<uint32_t> useVertexNum, Cutlass::Context& context)
