@@ -88,12 +88,22 @@ namespace Engine
             return (iter != mComponents.end()) ? std::make_optional(std::dynamic_pointer_cast<RequiredComponent>(iter->second[0])) : std::nullopt;
         }
 
-        //なければnullopt, 同型のComponentを全て取得します
+        //なければnullopt, 同型のComponentを全て取得します(ちょっと重い)
         template<typename RequiredComponent>
-        std::optional<std::vector<std::shared_ptr<RequiredComponent>>>& getComponents()
+        std::optional<std::vector<std::shared_ptr<RequiredComponent>>> getComponents()
         {
             const auto& iter = mComponents.find(typeid(RequiredComponent).hash_code());
-            return (iter != mComponents.end()) ? std::make_optional(iter->second) : std::nullopt;
+            if (iter != mComponents.end())
+            {   
+                std::vector<std::shared_ptr<RequiredComponent>> rtn;
+                rtn.resize(iter->second.size());
+                for(size_t i = 0; i < rtn.size(); ++i)
+                    rtn[i] = std::dynamic_pointer_cast<RequiredComponent>(iter->second[i]);
+                
+                return std::make_optional(rtn);
+            }
+            else
+                return std::nullopt;
         }
 
     protected:

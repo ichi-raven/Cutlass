@@ -10,8 +10,7 @@ include_directories(
    glm
    stb
    cutlass
-   tinyobjloader
-   tinygitf
+   "/usr/local/include/assimp"
    "../include"
    "./include"
 )
@@ -27,4 +26,5 @@ target_link_libraries(App
    vulkan
    glfw
    cutlass
+   "/usr/local/lib/libassimp.so"
 )

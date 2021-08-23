@@ -32,9 +32,9 @@ namespace Engine
 
         virtual ~Renderer();
 
-        virtual void regist(const std::shared_ptr<MeshComponent>& mesh, const std::shared_ptr<MaterialComponent>& material);
-        virtual void regist(const std::shared_ptr<MeshComponent>& mesh, const std::shared_ptr<CustomMaterialComponent>& material);
-        virtual void regist(const std::shared_ptr<SkeletalMeshComponent>& mesh, const std::shared_ptr<CustomMaterialComponent>& material);
+        virtual void addStaticMesh(const std::shared_ptr<MeshComponent>& mesh, const std::shared_ptr<MaterialComponent>& material, bool lighting = true, bool castShadow = true, bool receiveShadow = true);
+        virtual void addCustom(const std::shared_ptr<MeshComponent>& mesh, const std::shared_ptr<CustomMaterialComponent>& material);
+        virtual void addSkeletalMesh(const std::shared_ptr<SkeletalMeshComponent>& skeletalMesh, const std::shared_ptr<MaterialComponent>& material, bool lighting = true, bool castShadow = true, bool receiveShadow = false);
 
         virtual void addLight(const std::shared_ptr<LightComponent>& light);
 
@@ -72,6 +72,9 @@ namespace Engine
             glm::mat4 world;
             glm::mat4 view;
             glm::mat4 proj;
+            float receiveShadow;
+            float lighting;
+            glm::vec2 padding;
         };
 
         struct CameraData
@@ -79,7 +82,7 @@ namespace Engine
             glm::vec3 cameraPos;
         };
 
-        #define MAX_LIGHT_NUM (4)
+        #define MAX_LIGHT_NUM (16)
         struct LightData
         {
             uint32_t lightType;
@@ -102,14 +105,19 @@ namespace Engine
 
             }
             uint32_t useBone;
+            glm::vec3 padding;
             glm::mat4 boneTransform[MAX_BONE_NUM];
         };
 
         struct RenderInfo
         {
+            bool skeletal;
+            bool receiveShadow;
+            bool lighting;
             std::shared_ptr<MeshComponent> mesh;
+            std::shared_ptr<SkeletalMeshComponent> skeletalMesh;
             std::shared_ptr<MaterialComponent> material;
-            
+
             Cutlass::HBuffer VB;
             Cutlass::HBuffer IB;
 

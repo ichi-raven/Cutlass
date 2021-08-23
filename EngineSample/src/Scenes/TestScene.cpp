@@ -17,9 +17,6 @@ void TestScene::init()
 {
 	mSampleActor = addActor<SampleActor>("SampleActor");
 	auto&& sa2 = addActor<SampleActor2>("SampleActor2");
-
-	mSampleActor->init();
-	sa2->init();
 }
 
 void TestScene::update()
@@ -35,7 +32,5 @@ void TestScene::update()
 
 	renderer->build();
 	renderer->render();
-
-	//assert(!"fjeiaje");
 }
 

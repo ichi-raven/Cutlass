@@ -7,6 +7,7 @@
 namespace Engine
 {
     class MeshComponent;
+    class SkeletalMeshComponent;
     class LightComponent;
 }
 
@@ -18,6 +19,6 @@ class SampleActor : public Engine::IActor<MyCommonRegion>
 public:
 
 private:
-    std::shared_ptr<Engine::MeshComponent> mMesh;
+    std::shared_ptr<Engine::SkeletalMeshComponent> mMesh;
     std::shared_ptr<Engine::LightComponent> mLight;
 };

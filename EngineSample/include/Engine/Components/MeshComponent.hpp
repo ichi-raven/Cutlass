@@ -95,7 +95,6 @@ namespace Engine
         Cutlass::Topology mTopology;
         Cutlass::RasterizerState mRasterizerState;
 
-        // Cutlass::HBuffer mVB;
-        // Cutlass::HBuffer mIB;
+        
     };
 };

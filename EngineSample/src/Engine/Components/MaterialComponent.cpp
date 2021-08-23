@@ -20,6 +20,33 @@ namespace Engine
         // }
     }
 
+    void MaterialComponent::addTexture(const Texture& texture)
+    {
+        mTextures.emplace_back(texture);
+    }
+
+    void MaterialComponent::addTextures(const std::vector<Texture>& textures)
+    {
+        mTextures.reserve(textures.size());
+        std::copy(textures.begin(), textures.end(), std::back_inserter(mTextures));
+    }
+
+    void MaterialComponent::clearTextures()
+    {
+        //ハンドル解放できないのでLoaderに任せる
+        mTextures.clear();
+    }
+
+    const MaterialComponent::Texture& MaterialComponent::findTexture(std::string_view name) const
+    {
+        return *std::find_if(mTextures.begin(), mTextures.end(), [&](const Texture& t){return !name.compare(t.type);});
+    }
+
+    const std::vector<MaterialComponent::Texture>& MaterialComponent::getTextures() const
+    {
+        return mTextures;
+    }
+
     // void MaterialComponent::addMaterialParam(const PhongMaterialParam& material, std::optional<std::string_view> texturePath, std::optional<uint32_t> useVertexNum, Cutlass::Context& context)
     // {
     //     auto& tmp = mPhongMaterials.emplace_back(material);
@@ -36,10 +63,10 @@ namespace Engine
 
     // }
 
-    const std::vector<MaterialComponent::MaterialSet>& MaterialComponent::getMaterialSets() const
-    {
-        return mMaterialSets;
-    }
+    // const std::vector<MaterialComponent::MaterialSet>& MaterialComponent::getMaterialSets() const
+    // {
+    //     return mMaterialSets;
+    // }
 
     // void MaterialComponent::setVS(const Cutlass::Shader& vertexShader)
     // {

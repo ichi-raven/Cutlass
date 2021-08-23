@@ -19,8 +19,8 @@
 int main()
 {
 	//定数
-	constexpr uint16_t windowWidth 	= 800;
-	constexpr uint16_t windowHeight = 600;
+	constexpr uint16_t windowWidth 	= 1000;
+	constexpr uint16_t windowHeight = 800;
 	constexpr uint16_t frameCount 	= 3;
 
 	//アプリケーション実体作成

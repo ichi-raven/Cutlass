@@ -39,19 +39,17 @@ namespace Engine
 		, mBeforeActorNum(0)
 		{
 			//チューニング対象?
-			mActorsVec.reserve(8);
+			mActorsVec.reserve(4);
 		}
 
-		//autoInitをオンにするとinitを自分で呼ぶ必要がなくなりますが、循環参照を起こす可能性があります
 		template<typename Actor>
-		std::shared_ptr<Actor> addActor(const std::string_view actorName, bool autoInit = false)
+		std::shared_ptr<Actor> addActor(const std::string_view actorName)
 		{
 			auto tmp = std::make_shared<Actor>(*this, mCommonRegion, mContext, mSystem);
 			tmp->awake();
 			mActors.emplace(static_cast<std::string>(actorName), tmp);
 			mActorsVec.emplace_back(tmp);
-			if(autoInit)
-				tmp->init();
+			mAddedActors.emplace(tmp);
 			return tmp;
 		}
 
@@ -88,6 +86,12 @@ namespace Engine
 		//全てのアクタに対しての更新処理、ユーザは呼ぶ必要はありません
 		void update()
 		{
+			while(!mAddedActors.empty())
+			{
+				mAddedActors.back()->init();
+				mAddedActors.pop();
+			}
+
 			//ついでに削除しちゃう
 			auto&& end = mActorsVec.end();
 			auto&& itr = std::remove_if(mActorsVec.begin(), end, [&](std::shared_ptr<IActor<CommonRegion>>& actor)
@@ -111,6 +115,7 @@ namespace Engine
 		std::unordered_map<std::string, std::shared_ptr<IActor<CommonRegion>>> mActors;
 		std::vector<std::shared_ptr<IActor<CommonRegion>>> mActorsVec;
 		std::queue<std::shared_ptr<IActor<CommonRegion>>> mRemovedActors;
+		std::queue<std::shared_ptr<IActor<CommonRegion>>> mAddedActors;
 		
 		std::shared_ptr<CommonRegion> mCommonRegion;
 		

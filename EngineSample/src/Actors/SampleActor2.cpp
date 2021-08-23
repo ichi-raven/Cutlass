@@ -19,14 +19,21 @@ SampleActor2::~SampleActor2()
 void SampleActor2::awake()
 {
 	auto mesh = addComponent<Engine::MeshComponent>();
+	mSkybox = addComponent<Engine::MeshComponent>();
 	if(!mesh)
 		return;
-	mesh->createPlane(10.f, 10.f);
-	mesh->getTransform().setPos(glm::vec3(0, -1.5f, -4.f));
+	mesh->createPlane(3.f, 3.f);
+	mesh->getTransform().setPos(glm::vec3(0, -0.02f, 0));
+	mesh->setRasterizerState(Cutlass::RasterizerState(Cutlass::PolygonMode::eFill, Cutlass::CullMode::eNone, Cutlass::FrontFace::eClockwise));
+
+
+	mSkybox->createCube(100.f);
+	mSkybox->setRasterizerState(Cutlass::RasterizerState(Cutlass::PolygonMode::eFill, Cutlass::CullMode::eBack, Cutlass::FrontFace::eCounterClockwise));
 
 	auto material = addComponent<Engine::MaterialComponent>();
 
-	getSystem()->mRenderer->regist(mesh, material);
+	getSystem()->mRenderer->addStaticMesh(mesh, material, true, false, true);
+	getSystem()->mRenderer->addStaticMesh(mSkybox, material, false, false, false);
 }
 
 void SampleActor2::init()

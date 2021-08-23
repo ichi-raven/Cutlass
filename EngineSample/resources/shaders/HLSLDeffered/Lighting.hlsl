@@ -1,5 +1,5 @@
 
-static const int MAX_LIGHT_NUM = 4;
+static const int MAX_LIGHT_NUM = 16;
 
 struct Light
 {
@@ -18,6 +18,12 @@ cbuffer CameraCB : register(b1, space0)
 	float3 cameraPos;
 }
 
+cbuffer ShadowCB : register(b2, space0)
+{
+	float4x4 lightViewProj;
+	float4x4 lightViewProjBias;
+};
+
 //combined image sampler(set : 1, binding : 0)
 Texture2D<float4> albedoTex : register(t0, space1);
 SamplerState albedoSampler : register(s0, space1);
@@ -29,6 +35,11 @@ SamplerState normalSampler : register(s1, space1);
 //combined image sampler(set : 1, binding : 2)
 Texture2D<float4> worldPosTex : register(t2, space1);
 SamplerState worldPosSampler : register(s2, space1);
+
+//combined image sampler(set : 1, binding : 3)
+Texture2D<float4> shadowMap : register(t3, space1);
+SamplerState shadowSampler : register(s3, space1);
+
 
 struct VSOutput
 {
@@ -63,6 +74,9 @@ float4 PSMain(VSOutput input) : SV_Target0
 	float4 normal = normalTex.Sample(normalSampler, input.uv);
 	float4 worldPos = worldPosTex.Sample(worldPosSampler, input.uv);
 
+	if(normal.w == 0)
+		return albedo;
+
 	float4 ambient = float4(0.2f, 0.2f, 0.2f, 1.f);
 
 	normal = (normal * 2.f) - 1.f;
@@ -85,5 +99,19 @@ float4 PSMain(VSOutput input) : SV_Target0
 	lightAll.z = min(lightAll.z, 1.f);
 	lightAll.w = min(lightAll.w, 1.f);
 
-	return float4((albedo * lightAll).xyz, albedo.w); 
+	float4 outColor = float4((albedo * lightAll).xyz, albedo.w); 
+
+	float4 shadowPos = mul(lightViewProj, worldPos);
+	float4 shadowUV = mul(lightViewProjBias, worldPos);
+	float z = shadowPos.z /shadowPos.w;
+  	float4 fetchUV = shadowUV / shadowUV.w;
+	float depthFromLight = shadowMap.Sample(shadowSampler, fetchUV.xy).r + 0.0001;
+
+	if( depthFromLight > z && worldPos.w)
+	{
+		// in shadow
+		outColor.rgb *= 0.5f;
+	}
+
+	return outColor;
 }

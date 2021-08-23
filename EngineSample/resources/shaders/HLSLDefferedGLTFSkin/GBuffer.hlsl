@@ -1,25 +1,23 @@
 
 //attention : (bx, spacey) == set y, binding x (regardless of register type)
 
+static const int MAX_BONE_NUM = 128;
+
 cbuffer ModelCB : register(b0, space0)
 {
 	float4x4 world;
 	float4x4 view;
 	float4x4 proj;
-	float3 cameraPos;
+	float receiveShadow;
+	float lighting;
+	float2 padding2;
 };
 
-cbuffer MaterialCB : register(b1, space0)
-{
-	float4 ambient;
-	float4 diffuse;
-	float4 specular;
-}
-
-cbuffer BoneCB : register(b2, space0)
+cbuffer BoneCB : register(b1, space0)
 {
 	uint useBone;//if use bone 1 else 0
-	float4x4 boneMat[128];
+	float3 padding;
+	float4x4 boneMat[MAX_BONE_NUM];
 }
 
 //combined image sampler(set : 1, binding : 0)
@@ -81,8 +79,8 @@ PSOut PSMain(VSOutput input)
 {
 	PSOut psOut;
 	psOut.albedo = tex.Sample(testSampler, input.uv0);
-	psOut.normal = float4((input.normal / 2.f + 0.5f), 1.f);
-	psOut.worldPos = input.worldPos;
+	psOut.normal = float4((input.normal / 2.f + 0.5f), lighting);
+	psOut.worldPos = float4(input.worldPos.xyz, receiveShadow);
 
 	return psOut;
 }

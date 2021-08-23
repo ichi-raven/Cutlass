@@ -10,6 +10,13 @@ namespace Engine
     class MaterialComponent : public IComponent
     {
     public:
+        struct Texture
+        {
+            Cutlass::HTexture handle;
+            std::string type;
+            std::string path;
+        };
+
         //フォンシェーディングする時のマテリアル型
         struct PhongMaterialParam
         {
@@ -43,52 +50,21 @@ namespace Engine
         MaterialComponent();
         virtual ~MaterialComponent() override;
 
-        template<typename MaterialParamType, MaterialType materialType>
-        void addMaterialParam(const MaterialParamType& material, std::optional<std::string_view> texturePath, std::optional<uint32_t> useIndexNum)
-        {
-            // auto&& tmp = mMaterialSets.emplace_back();
-            // auto&& context = getContext();
+        void addTexture(const Texture& texture);
+        void addTextures(const std::vector<Texture>& textures);
 
-            // tmp.useIndexNum = useIndexNum;
-            // tmp.type = materialType;
+        void clearTextures();
 
-            // Cutlass::HBuffer hBuffer;
-            // {
-            //     if(Cutlass::Result::eSuccess != context->createBuffer(Cutlass::BufferInfo(sizeof(MaterialParamType), Cutlass::BufferUsage::eUniform, true), hBuffer))
-            //         assert(!"Failed to create material param buffer!");
-            //     if(Cutlass::Result::eSuccess != context->writeBuffer(sizeof(MaterialParamType), &material, hBuffer))
-            //         assert(!"Faield to write material buffer!");
-            //     tmp.paramBuffer = hBuffer;
-            // }
+        const Texture& findTexture(std::string_view name) const;
 
-            // if(texturePath)
-            // {
-            //     Cutlass::HTexture htex;
-            //     if(Cutlass::Result::eSuccess != context->createTextureFromFile(texturePath.value().data(), htex))
-            //         assert(!"Failed to create material texture!");
-            //     tmp.texture = htex;
-            // }
-        }
-
-        const std::vector<MaterialSet>& getMaterialSets() const;
-
-        // void setVS(const Cutlass::Shader& shader);
-        // const Cutlass::Shader& getVS() const;
-
-        // void setFS(const Cutlass::Shader& shader); 
-        // const Cutlass::Shader& getFS() const;
-
-        // void setColorBlend(Cutlass::ColorBlend colorBlend);
-        // Cutlass::ColorBlend getColorBlend() const;
-
-        // void setMultiSampleState(Cutlass::MultiSampleState multiSampleState);
-        // Cutlass::MultiSampleState getMultiSampleState() const;
+        const std::vector<Texture>& getTextures() const;
 
         virtual void update() override;
 
     protected:
 
-        std::vector<MaterialSet> mMaterialSets;
+        std::vector<Texture> mTextures;
+        //std::vector<MaterialSet> mMaterialSets;
 
         // Cutlass::Shader mVS;
         // Cutlass::Shader mFS;

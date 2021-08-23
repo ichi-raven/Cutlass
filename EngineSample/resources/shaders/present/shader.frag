@@ -12,19 +12,18 @@ layout(location = 0) out vec4 outColor;
 
 vec4 gaussianBlur(sampler2D s, vec2 uv)
 {
-    const float coef = 0.0001f;
+    const float delta = 0.001f;
      
     vec4 color =
-    0.1111 * texture(s, vec2(uv.x - coef, uv.y - coef)) +
-    0.2222 * texture(s, vec2(uv.x,        uv.y - coef)) +
-    0.1111 * texture(s, vec2(uv.x + coef, uv.y - coef)) +
-    0.2222 * texture(s, vec2(uv.x - coef, uv.y))        + 
-    0.4444 * texture(s, vec2(uv.x,        uv.y))        +
-    0.2222 * texture(s, vec2(uv.x + coef, uv.y))        +
-    0.1111 * texture(s, vec2(uv.x - coef, uv.y + coef)) +
-    0.2222 * texture(s, vec2(uv.x,        uv.y + coef)) +
-    0.1111 * texture(s, vec2(uv.x + coef, uv.y + coef));
-
+    0.0625 * texture(s, vec2(uv.x - delta, uv.y - delta)) +
+    0.125  * texture(s, vec2(uv.x,         uv.y - delta)) +
+    0.0625 * texture(s, vec2(uv.x + delta, uv.y - delta)) +
+    0.125  * texture(s, vec2(uv.x - delta, uv.y))         + 
+    0.25   * texture(s, vec2(uv.x,         uv.y))         +
+    0.125  * texture(s, vec2(uv.x + delta, uv.y))         +
+    0.0625 * texture(s, vec2(uv.x - delta, uv.y + delta)) +
+    0.125  * texture(s, vec2(uv.x,         uv.y + delta)) +
+    0.0625 * texture(s, vec2(uv.x + delta, uv.y + delta));
 
     return color;
 }

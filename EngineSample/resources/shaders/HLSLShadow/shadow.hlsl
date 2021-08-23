@@ -6,7 +6,9 @@ cbuffer ModelCB : register(b0, space0)
 	float4x4 world;
 	float4x4 view;
 	float4x4 proj;
-	float3 cameraPos;
+	float receiveShadow;
+	float lighting;
+	float2 padding2;
 };
 
 cbuffer ShadowCB : register(b1, space0)
@@ -18,8 +20,9 @@ cbuffer ShadowCB : register(b1, space0)
 cbuffer BoneCB : register(b2, space0)
 {
 	uint useBone;//if use bone 1 else 0
+	float3 padding;
 	float4x4 boneMat[128];
-}
+};
 
 struct VSInput
 {
@@ -38,8 +41,21 @@ struct VSOutput
 VSOutput VSMain(VSInput input)
 {
 	VSOutput output;
-	float4 inPos = float4(input.pos.xyz, 1.0f);
-	output.pos = mul(mul(lightViewProj, world), inPos);
+	float4 skinnedPos = float4(input.pos.xyz, 1.0f);
+
+	if(useBone)
+	{
+		float4x4 boneAll = 
+		boneMat[int(input.joint0.x)] * input.weight0.x + 
+		boneMat[int(input.joint0.y)] * input.weight0.y +
+		boneMat[int(input.joint0.z)] * input.weight0.z +
+		boneMat[int(input.joint0.w)] * input.weight0.w;
+	
+		skinnedPos = mul(boneAll, float4(input.pos.xyz, 1.0f));
+	}
+	
+
+	output.pos = mul(mul(lightViewProj, world), skinnedPos);
 
 	return output;
 }
