@@ -18,22 +18,28 @@ SampleActor2::~SampleActor2()
 
 void SampleActor2::awake()
 {
+	auto& loader = getSystem()->loader;
+
 	auto mesh = addComponent<Engine::MeshComponent>();
 	mSkybox = addComponent<Engine::MeshComponent>();
 	if(!mesh)
 		return;
 	mesh->createPlane(3.f, 3.f);
 	mesh->getTransform().setPos(glm::vec3(0, -0.02f, 0));
-	mesh->setRasterizerState(Cutlass::RasterizerState(Cutlass::PolygonMode::eFill, Cutlass::CullMode::eNone, Cutlass::FrontFace::eClockwise));
+	mesh->setRasterizerState(Cutlass::RasterizerState(Cutlass::PolygonMode::eFill, Cutlass::CullMode::eBack, Cutlass::FrontFace::eCounterClockwise));
 
-
-	mSkybox->createCube(100.f);
+	mSkybox->createCube(300.f);
 	mSkybox->setRasterizerState(Cutlass::RasterizerState(Cutlass::PolygonMode::eFill, Cutlass::CullMode::eBack, Cutlass::FrontFace::eCounterClockwise));
 
 	auto material = addComponent<Engine::MaterialComponent>();
+	loader->loadMaterialTexture("../resources/textures/sky.jpg", nullptr, material);
 
-	getSystem()->mRenderer->addStaticMesh(mesh, material, true, false, true);
-	getSystem()->mRenderer->addStaticMesh(mSkybox, material, false, false, false);
+	auto material2 = addComponent<Engine::MaterialComponent>();
+	loader->loadMaterialTexture("../resources/textures/texture.png", nullptr, material2);
+
+
+	getSystem()->renderer->addStaticMesh(mesh, material2, false, true);
+	getSystem()->renderer->addStaticMesh(mSkybox, material, false, false, false);
 }
 
 void SampleActor2::init()

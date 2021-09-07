@@ -338,6 +338,9 @@ namespace Cutlass
 
         auto& bo = mBufferMap[handle];
 
+        // stop queue before
+        vkQueueWaitIdle(mDeviceQueue);
+
         if (bo.mBuffer)
             vkDestroyBuffer(mDevice, bo.mBuffer.value(), nullptr);
         if (bo.mMemory)
@@ -359,6 +362,9 @@ namespace Cutlass
         }
 
         auto& io = mImageMap[handle];
+
+        // stop queue before
+        vkQueueWaitIdle(mDeviceQueue);
 
         if (io.mView)
             vkDestroyImageView(mDevice, io.mView.value(), nullptr);
@@ -422,6 +428,9 @@ namespace Cutlass
 
         auto& rpo = mRPMap[gpo.mHRenderPass];
 
+        // stop queue before
+        vkQueueWaitIdle(mDeviceQueue);
+
         {//ImGui
             if(mImGuiDescriptorPool)
                 vkDestroyDescriptorPool(mDevice, mImGuiDescriptorPool.value(), nullptr);
@@ -444,6 +453,7 @@ namespace Cutlass
 
         for(const auto& dsl : gpo.mDescriptorSetLayouts)
             vkDestroyDescriptorSetLayout(mDevice, dsl, nullptr);
+
         if (gpo.mDescriptorPool)
             vkDestroyDescriptorPool(mDevice, gpo.mDescriptorPool.value(), nullptr);
         if (gpo.mPipelineLayout)
@@ -490,7 +500,7 @@ namespace Cutlass
             co.mDescriptorSets.clear();
         }
 
-        //削除前にちょっと止める必要がある
+        // stop queue before
         vkQueueWaitIdle(mDeviceQueue);
         vkFreeCommandBuffers(mDevice, mCommandPool, uint32_t(co.mCommandBuffers.size()), co.mCommandBuffers.data());
         
@@ -1656,6 +1666,31 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
+    Result Context::getTextureSize(const HTexture& handle, uint32_t& width_out, uint32_t& height_out, uint32_t& depth_out)
+    {
+        if(!mIsInitialized)
+        {
+            std::cerr << "context did not initialize yet!\n";
+            return Result::eFailure;
+        }
+
+        Result result = Result::eFailure;
+
+        if (mImageMap.count(handle) <= 0)
+        {
+            assert(!"invalid texture handle");
+            return Result::eFailure;
+        }
+
+        auto&& extent = mImageMap[handle].extent;
+
+        width_out   = extent.width;
+        height_out  = extent.height;
+        depth_out   = extent.depth;
+
+        return Result::eSuccess;
+    }
+
     Result Context::writeTexture(const void *const pData, const HTexture &handle)
     {
 
@@ -1668,7 +1703,10 @@ namespace Cutlass
         Result result = Result::eFailure;
 
         if (mImageMap.count(handle) <= 0)
+        {
+            assert(!"invalid texture handle!");
             return Result::eFailure;
+        }
 
         ImageObject &io = mImageMap[handle];
 
@@ -4560,7 +4598,6 @@ namespace Cutlass
             std::cerr << "invalid window handle!\n";
             return 0;
         }
-
 
         const auto& wo = mWindowMap.at(handle);
         return glfwGetKey(wo.mpWindow.value(), static_cast<int>(key));

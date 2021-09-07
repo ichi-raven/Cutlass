@@ -22,7 +22,7 @@ void TestScene::init()
 void TestScene::update()
 {
 	auto&& context = getContext();
-	auto&& renderer = getSystem()->mRenderer;
+	auto&& renderer = getSystem()->renderer;
 
 	std::cout << "deltatime : " << getCommonRegion()->deltatime << "\n";
 

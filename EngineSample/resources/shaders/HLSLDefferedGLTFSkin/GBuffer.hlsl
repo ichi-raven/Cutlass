@@ -53,6 +53,7 @@ VSOutput VSMain(VSInput input)
 	VSOutput output;
 
 	float4 skinnedPos = float4(input.pos.xyz, 1.0f);
+	float4 skinnedNormal = float4(input.normal, 1.f);
 
 	if(useBone)
 	{
@@ -62,12 +63,13 @@ VSOutput VSMain(VSInput input)
 		boneMat[int(input.joint0.z)] * input.weight0.z +
 		boneMat[int(input.joint0.w)] * input.weight0.w;
 	
-		skinnedPos = mul(boneAll, float4(input.pos.xyz, 1.0f));
+		skinnedPos = mul(boneAll, skinnedPos);
+		skinnedNormal = mul(boneAll, skinnedNormal);
 	}
 	
 
 	output.pos = mul(mul(mul(proj, view), world), skinnedPos);
-	output.normal = mul(world, float4(input.normal, 0.f)).xyz;
+	output.normal = mul(world, skinnedNormal).xyz;
 	output.uv0 = input.uv0;
 	//output.worldPos = mul(world, inPos);
 	output.worldPos = mul(world, skinnedPos);

@@ -71,11 +71,15 @@ namespace Engine
         void setAnimationIndex(uint32_t animation);
         const std::optional<uint32_t>& getAnimationIndex() const;
 
+        void setTimeScale(float timescale);
+        float getTimeScale() const;
+
         virtual void update() override;
 
     private:
         std::chrono::high_resolution_clock::time_point mStart;
         std::optional<Skeleton> mSkeleton;
 		std::optional<uint32_t> mAnimationIndex;
+        float mTimeScale;
     };
 };

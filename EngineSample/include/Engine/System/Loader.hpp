@@ -13,6 +13,7 @@
 #include <Engine/Components/MeshComponent.hpp>
 #include <Engine/Components/SkeletalMeshComponent.hpp>
 #include <Engine/Components/MaterialComponent.hpp>
+#include <Engine/Components/SpriteComponent.hpp>
 
 
 namespace Cutlass
@@ -67,6 +68,14 @@ namespace Engine
             std::shared_ptr<MaterialComponent>& material_out
         );
 
+        //if type was nullptr, type will be last section of path
+        virtual void loadMaterialTexture(const char* path, const char* type, std::shared_ptr<MaterialComponent>& material_out);
+
+        virtual void loadSprite(const char* path, std::shared_ptr<SpriteComponent>& sprite_out);
+        virtual void loadSprite(std::vector<const char*> pathes, std::shared_ptr<SpriteComponent>& sprite_out);
+
+        //if type was nullptr, type will be last section of path
+
         // void loadObj
         // (
         //     const char* path,
@@ -92,6 +101,9 @@ namespace Engine
 
         void loadBones(const aiNode* node, const aiMesh* mesh, std::vector<VertexBoneData>& vbdata_out);
 
+        MaterialComponent::Texture loadTexture(const char* path, const char* type);
+        
+        
         // struct ObjModel
         // {
         //     tinyobj::attrib_t attrib;
@@ -111,6 +123,7 @@ namespace Engine
         
         std::shared_ptr<Cutlass::Context> mContext;
         bool mLoaded;
+        bool mSkeletal;
         std::string mDirectory;
         std::string mPath;
 

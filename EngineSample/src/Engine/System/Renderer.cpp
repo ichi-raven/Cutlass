@@ -29,6 +29,7 @@ namespace Engine
     , mSpriteAdded(false)
     {
         assert(Result::eSuccess == mContext->createTextureFromFile("../resources/textures/texture.png", mDebugTex));
+        assert(Result::eSuccess == mContext->createTextureFromFile("../resources/textures/unitysky.png", mDebugSky));
 
         mRTTexs.reserve(hwindows.size());
 
@@ -106,7 +107,7 @@ namespace Engine
                 ShaderResourceSet SRSet[mFrameCount];
                 for(size_t i = 0; i < mFrameCount; ++i)
                     SRSet[i].bind(0, mRTTexs.back());
-                    //SRSet[i].bind(0, mShadowMap);
+                    //SRSet[i].bind(0, mGBuffer.normalRT);
                 
                 for(auto& wp : mPresentPasses)
                 {
@@ -231,7 +232,7 @@ namespace Engine
         
     }
 
-    void Renderer::addStaticMesh(const std::shared_ptr<MeshComponent>& mesh, const std::shared_ptr<MaterialComponent>& material, bool lighting, bool castShadow, bool receiveShadow)
+    void Renderer::addStaticMesh(const std::shared_ptr<MeshComponent>& mesh, const std::shared_ptr<MaterialComponent>& material, bool castShadow, bool receiveShadow, bool lighting)
     {
         auto& tmp = mRenderInfos.emplace_back();
         tmp.skeletal = false;
@@ -379,7 +380,7 @@ namespace Engine
         mForwardAdded = true;
     }
 
-    void Renderer::addSkeletalMesh(const std::shared_ptr<SkeletalMeshComponent>& skeletalMesh, const std::shared_ptr<MaterialComponent>& material, bool lighting, bool castShadow, bool receiveShadow)
+    void Renderer::addSkeletalMesh(const std::shared_ptr<SkeletalMeshComponent>& skeletalMesh, const std::shared_ptr<MaterialComponent>& material, bool castShadow, bool receiveShadow, bool lighting)
     {
         auto& tmp = mRenderInfos.emplace_back();
         tmp.skeletal = true;
@@ -520,24 +521,15 @@ namespace Engine
         mGeometryAdded = true;
     }
 
+    void Renderer::addSprite(const std::shared_ptr<SpriteComponent>& sprite)
+    {
+
+    }
+
     void Renderer::addLight(const std::shared_ptr<LightComponent>& light)
     {
         //std::cerr << "light start\n";
         mLights.emplace_back(light);
-
-        //shadow用
-        {
-            ShadowData data;
-            auto view = glm::lookAtRH(light->getDirection() * -20.f, glm::vec3(0, 0, 0), glm::vec3(0, 1.f, 0));
-            auto proj = glm::perspective(glm::radians(60.f), 1.f * mMaxWidth / mMaxHeight, 1.f, 1000.f);
-            //auto proj = glm::ortho(-10.f, 10.0f, -5.0f, 30.0f, 0.5f, 50.0f);
-            proj[1][1] *= -1;
-            auto&& matBias =  glm::translate(glm::mat4(1.0f), glm::vec3(0.5f,0.5f,0.5f)) * glm::scale(glm::mat4(1.0f), glm::vec3(0.5f, 0.5f, 0.5f));
-            data.lightViewProj = proj * view;
-            data.lightViewProjBias = matBias * data.lightViewProj;
-            //data.lightViewProj = glm::perspective(glm::radians(45.f), 1.f * width / height, 1.f, 1000.f) * glm::lookAtRH(glm::vec3(0), glm::vec3(0, 0, -10.f), glm::vec3(0, 1.f, 0));
-            mContext->writeBuffer(sizeof(ShadowData), &data, mShadowUB);
-        }
 
         mLightingAdded = true;
     }
@@ -684,9 +676,32 @@ namespace Engine
                 // std::cerr << sizeof(LightData) << "\n";
                 // assert(0);
 
+                // for(uint32_t i = 0; i < MAX_LIGHT_NUM; ++i)
+                // {
+                //     std::cerr << i << "\n";
+                //     std::cerr << "color : " << glm::to_string(data[i].lightColor) << "\n";
+                //     std::cerr << "dir : " << glm::to_string(data[i].lightDir) << "\n\n";
+                // }
+
                 if(Result::eSuccess != mContext->writeBuffer(sizeof(LightData) * MAX_LIGHT_NUM, &data, mLightUB))
                 {
                     assert(!"failed to create light buffer!");
+                }
+
+                //shadow用
+                {
+                    ShadowData data;
+                    glm::vec3 invDir = mLights[0]->getDirection() * -30.f;
+                    //invDir.z *= -1.f;
+                    auto view = glm::lookAtRH(invDir, glm::vec3(0, 0, 0), glm::vec3(0, 1.f, 0));
+                    auto proj = glm::perspective(glm::radians(60.f), 1.f * mMaxWidth / mMaxHeight, 1.f, 1000.f);
+                    //auto proj = glm::ortho(-10.f, 10.0f, -5.0f, 30.0f, 0.5f, 50.0f);
+                    proj[1][1] *= -1;
+                    auto&& matBias =  glm::translate(glm::mat4(1.0f), glm::vec3(0.5f,0.5f,0.5f)) * glm::scale(glm::mat4(1.0f), glm::vec3(0.5f, 0.5f, 0.5f));
+                    data.lightViewProj = proj * view;
+                    data.lightViewProjBias = matBias * data.lightViewProj;
+                    //data.lightViewProj = glm::perspective(glm::radians(45.f), 1.f * width / height, 1.f, 1000.f) * glm::lookAtRH(glm::vec3(0), glm::vec3(0, 0, -10.f), glm::vec3(0, 1.f, 0));
+                    mContext->writeBuffer(sizeof(ShadowData), &data, mShadowUB);
                 }
             }
 

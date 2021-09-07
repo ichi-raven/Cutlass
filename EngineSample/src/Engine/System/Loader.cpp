@@ -123,6 +123,8 @@ namespace Engine
         if(mLoaded)
             unload();
 
+        mSkeletal = false;
+
         mPath = std::string(modelPath);
 
         mScene = std::shared_ptr<const aiScene>(mImporter.ReadFile(modelPath, aiProcess_Triangulate | aiProcess_FlipUVs));
@@ -185,6 +187,7 @@ namespace Engine
         std::shared_ptr<MaterialComponent>& material_out
     )
     {
+        mSkeletal = true;
         if(mLoaded)
             unload();
 
@@ -281,20 +284,23 @@ namespace Engine
 
         std::vector<VertexBoneData> vbdata;
         mBoneNum += mesh->mNumBones;
-        loadBones(node, mesh, vbdata);
-        //頂点にボーン情報を付加
-        for(uint32_t i = 0; i < vertices.size(); ++i)
+        if(mSkeletal)
         {
-            vertices[i].joint = glm::make_vec4(vbdata[i].id);
-            vertices[i].weight = glm::make_vec4(vbdata[i].weights);
-            //std::cerr << to_string(vertices[i].weight0) << "\n"; 
-            // float sum = vertices[i].weight.x + vertices[i].weight.y + vertices[i].weight.z + vertices[i].weight.w; 
-            // assert(sum <= 1.01f);
-            // assert(vertices[i].joint.x < mBoneNum);
-            // assert(vertices[i].joint.y < mBoneNum);
-            // assert(vertices[i].joint.z < mBoneNum);
-            // assert(vertices[i].joint.w < mBoneNum);
-            
+            loadBones(node, mesh, vbdata);
+            //頂点にボーン情報を付加
+            for(uint32_t i = 0; i < vertices.size(); ++i)
+            {
+                vertices[i].joint = glm::make_vec4(vbdata[i].id);
+                vertices[i].weight = glm::make_vec4(vbdata[i].weights);
+                //std::cerr << to_string(vertices[i].weight0) << "\n"; 
+                // float sum = vertices[i].weight.x + vertices[i].weight.y + vertices[i].weight.z + vertices[i].weight.w; 
+                // assert(sum <= 1.01f);
+                // assert(vertices[i].joint.x < mBoneNum);
+                // assert(vertices[i].joint.y < mBoneNum);
+                // assert(vertices[i].joint.z < mBoneNum);
+                // assert(vertices[i].joint.w < mBoneNum);
+                
+            }
         }
 
         if(mesh->mFaces)
@@ -369,8 +375,8 @@ namespace Engine
                         break;
                     }
 
-                    if(k == 3)//まずい
-                        assert(!"invalid bone weight!");
+                    // if(k == 3)//まずい
+                    //     assert(!"invalid bone weight!");
                 }
             }
         }
@@ -429,6 +435,65 @@ namespace Engine
         return textures;
     }
 
+    void Loader::loadMaterialTexture(const char* path, const char* type, std::shared_ptr<MaterialComponent>& material_out)
+    {
+        material_out->addTexture(loadTexture(path, type));
+    }
+
+    void Loader::loadSprite(const char* path, std::shared_ptr<SpriteComponent>& sprite_out)
+    {
+        SpriteComponent::Sprite sprite;
+        
+        Cutlass::HTexture handle;
+        if(Cutlass::Result::eSuccess != mContext->createTextureFromFile(path, handle))
+            assert(!"failed to load sprite texture!");
+
+        sprite.handles.resize(1);
+        sprite.handles[0] = handle;
+        
+        sprite_out->create(sprite);          
+    }
+
+    void Loader::loadSprite(std::vector<const char*> pathes, std::shared_ptr<SpriteComponent>& sprite_out)
+    {
+        SpriteComponent::Sprite sprite;
+
+        sprite.handles.reserve(pathes.size());
+
+        for(const auto& path : pathes)
+        {
+            Cutlass::HTexture handle;
+            if(Cutlass::Result::eSuccess != mContext->createTextureFromFile(path, handle))
+                assert(!"failed to load sprite texture!");
+            
+            sprite.handles.emplace_back(handle);
+        }
+        
+        sprite_out->create(sprite);            
+    }
+
+    MaterialComponent::Texture Loader::loadTexture(const char* path, const char* type)
+    {
+        MaterialComponent::Texture texture;
+        if(!path)
+        {
+            assert(!"invalid texture path(nullptr)!");
+            return texture;
+        }
+        texture.path = std::string(path);
+        if(type)
+            texture.type = std::string(type);
+        else
+            texture.type =  texture.path.substr(texture.path.find_last_of("/\\"), texture.path.size());
+
+        if(Cutlass::Result::eSuccess != mContext->createTextureFromFile(path, texture.handle))
+        {
+            assert(!"failed to load texture!");
+        }
+
+        return texture;
+    }
+    
 
     // void Loader::load
     // (

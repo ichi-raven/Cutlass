@@ -17,35 +17,35 @@ namespace Engine
             std::string path;
         };
 
-        //フォンシェーディングする時のマテリアル型
-        struct PhongMaterialParam
-        {
-            glm::vec4 ambient;
-            glm::vec4 diffuse;
-            glm::vec4 specular;
-            glm::uvec1 useTexture;
-        };
+        // //フォンシェーディングする時のマテリアル型
+        // struct PhongMaterialParam
+        // {
+        //     glm::vec4 ambient;
+        //     glm::vec4 diffuse;
+        //     glm::vec4 specular;
+        //     glm::uvec1 useTexture;
+        // };
 
-        struct SimpleMaterialParam
-        {
-            glm::vec4 color;
-        };
+        // struct SimpleMaterialParam
+        // {
+        //     glm::vec4 color;
+        // };
 
-        enum class MaterialType
-        {
-            ePhong,
-            ePBR,
-            eSimple
-        };
+        // enum class MaterialType
+        // {
+        //     ePhong,
+        //     ePBR,
+        //     eSimple
+        // };
 
-        //ビルド済みマテリアルデータ
-        struct MaterialSet
-        {
-            std::optional<uint32_t> useIndexNum;
-            std::optional<Cutlass::HTexture> texture;
-            Cutlass::HBuffer paramBuffer;
-            MaterialType type;
-        };
+        // //ビルド済みマテリアルデータ
+        // struct MaterialSet
+        // {
+        //     std::optional<uint32_t> useIndexNum;
+        //     std::optional<Cutlass::HTexture> texture;
+        //     Cutlass::HBuffer paramBuffer;
+        //     MaterialType type;
+        // };
 
         MaterialComponent();
         virtual ~MaterialComponent() override;

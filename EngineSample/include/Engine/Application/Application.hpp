@@ -207,13 +207,14 @@ namespace Engine
 
 		//Systemを差し替える場合に使ってください
 		//System内の各親を継承していない場合多分壊れます
-		template<typename InheritedRenderer = Renderer, typename InheritedLoader = Loader>
+		template<typename InheritedRenderer = Renderer, typename InheritedLoader = Loader, typename InheritedInput = Input>
 		void initSystem()
 		{
 			//ApplicationごとにSystem内部を選べれば色々できると思う
 			mSystem = std::make_shared<System>();
-			mSystem->mRenderer = std::make_unique<InheritedRenderer>(mContext, mHWindows);
-			mSystem->mLoader = std::make_unique<InheritedLoader>(mContext);
+			mSystem->renderer = std::make_unique<InheritedRenderer>(mContext, mHWindows);
+			mSystem->loader = std::make_unique<InheritedLoader>(mContext);
+			mSystem->input = std::make_unique<InheritedInput>(mContext);
 		}
 
 		//Noncopyable, Nonmoveable
@@ -295,7 +296,7 @@ namespace Engine
 			}
 			else
 			{
-				mSystem->mRenderer->clearScene();
+				mSystem->renderer->clearScene();
 				mCurrent.first = dstSceneKey;
 				mCurrent.second = mScenesFactory[dstSceneKey]();
 			}

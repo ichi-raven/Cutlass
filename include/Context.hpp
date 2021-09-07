@@ -105,6 +105,9 @@ namespace Cutlass
         //ファイルからテクスチャ作成
         Result createTextureFromFile(const char *fileName, HTexture& handle_out);
 
+        //テクスチャからサイズを取得する
+        Result getTextureSize(const HTexture& handle, uint32_t& width_out, uint32_t& height_out, uint32_t& depth_out);
+
         //テクスチャにデータ書き込み(使用注意, 書き込むデータのサイズはテクスチャのサイズに従うもの以外危険)
         Result writeTexture(const void *const pData, const HTexture& handle);
 
@@ -174,8 +177,6 @@ namespace Cutlass
             VkExtent2D mSwapchainExtent;
             std::vector<HTexture> mHSwapchainImages;
             HTexture mHDepthBuffer;
-            // std::vector<VkSemaphore> mRenderCompletedSems;
-            // std::vector<VkSemaphore> mPresentCompletedSems;
 
             //現在のフレーム(注意 : 処理中のフレームバッファのインデックスとは関係ない)
             uint32_t mCurrentFrame;
@@ -236,7 +237,6 @@ namespace Cutlass
 
         struct GraphicsPipelineObject
         {
-            //これ不要説濃厚
             std::optional<VkPipelineLayout> mPipelineLayout;
             std::optional<VkPipeline> mPipeline;
             std::vector<VkDescriptorSetLayout> mDescriptorSetLayouts;

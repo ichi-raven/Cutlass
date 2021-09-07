@@ -32,8 +32,6 @@ namespace Engine
 
     private:
 
-        //std::vector<MaterialSet> mMaterialSets;
-
         Cutlass::Shader mVS;
         Cutlass::Shader mFS;
         Cutlass::ColorBlend mColorBlend;

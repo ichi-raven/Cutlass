@@ -16,6 +16,7 @@ namespace Engine
     class CustomMaterialComponent;
     class LightComponent;
     class CameraComponent;
+    class SpriteComponent;
 
     class Renderer
     {
@@ -32,9 +33,11 @@ namespace Engine
 
         virtual ~Renderer();
 
-        virtual void addStaticMesh(const std::shared_ptr<MeshComponent>& mesh, const std::shared_ptr<MaterialComponent>& material, bool lighting = true, bool castShadow = true, bool receiveShadow = true);
+        virtual void addStaticMesh(const std::shared_ptr<MeshComponent>& mesh, const std::shared_ptr<MaterialComponent>& material, bool castShadow = true, bool receiveShadow = true, bool lighting = true);
         virtual void addCustom(const std::shared_ptr<MeshComponent>& mesh, const std::shared_ptr<CustomMaterialComponent>& material);
-        virtual void addSkeletalMesh(const std::shared_ptr<SkeletalMeshComponent>& skeletalMesh, const std::shared_ptr<MaterialComponent>& material, bool lighting = true, bool castShadow = true, bool receiveShadow = false);
+        virtual void addSkeletalMesh(const std::shared_ptr<SkeletalMeshComponent>& skeletalMesh, const std::shared_ptr<MaterialComponent>& material, bool castShadow = true, bool receiveShadow = false, bool lighting = true);
+
+        virtual void addSprite(const std::shared_ptr<SpriteComponent>& sprite);
 
         virtual void addLight(const std::shared_ptr<LightComponent>& light);
 
@@ -186,6 +189,7 @@ namespace Engine
         bool mSpriteAdded;
 
         Cutlass::HTexture mDebugTex;//!
+        Cutlass::HTexture mDebugSky;
 
         bool mSceneBuilded;
     };

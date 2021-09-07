@@ -77,7 +77,7 @@ float4 PSMain(VSOutput input) : SV_Target0
 	if(normal.w == 0)
 		return albedo;
 
-	float4 ambient = float4(0.2f, 0.2f, 0.2f, 1.f);
+	float4 ambient = float4(0.1f, 0.1f, 0.1f, 0.f);
 
 	normal = (normal * 2.f) - 1.f;
 	normal.w = 1.f;
@@ -85,19 +85,19 @@ float4 PSMain(VSOutput input) : SV_Target0
 	float4 lightAll = ambient;
 	float4 lightDiffuse, lightSpecular;
 
-	for(int i = 0; i < MAX_LIGHT_NUM; ++i)
+	for(uint i = 0; i < MAX_LIGHT_NUM; ++i)
 	{
-		lightDiffuse = lambert(normal.xyz, lights[i].lightDirection, lights[i].lightColor);
+		lightDiffuse = 1 / 0.31847133758 * lambert(normal.xyz, lights[i].lightDirection, lights[i].lightColor);
 
-		lightSpecular = phong(cameraPos, worldPos.xyz, lights[i].lightDirection, normal.xyz, lights[i].lightColor);
+		lightSpecular = 1 / 0.31847133758 * phong(cameraPos, worldPos.xyz, lights[i].lightDirection, normal.xyz, lights[i].lightColor);
 
 		lightAll += (lightDiffuse + lightSpecular);
 	}
 
-	lightAll.x = min(lightAll.x, 1.f);
-	lightAll.y = min(lightAll.y, 1.f);
-	lightAll.z = min(lightAll.z, 1.f);
-	lightAll.w = min(lightAll.w, 1.f);
+	// lightAll.x = min(lightAll.x, 1.f);
+	// lightAll.y = min(lightAll.y, 1.f);
+	// lightAll.z = min(lightAll.z, 1.f);
+	// lightAll.w = min(lightAll.w, 1.f);
 
 	float4 outColor = float4((albedo * lightAll).xyz, albedo.w); 
 

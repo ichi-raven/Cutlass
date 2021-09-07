@@ -46,7 +46,7 @@ namespace Engine
 
     void SkeletalMeshComponent::Skeleton::update(float second, size_t animationIndex)
     {
-        if(animationIndex < scene->mNumAnimations && animationIndex >= 0)
+        if(animationIndex >= scene->mNumAnimations)
         {
             assert(!"invalid animation index!");
             return;
@@ -210,6 +210,7 @@ namespace Engine
     }
 
     SkeletalMeshComponent::SkeletalMeshComponent()
+    : mTimeScale(1.f)
     {
 
     }
@@ -261,6 +262,17 @@ namespace Engine
         return mAnimationIndex;
     }
 
+    void SkeletalMeshComponent::setTimeScale(float timeScale)
+    {
+        assert(timeScale > 0);
+        mTimeScale = timeScale;
+    }
+
+    float SkeletalMeshComponent::getTimeScale() const
+    {
+        return mTimeScale;
+    }
+
     void SkeletalMeshComponent::update()
     {
         
@@ -272,7 +284,7 @@ namespace Engine
         if(mAnimationIndex)
         {
             std::cerr << "animation time : " << time << "\n";
-            mSkeleton->update(time, mAnimationIndex.value());
+            mSkeleton->update(time * mTimeScale, mAnimationIndex.value());
         }
     }
     
