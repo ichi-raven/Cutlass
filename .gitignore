@@ -1,0 +1,16 @@
+build/*
+*/build/*
+winbuild/*
+.vs/*
+.vscode/*
+CutlassEngine.code-workspace
+src/.vscode/*
+include/.vscode/*
+
+*.ipch
+*.pdb
+
+EngineSample/resources/models/
+EngineSample/resources/fonts/
+EngineSample/resources/sounds/
+EngineSample/resources/textures/
