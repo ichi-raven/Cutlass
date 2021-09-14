@@ -29,6 +29,7 @@ namespace Cutlass
     {
         eTriangleList,
         eTriangleStrip,
+        eTriangleFan,
     };
 
     enum class PolygonMode

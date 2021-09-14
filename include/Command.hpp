@@ -209,7 +209,7 @@ namespace Cutlass
 
         }
 
-        void begin(const HRenderPass& handle, bool clearFlag, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f }, const DepthClearValue dcv = { 1.f, 0 });
+        void begin(const HRenderPass& handle, bool clearFlag, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 0.f}, const DepthClearValue dcv = { 1.f, 0 });
         void begin(const HRenderPass& handle, const DepthClearValue dcv = { 1.f, 0 }, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f });
         void end(bool presentIfRenderedFrameBuffer = true);
         

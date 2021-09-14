@@ -3188,6 +3188,9 @@ namespace Cutlass
                 case Topology::eTriangleStrip:
                     iaci.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
                     break;
+                case Topology::eTriangleFan:
+                    iaci.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
+                    break;
                 default:
                     std::cerr << "primitive topology is not described\n";
                     return Result::eFailure;
@@ -4044,7 +4047,6 @@ namespace Cutlass
         
         bi.clearValueCount = clearValues.size();
         bi.pClearValues = clearValues.data();
-        
 
         if (!rpo.mHWindow && info.clear && !rpo.mLoadPrevData)
         {
