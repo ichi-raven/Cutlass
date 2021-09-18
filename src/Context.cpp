@@ -61,6 +61,7 @@ namespace Cutlass
     Context::Context()
     {
         mIsInitialized = false;
+        mMaxFrame = 0;
         mNextWindowHandle = 1;
         mNextBufferHandle = 1;
         mNextTextureHandle = 1;
@@ -854,7 +855,6 @@ namespace Cutlass
     Result Context::createSwapchain(WindowObject &wo, bool vsync)
     {
         Result result;
-
         mMaxFrame = std::max(wo.mMaxFrameNum, mMaxFrame);
 
         if (wo.mMaxFrameNum < wo.mSurfaceCaps.minImageCount)
@@ -1999,91 +1999,6 @@ namespace Cutlass
             mImGuiDescriptorPool = descriptorPool;
         }
 
-        // {//window render pass for ImGui
-        //     VkRenderPassCreateInfo ci{};
-        //     ci.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        //     std::vector<VkAttachmentDescription> adVec;
-        //     VkAttachmentReference ar;
-        //     VkAttachmentReference depthAr;
-
-        //     adVec.reserve(2);
-
-        //     const auto& rdst = wo.mHSwapchainImages[0]; //only for info
-
-        //     if (mImageMap.count(rdst) <= 0)
-        //     {
-        //         std::cerr << "invalid swapchain image handle\n";
-        //         return Result::eFailure;
-        //     }
-
-        //     auto& io = mImageMap[rdst];
-        //     adVec.emplace_back();
-        //     adVec.back().format = io.format;
-        //     adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
-        //     adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-        //     adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        //     adVec.back().initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        //     adVec.back().finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-        //     ar.attachment = 0;
-        //     ar.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-        //     VkSubpassDescription subpassDesc{};
-        //     subpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        //     subpassDesc.colorAttachmentCount = 1;
-        //     subpassDesc.pColorAttachments = &ar;
-
-        //     VkSubpassDependency dependency{};
-        //     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-        //     dependency.dstSubpass = 0;
-        //     dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        //     dependency.srcAccessMask = 0;
-        //     dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        //     dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-        //     subpassDesc.pDepthStencilAttachment = nullptr;
-            
-        //     ci.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        //     ci.attachmentCount = static_cast<uint32_t>(adVec.size());
-        //     ci.pAttachments = adVec.data();
-        //     ci.subpassCount = 1;
-        //     ci.pSubpasses = &subpassDesc;
-        //     ci.dependencyCount = 1;
-        //     ci.pDependencies = &dependency;
-
-        //     if (rpo.mDepthTestEnable)
-        //     {
-        //         rpo.depthTarget = wo.mHDepthBuffer;
-
-        //         adVec.emplace_back();
-
-        //         auto& depthBuffer = mImageMap[wo.mHDepthBuffer];
-        //         adVec.back().format = depthBuffer.format;
-        //         adVec.back().samples = VK_SAMPLE_COUNT_1_BIT;
-        //         adVec.back().loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        //         adVec.back().storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        //         adVec.back().initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        //         adVec.back().finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        //         depthAr.attachment = 1;
-        //         depthAr.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        //         subpassDesc.pDepthStencilAttachment = &depthAr;
-        //     }
-        //     else
-        //     {
-        //         subpassDesc.pDepthStencilAttachment = nullptr;
-        //     }
-
-        //     {
-        //         VkRenderPass renderPass;
-        //         result = checkVkResult(vkCreateRenderPass(mDevice, &ci, nullptr, &renderPass));
-        //         if (Result::eSuccess != result)
-        //         {
-        //             return result;
-        //         }
-
-        //         mImGuiRenderPass = renderPass;
-        //     }
-        // }
-
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGui_ImplGlfw_InitForVulkan(wo.mpWindow.value(), true);
@@ -2097,7 +2012,7 @@ namespace Cutlass
         info.PipelineCache = NULL;
         info.DescriptorPool = mImGuiDescriptorPool.value();
         info.Allocator = NULL;
-        info.MinImageCount = wo.mSurfaceCaps.minImageCount;
+        info.MinImageCount = std::max(2u, wo.mSurfaceCaps.minImageCount);
         info.ImageCount = wo.mMaxFrameNum;
         info.CheckVkResultFn = ImGui_check_vk_result;
         //ImGui_ImplVulkan_Init(&info, mImGuiRenderPass.value());
@@ -2456,12 +2371,12 @@ namespace Cutlass
         //ImGuiを使用する場合はここで設定を行う
         if(swapchain.useImGui)
         {
+            std::cerr << "set up ImGui\n";
             result = setUpImGui(swapchain, rpo);
             if (Result::eSuccess != result)
             {
                 return result;
             }
-            std::cerr << "set up ImGui\n";
         }
 
         handle_out = mNextRenderPassHandle++;
@@ -3068,6 +2983,9 @@ namespace Cutlass
                 visci.vertexAttributeDescriptionCount = 0;
                 visci.pVertexAttributeDescriptions = nullptr;
             }
+
+            //std::cerr << "vertex input\n";
+
             //color blend
             std::vector<VkPipelineColorBlendAttachmentState> blendAttachments;
             blendAttachments.reserve(rpo.colorTargets.size() + 1);
@@ -3176,6 +3094,8 @@ namespace Cutlass
                 vpsci.pScissors = &scissor;
             }
 
+            //std::cerr << "color and viewport\n";
+
             //input assembly
             VkPipelineInputAssemblyStateCreateInfo iaci{};
             {
@@ -3269,6 +3189,8 @@ namespace Cutlass
                     break;
                 }
             }
+
+            //std::cerr << "multi sample topology rasterizer state\n";
 
             //depth stencil
             VkPipelineDepthStencilStateCreateInfo dsci{};
