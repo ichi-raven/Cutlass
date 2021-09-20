@@ -118,6 +118,9 @@ namespace Cutlass
 
         // }
 
+        GraphicsPipelineInfo()
+        {}
+
         GraphicsPipelineInfo
         (
             const Shader& VS,

@@ -10,6 +10,8 @@ include/.vscode/*
 *.ipch
 *.pdb
 
+EngineSample/
+
 EngineSample/resources/models/
 EngineSample/resources/fonts/
 EngineSample/resources/sounds/
