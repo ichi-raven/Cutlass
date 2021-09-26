@@ -452,6 +452,22 @@ namespace Cutlass
 
         mRPMap.erase(gpo.mHRenderPass);
 
+        if(gpo.mDescriptorPool)
+        {
+            for(const auto& ds_vec : gpo.mDescriptorSets)
+            {
+                std::vector<VkDescriptorSet> sets;
+                sets.reserve(ds_vec.size());
+                for(const auto& e : ds_vec)
+                    sets.emplace_back(e.value());
+                
+            
+                vkFreeDescriptorSets(mDevice, gpo.mDescriptorPool.value(), sets.size(), sets.data());
+            }
+        }            
+
+        gpo.mDescriptorSets.clear();
+
         for(const auto& dsl : gpo.mDescriptorSetLayouts)
             vkDestroyDescriptorSetLayout(mDevice, dsl, nullptr);
 
@@ -479,27 +495,27 @@ namespace Cutlass
 
         auto& co = mCommandBufferMap[handle];
 
-        if(co.mHGPO)
-        {
-            auto& gpo = mGPMap[co.mHGPO.value()];
+        // if(co.mHGPO)
+        // {
+        //     auto& gpo = mGPMap[co.mHGPO.value()];
 
-            if(gpo.mDescriptorPool)
-            {
-                for(const auto& ds_vec : co.mDescriptorSets)
-                {
-                    std::vector<VkDescriptorSet> sets;
-                    sets.reserve(ds_vec.size());
-                    for(const auto& e : ds_vec)
-                        sets.emplace_back(e.value());
+        //     if(gpo.mDescriptorPool)
+        //     {
+        //         for(const auto& ds_vec : co.mDescriptorSets)
+        //         {
+        //             std::vector<VkDescriptorSet> sets;
+        //             sets.reserve(ds_vec.size());
+        //             for(const auto& e : ds_vec)
+        //                 sets.emplace_back(e.value());
                     
                 
-                    vkFreeDescriptorSets(mDevice, gpo.mDescriptorPool.value(), sets.size(), sets.data());
-                }
+        //             vkFreeDescriptorSets(mDevice, gpo.mDescriptorPool.value(), sets.size(), sets.data());
+        //         }
 
-            }            
+        //     }            
 
-            co.mDescriptorSets.clear();
-        }
+        //     co.mDescriptorSets.clear();
+        // }
 
         // stop queue before
         vkQueueWaitIdle(mDeviceQueue);
@@ -3275,7 +3291,7 @@ namespace Cutlass
                 std::vector<std::vector<VkDescriptorSetLayoutBinding>> allBindings;
                 allBindings.reserve(5);//おぼろげながら浮かんできたんですよ、5という数字が  TODO
                 {//HACK
-                    uint8_t nowSet = 255;
+                    uint32_t nowSet = UINT32_MAX;
                     for(const auto& [sb, srt] : layoutTable)
                     {
                         if(sb.first != nowSet)
@@ -3368,6 +3384,40 @@ namespace Cutlass
                         return result;
                     }
                     gpo.mDescriptorPool = descriptorPool;
+                }
+            }
+
+            VkDescriptorSetAllocateInfo dsai{};
+            for(size_t index = 0; index < rpo.mFramebuffers.size(); ++index)
+            {
+                gpo.mDescriptorSets.emplace_back();
+                for(size_t set = 0; set < gpo.mDescriptorSetLayouts.size(); ++set)
+                {//allocate descriptor sets
+                    gpo.mDescriptorSets[index].emplace_back();
+
+                    dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+                    dsai.descriptorPool = gpo.mDescriptorPool.value();
+                    dsai.descriptorSetCount = 1;
+                    dsai.pSetLayouts = &gpo.mDescriptorSetLayouts[set];
+                    
+                    {
+                        VkDescriptorSet descriptorSet;
+                        result = checkVkResult(vkAllocateDescriptorSets(mDevice, &dsai, &descriptorSet));
+                        if(Result::eSuccess != result)
+                        {
+                            std::cerr << "failed to allocate VkDescriptorSet!\n";
+                            return Result::eFailure;
+                        }
+
+                        gpo.mDescriptorSets[index][set] = descriptorSet;
+                    }
+                    
+                    if (result != Result::eSuccess)
+                    {
+                        std::cerr << "failed to allocate descriptor set\n";
+                        return result;
+                    }
+
                 }
             }
 
@@ -3869,51 +3919,51 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Context::releaseShaderResourceSet(const HCommandBuffer& handle)
-    {
-        Result result = Result::eSuccess;
+    // Result Context::releaseShaderResourceSet(const HCommandBuffer& handle)
+    // {
+    //     Result result = Result::eSuccess;
 
-        if(mDebugFlag && mCommandBufferMap.count(handle) <= 0)
-        {
-            std::cerr << "invalid command buffer handle!\n";
-            return Result::eFailure;
-        }
+    //     if(mDebugFlag && mCommandBufferMap.count(handle) <= 0)
+    //     {
+    //         std::cerr << "invalid command buffer handle!\n";
+    //         return Result::eFailure;
+    //     }
 
-        auto& co = mCommandBufferMap.at(handle);
+    //     auto& co = mCommandBufferMap.at(handle);
 
-        if(mDebugFlag && mGPMap.count(co.mHGPO.value()) <= 0)
-        {
-            std::cerr << "invalid render pipeline handle!\n";
-            return Result::eFailure;
-        }
+    //     if(mDebugFlag && mGPMap.count(co.mHGPO.value()) <= 0)
+    //     {
+    //         std::cerr << "invalid render pipeline handle!\n";
+    //         return Result::eFailure;
+    //     }
 
 
-        auto& gpo = mGPMap.at(co.mHGPO.value());
-        if(!gpo.mDescriptorPool)
-        {
-            std::cerr << "this render pipeline didn't have descriptor pool!\n";
-            return Result::eFailure;
-        }
+    //     auto& gpo = mGPMap.at(co.mHGPO.value());
+    //     if(!gpo.mDescriptorPool)
+    //     {
+    //         std::cerr << "this render pipeline didn't have descriptor pool!\n";
+    //         return Result::eFailure;
+    //     }
 
-        for(const auto& ds_vec : co.mDescriptorSets)
-        {
-            std::vector<VkDescriptorSet> sets;
-            sets.reserve(ds_vec.size());
-            for(const auto& e : ds_vec)
-                sets.emplace_back(e.value());
+    //     for(const auto& ds_vec : co.mDescriptorSets)
+    //     {
+    //         std::vector<VkDescriptorSet> sets;
+    //         sets.reserve(ds_vec.size());
+    //         for(const auto& e : ds_vec)
+    //             sets.emplace_back(e.value());
             
-            result = checkVkResult(vkFreeDescriptorSets(mDevice, gpo.mDescriptorPool.value(), sets.size(), sets.data()));
-            if(result != Result::eSuccess)
-            {
-                std::cerr << "failed to free descriptor set!\n";
-                return Result::eFailure;
-            }
-        }
+    //         result = checkVkResult(vkFreeDescriptorSets(mDevice, gpo.mDescriptorPool.value(), sets.size(), sets.data()));
+    //         if(result != Result::eSuccess)
+    //         {
+    //             std::cerr << "failed to free descriptor set!\n";
+    //             return Result::eFailure;
+    //         }
+    //     }
 
-        co.mDescriptorSets.clear();
+    //     co.mDescriptorSets.clear();
 
-        return Result::eFailure;
-    }
+    //     return Result::eFailure;
+    // }
 
     Result Context::cmdBegin(CommandObject& co, size_t frameBufferIndex, const CmdBegin& info, const bool useSecondary)
     {
@@ -4069,7 +4119,7 @@ namespace Cutlass
         vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, gpo.mPipeline.value());
 
         //allocate descriptor sets
-        co.mDescriptorSets.emplace_back().resize(gpo.mDescriptorSetLayouts.size());
+        //co.mDescriptorSets.emplace_back().resize(gpo.mDescriptorSetLayouts.size());
 
         return Result::eSuccess;
     }
@@ -4093,10 +4143,10 @@ namespace Cutlass
         }
         
         //if already descrioptor set was allocated
-        if (co.mDescriptorSets[index].size() >= info.set && co.mDescriptorSets[index][info.set])
-        {
-            vkFreeDescriptorSets(mDevice, gpo.mDescriptorPool.value(), 1, &co.mDescriptorSets[index][info.set].value());
-        }
+        //if (co.mDescriptorSets[index].size() >= info.set && co.mDescriptorSets[index][info.set])
+        // {
+        //     vkFreeDescriptorSets(mDevice, gpo.mDescriptorPool.value(), 1, &co.mDescriptorSets[index][info.set].value());
+        // }
 
         auto&& UBs = info.SRSet.getUniformBuffers();
         auto&& CTs = info.SRSet.getCombinedTextures();
@@ -4109,29 +4159,29 @@ namespace Cutlass
 
         std::vector<VkWriteDescriptorSet> writeDescriptors;
         {
-            VkDescriptorSetAllocateInfo dsai{};
-            dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-            dsai.descriptorPool = gpo.mDescriptorPool.value();
-            dsai.descriptorSetCount = 1;
-            dsai.pSetLayouts = &gpo.mDescriptorSetLayouts[info.set];
+            // VkDescriptorSetAllocateInfo dsai{};
+            // dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            // dsai.descriptorPool = gpo.mDescriptorPool.value();
+            // dsai.descriptorSetCount = 1;
+            // dsai.pSetLayouts = &gpo.mDescriptorSetLayouts[info.set];
             
-            {
-                VkDescriptorSet set;
-                result = checkVkResult(vkAllocateDescriptorSets(mDevice, &dsai, &set));
-                if(Result::eSuccess != result)
-                {
-                    std::cerr << "failed to allocate VkDescriptorSet!\n";
-                    return Result::eFailure;
-                }
+            // {
+            //     VkDescriptorSet set;
+            //     result = checkVkResult(vkAllocateDescriptorSets(mDevice, &dsai, &set));
+            //     if(Result::eSuccess != result)
+            //     {
+            //         std::cerr << "failed to allocate VkDescriptorSet!\n";
+            //         return Result::eFailure;
+            //     }
 
-                co.mDescriptorSets[index][info.set] = set;
-            }
+            //     co.mDescriptorSets[index][info.set] = set;
+            // }
             
-            if (result != Result::eSuccess)
-            {
-                std::cerr << "failed to allocate descriptor set\n";
-                return result;
-            }
+            // if (result != Result::eSuccess)
+            // {
+            //     std::cerr << "failed to allocate descriptor set\n";
+            //     return result;
+            // }
             writeDescriptors.reserve
             (
                 gpo.mSetSizes[info.set]
@@ -4152,7 +4202,7 @@ namespace Cutlass
                 wdi.descriptorCount = 1;
                 wdi.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
                 wdi.pBufferInfo = &dbi_vec.back();
-                wdi.dstSet = co.mDescriptorSets[index][info.set].value();
+                wdi.dstSet = gpo.mDescriptorSets[index][info.set].value();
             }
 
             for (const auto& dct : CTs)
@@ -4171,23 +4221,11 @@ namespace Cutlass
                 wdi.descriptorCount = 1;
                 wdi.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                 wdi.pImageInfo = &dii_vec.back();
-                wdi.dstSet = co.mDescriptorSets[index][info.set].value();
+                wdi.dstSet = gpo.mDescriptorSets[index][info.set].value();
             }
 
             vkUpdateDescriptorSets(mDevice, static_cast<uint32_t>(writeDescriptors.size()), writeDescriptors.data(), 0, nullptr);
         }
-
-        // vkCmdBindDescriptorSets
-        // (
-        //     co.mCommandBuffers.back(),
-        //     VK_PIPELINE_BIND_POINT_GRAPHICS,
-        //     gpo.mPipelineLayout.value(),
-        //     0,
-        //     1,
-        //     &co.mDescriptorSets.back(),
-        //     0,
-        //     nullptr
-        // );
         
         return Result::eSuccess;
     }
@@ -4196,8 +4234,8 @@ namespace Cutlass
     {
         auto& gpo = mGPMap[co.mHGPO.value()];
         std::vector<VkDescriptorSet> sets;
-        sets.reserve(co.mDescriptorSets[index].size());
-        for(const auto& e : co.mDescriptorSets[index])
+        sets.reserve(gpo.mDescriptorSets[index].size());
+        for(const auto& e : gpo.mDescriptorSets[index])
         {
             sets.emplace_back(e.value());
         }
@@ -4232,8 +4270,8 @@ namespace Cutlass
         auto& gpo = mGPMap[co.mHGPO.value()];
 
         std::vector<VkDescriptorSet> sets;
-        sets.reserve(co.mDescriptorSets[index].size());
-        for(const auto& e : co.mDescriptorSets[index])
+        sets.reserve(gpo.mDescriptorSets[index].size());
+        for(const auto& e : gpo.mDescriptorSets[index])
         {
             sets.emplace_back(e.value());
         }
