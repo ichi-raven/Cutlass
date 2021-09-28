@@ -14,7 +14,7 @@
 
 
 #define STB_IMAGE_IMPLEMENTATION
-#include <ThirdParty/stb_image.h>
+#include "../include/ThirdParty/stb_image.h"
 
 #define GetInstanceProcAddr(FuncName) \
     m##FuncName = reinterpret_cast<PFN_##FuncName>(vkGetInstanceProcAddr(mInstance, #FuncName))
