@@ -14,7 +14,7 @@
 
 
 #define STB_IMAGE_IMPLEMENTATION
-#include <ThirdParty/stb_image.h>
+#include "../include/ThirdParty/stb_image.h"
 
 #define GetInstanceProcAddr(FuncName) \
     m##FuncName = reinterpret_cast<PFN_##FuncName>(vkGetInstanceProcAddr(mInstance, #FuncName))
@@ -508,29 +508,6 @@ namespace Cutlass
         }
 
         auto& co = mCommandBufferMap[handle];
-
-        //if(co.mHGPO)
-        //{
-        //    auto& gpo = mGPMap[co.mHGPO.value()];
-
-        //    /*if(gpo.mDescriptorPool)
-        //    {
-        //        for(const auto& ds_vec : co.mDescriptorSets)
-        //        {
-        //            std::vector<VkDescriptorSet> sets;
-        //            sets.reserve(ds_vec.size());
-        //            for(const auto& e : ds_vec)
-        //                sets.emplace_back(e.value());
-        //            
-        //        
-        //            vkFreeDescriptorSets(mDevice, gpo.mDescriptorPool.value(), sets.size(), sets.data());
-        //        }
-
-        //    }*/            
-
-        //    co.mDescriptorSets.clear();
-        //}
-
 
         // stop queue before
         vkQueueWaitIdle(mDeviceQueue);
@@ -3358,7 +3335,7 @@ namespace Cutlass
                 std::vector<std::vector<VkDescriptorSetLayoutBinding>> allBindings;
                 allBindings.reserve(8);
                 {//HACK
-                    uint8_t nowSet = 255;
+                    uint32_t nowSet = UINT32_MAX;
                     for(const auto& [sb, srt] : layoutTable)
                     {
                         if(sb.first != nowSet)
@@ -3453,6 +3430,8 @@ namespace Cutlass
             //        gpo.mDescriptorPool = descriptorPool;
             //    }
             //}
+
+           
 
             {//pipeline layout
                 VkPipelineLayoutCreateInfo ci{};
@@ -4134,52 +4113,6 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Context::releaseShaderResourceSet(const HCommandBuffer& handle)
-    {
-        Result result = Result::eSuccess;
-
-        if(mDebugFlag && mCommandBufferMap.count(handle) <= 0)
-        {
-            std::cerr << "invalid command buffer handle!\n";
-            return Result::eFailure;
-        }
-
-        auto& co = mCommandBufferMap.at(handle);
-
-        if(mDebugFlag && mGPMap.count(co.mHGPO.value()) <= 0)
-        {
-            std::cerr << "invalid render pipeline handle!\n";
-            return Result::eFailure;
-        }
-
-
-        auto& gpo = mGPMap.at(co.mHGPO.value());
-        //if(!gpo.mDescriptorPool)
-        //{
-        //    std::cerr << "this render pipeline didn't have descriptor pool!\n";
-        //    return Result::eFailure;
-        //}
-
-        for(const auto& ds_vec : co.mDescriptorSets)
-        {
-            std::vector<VkDescriptorSet> sets;
-            sets.reserve(ds_vec.size());
-            for(const auto& e : ds_vec)
-                sets.emplace_back(e.value());
-            
-            result = checkVkResult(vkFreeDescriptorSets(mDevice, mDescriptorPools[co.mDescriptorPoolIndex].second, sets.size(), sets.data()));
-            if(result != Result::eSuccess)
-            {
-                std::cerr << "failed to free descriptor set!\n";
-                return Result::eFailure;
-            }
-        }
-
-        co.mDescriptorSets.clear();
-
-        return Result::eFailure;
-    }
-
     Result Context::cmdBegin(CommandObject& co, size_t frameBufferIndex, const CmdBegin& info, const bool useSecondary)
     {
         Result result = Result::eSuccess;
@@ -4356,12 +4289,6 @@ namespace Cutlass
             std::cerr << "descriptor pool is nothing!\n";
             return Result::eFailure;
         }
-        
-        //if already descrioptor set was allocated
-        if (co.mDescriptorSets[index].size() >= info.set && co.mDescriptorSets[index][info.set])
-        {
-            vkFreeDescriptorSets(mDevice, mDescriptorPools[co.mDescriptorPoolIndex].second, 1, &co.mDescriptorSets[index][info.set].value());
-        }
 
         auto&& UBs = info.SRSet.getUniformBuffers();
         auto&& CTs = info.SRSet.getCombinedTextures();
@@ -4371,7 +4298,6 @@ namespace Cutlass
 
         std::vector<VkDescriptorImageInfo> dii_vec;
         dii_vec.reserve(CTs.size());
-
         std::vector<VkWriteDescriptorSet> writeDescriptors;
         {
             VkDescriptorSetAllocateInfo dsai{};
@@ -4379,29 +4305,30 @@ namespace Cutlass
             dsai.descriptorPool = mDescriptorPools[co.mDescriptorPoolIndex].second;
             dsai.descriptorSetCount = 1;
             dsai.pSetLayouts = &gpo.mDescriptorSetLayouts[info.set];
-            
-            {
-                VkDescriptorSet set;
-                result = checkVkResult(vkAllocateDescriptorSets(mDevice, &dsai, &set));
-                if(Result::eSuccess != result)
-                {
-                    std::cerr << "failed to allocate VkDescriptorSet!\n";
-                    return Result::eFailure;
-                }
 
-                co.mDescriptorSets[index][info.set] = set;
-            }
+             {
+                 VkDescriptorSet set;
+                 result = checkVkResult(vkAllocateDescriptorSets(mDevice, &dsai, &set));
+                 if(Result::eSuccess != result)
+                 {
+                     std::cerr << "failed to allocate VkDescriptorSet!\n";
+                     return Result::eFailure;
+                 }
+
+                 co.mDescriptorSets[index][info.set] = set;
+             }
             
-            if (result != Result::eSuccess)
-            {
-                std::cerr << "failed to allocate descriptor set\n";
-                return result;
-            }
+             if (result != Result::eSuccess)
+             {
+                 std::cerr << "failed to allocate descriptor set\n";
+                 return result;
+             }
+
             writeDescriptors.reserve
             (
                 gpo.mSetSizes[info.set]
             );
-            
+
             for (const auto& dub: UBs)
             {
                 auto& ubo = mBufferMap[dub.second];
@@ -4442,18 +4369,6 @@ namespace Cutlass
             vkUpdateDescriptorSets(mDevice, static_cast<uint32_t>(writeDescriptors.size()), writeDescriptors.data(), 0, nullptr);
         }
 
-        // vkCmdBindDescriptorSets
-        // (
-        //     co.mCommandBuffers.back(),
-        //     VK_PIPELINE_BIND_POINT_GRAPHICS,
-        //     gpo.mPipelineLayout.value(),
-        //     0,
-        //     1,
-        //     &co.mDescriptorSets.back(),
-        //     0,
-        //     nullptr
-        // );
-        
         return Result::eSuccess;
     }
 

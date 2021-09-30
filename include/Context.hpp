@@ -128,7 +128,7 @@ namespace Cutlass
         Result destroyCommandBuffer(const HCommandBuffer& handle);
       
         //現在割り当てられているShaderResourceSetの接続を解除する
-        Result releaseShaderResourceSet(const HCommandBuffer& handle);
+        //Result releaseShaderResourceSet(const HCommandBuffer& handle);
 
         //すでに割り当てたコマンドの中身を書き換える
         Result updateCommandBuffer(const std::vector<CommandList>& commandLists, const HCommandBuffer& handle);
@@ -240,7 +240,6 @@ namespace Cutlass
             std::optional<VkPipelineLayout> mPipelineLayout;
             std::optional<VkPipeline> mPipeline;
             std::vector<VkDescriptorSetLayout> mDescriptorSetLayouts;
-            //std::optional<VkDescriptorPool> mDescriptorPool;
             std::optional<Shader> mVS;
             std::optional<Shader> mFS;
             std::vector<size_t> mSetSizes;//各DescriptorSetのbinding数
