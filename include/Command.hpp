@@ -163,17 +163,17 @@ namespace Cutlass
         void renderIndexed
         (
             uint32_t indexCount,    //いくつインデックスを描画するか
-            uint32_t instanceCount, //インスタンシング描画しない場合は1
-            uint32_t firstIndex,    //何番目のインデックスから描画を開始するか
-            uint32_t vertexOffset,  //描画し終わった頂点だけずらす、普通は0
-            uint32_t firstInstance  //インスタンシング描画しないなら0
+            uint32_t instanceCount = 1, //インスタンシング描画しない場合は1
+            uint32_t firstIndex = 0,    //何番目のインデックスから描画を開始するか
+            uint32_t vertexOffset = 0,  //描画し終わった頂点だけずらす、普通は0
+            uint32_t firstInstance = 0  //インスタンシング描画しないなら0
         );
         void render
         (
             uint32_t vertexCount,   //描画する頂点の個数
-            uint32_t instanceCount, //インスタンシング描画しない場合は1
-            uint32_t vertexOffset,  //描画し終わった頂点だけずらす、普通は0
-            uint32_t firstInstance //インスタンシング描画しないなら0
+            uint32_t instanceCount = 1, //インスタンシング描画しない場合は1
+            uint32_t vertexOffset = 0,  //描画し終わった頂点だけずらす、普通は0
+            uint32_t firstInstance = 0 //インスタンシング描画しないなら0
         );
 
         void renderImGui();
@@ -189,11 +189,17 @@ namespace Cutlass
 
         const HRenderPass& getRenderPass() const;
 
+        uint32_t getUniformBufferCount() const;
+        
+        uint32_t getCombinedTextureCount() const;
+
     private:
         InternalCommandList mCommands;
         bool indexed;
         bool graphicsPipeline;
         HRenderPass mainRenderPass;
+        uint32_t uniformBufferCount;
+        uint32_t combinedTextureCount;
     };
 
 
@@ -205,6 +211,8 @@ namespace Cutlass
         , begun(false)
         , graphicsPipeline(false)
         , useSub(false)
+        , uniformBufferCount(0)
+        , combinedTextureCount(0)
         {
 
         }
@@ -235,17 +243,17 @@ namespace Cutlass
         void renderIndexed
         (
             uint32_t indexCount,    //いくつインデックスを描画するか
-            uint32_t instanceCount, //インスタンシング描画しない場合は1
-            uint32_t firstIndex,    //何番目のインデックスから描画を開始するか
-            uint32_t vertexOffset,  //描画し終わった頂点だけずらす、普通は0
-            uint32_t firstInstance  //インスタンシング描画しないなら0
+            uint32_t instanceCount  = 1, //インスタンシング描画しない場合は1
+            uint32_t firstIndex     = 0,    //何番目のインデックスから描画を開始するか
+            uint32_t vertexOffset   = 0,  //描画し終わった頂点だけずらす、普通は0
+            uint32_t firstInstance  = 0  //インスタンシング描画しないなら0
         );
         void render
         (
             uint32_t vertexCount,   //描画する頂点の個数
-            uint32_t instanceCount, //インスタンシング描画しない場合は1
-            uint32_t vertexOffset,  //描画し終わった頂点だけずらす、普通は0
-            uint32_t firstInstance //インスタンシング描画しないなら0
+            uint32_t instanceCount  = 1, //インスタンシング描画しない場合は1
+            uint32_t vertexOffset   = 0,  //描画し終わった頂点だけずらす、普通は0
+            uint32_t firstInstance  = 0 //インスタンシング描画しないなら0
         );
 
         void renderImGui();
@@ -263,11 +271,18 @@ namespace Cutlass
         const InternalCommandList& getInternalCommandData() const;
 
         const bool useSubCommand() const;
+
+        uint32_t getUniformBufferCount() const;
+
+        uint32_t getCombinedTextureCount() const;
+
     private:
         InternalCommandList mCommands;
         bool indexed;
         bool begun;
         bool graphicsPipeline;
         bool useSub;
+        uint32_t uniformBufferCount;
+        uint32_t combinedTextureCount;
     };
 }

@@ -240,11 +240,33 @@ namespace Cutlass
             std::optional<VkPipelineLayout> mPipelineLayout;
             std::optional<VkPipeline> mPipeline;
             std::vector<VkDescriptorSetLayout> mDescriptorSetLayouts;
-            std::optional<VkDescriptorPool> mDescriptorPool;
+            //std::optional<VkDescriptorPool> mDescriptorPool;
             std::optional<Shader> mVS;
             std::optional<Shader> mFS;
             std::vector<size_t> mSetSizes;//各DescriptorSetのbinding数
             HRenderPass mHRenderPass;
+        };
+
+        //struct DescriptorPool
+        //{
+        //    DescriptorPool()
+        //    : uniformBufferCount(0)
+        //    , combinedTextureCount(0)
+        //    {}
+
+        //    Result addNewPool(const VkDevice& device);
+
+        //    std::vector<VkDescriptorPool> pools;
+        //    uint32_t uniformBufferCount;
+        //    uint32_t combinedTextureCount;
+        //};
+        struct DescriptorPoolInfo
+        {
+            constexpr static uint32_t poolUBSize = 256;
+            constexpr static uint32_t poolCTSize = 256;
+
+            uint32_t uniformBufferCount;
+            uint32_t combinedTextureCount;
         };
 
         struct CommandObject
@@ -252,14 +274,18 @@ namespace Cutlass
             CommandObject()
             : mPresentFlag(false)
             , mSubCommand(false)
+            , mDescriptorPoolIndex(0)
             {}
 
             std::vector<VkCommandBuffer> mCommandBuffers;
             std::optional<HRenderPass> mHRenderPass;//同じ内容を描画するウィンドウが複数ある場合
             std::optional<HGraphicsPipeline> mHGPO;
             std::vector<std::vector<std::optional<VkDescriptorSet>>> mDescriptorSets;
-            bool mPresentFlag;
-            bool mSubCommand;
+            size_t  mDescriptorPoolIndex;
+            bool    mPresentFlag;
+            bool    mSubCommand;
+            uint32_t mUBCount;
+            uint32_t mCTCount;
         };
 
         static inline Result checkVkResult(VkResult);
@@ -267,6 +293,7 @@ namespace Cutlass
         inline Result selectPhysicalDevice();
         inline Result createDevice();
         inline Result createCommandPool();
+        inline Result addDescriptorPool();
 
         inline Result createSurface(WindowObject& wo);
         inline Result selectSurfaceFormat(WindowObject& wo, VkFormat format);
@@ -339,6 +366,10 @@ namespace Cutlass
         uint32_t mGraphicsQueueIndex;
         VkQueue mDeviceQueue;
         VkCommandPool mCommandPool;
+
+        //DescriptorPoolは横断的に確保する
+        std::vector<std::pair<DescriptorPoolInfo, VkDescriptorPool>> mDescriptorPools;
+        
 
         // デバッグレポート関連
         PFN_vkCreateDebugReportCallbackEXT mvkCreateDebugReportCallbackEXT;

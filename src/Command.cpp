@@ -60,6 +60,9 @@ namespace Cutlass
             return;
         }
 
+        uniformBufferCount += shaderResourceSet.getUniformBuffers().size();
+        combinedTextureCount += shaderResourceSet.getCombinedTextures().size();
+
         mCommands.emplace_back(CommandType::eBindSRSet, CmdBindSRSet{set, shaderResourceSet});
     }
 
@@ -132,10 +135,14 @@ namespace Cutlass
         auto& icl = commandList.getInternalCommandData();
         mCommands.reserve(icl.size());
         std::copy(icl.begin(), icl.end(), std::back_inserter(mCommands));
+        uniformBufferCount += commandList.getUniformBufferCount();
+        combinedTextureCount += commandList.getCombinedTextureCount();
     }
 
     void CommandList::clear()
     {
+        uniformBufferCount = 0;
+        combinedTextureCount = 0;
         mCommands.clear();
     }
 
@@ -161,10 +168,22 @@ namespace Cutlass
         return useSub;
     }
 
+    uint32_t CommandList::getUniformBufferCount() const
+    {
+        return uniformBufferCount;
+    }
+
+    uint32_t CommandList::getCombinedTextureCount() const
+    {
+        return combinedTextureCount;
+    }
+
     //------------------------------------------------------------------
 
     SubCommandList::SubCommandList(const HRenderPass& usedInMainCommand)
     : mainRenderPass(usedInMainCommand)
+    , uniformBufferCount(0)
+    , combinedTextureCount(0)
     {
 
     }
@@ -195,6 +214,9 @@ namespace Cutlass
         //     std::cerr << "bind graphics pipeline first!\n";
         //     return;
         // }
+
+        uniformBufferCount   += shaderResourceSet.getUniformBuffers().size();
+        combinedTextureCount += shaderResourceSet.getCombinedTextures().size();
 
         mCommands.emplace_back(CommandType::eBindSRSet, CmdBindSRSet{set, shaderResourceSet});
     }
@@ -248,10 +270,14 @@ namespace Cutlass
         auto& icl = commandList.getInternalCommandData();
         mCommands.reserve(icl.size());
         std::copy(icl.begin(), icl.end(), std::back_inserter(mCommands));
+        uniformBufferCount   += commandList.getUniformBufferCount();
+        combinedTextureCount += commandList.getCombinedTextureCount();
     }
 
     void SubCommandList::clear()
     {
+        uniformBufferCount = 0;
+        combinedTextureCount = 0;
         mCommands.clear();
     }
 
@@ -263,5 +289,15 @@ namespace Cutlass
     const HRenderPass& SubCommandList::getRenderPass() const
     {
         return mainRenderPass;
+    }
+
+    uint32_t SubCommandList::getUniformBufferCount() const
+    {
+        return uniformBufferCount;
+    }
+
+    uint32_t SubCommandList::getCombinedTextureCount() const
+    {
+        return combinedTextureCount;
     }
 }

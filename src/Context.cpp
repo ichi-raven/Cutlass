@@ -166,6 +166,14 @@ namespace Cutlass
         }
         std::cerr << "created VkCommandPool\n";
 
+        //command pool
+        result = addDescriptorPool();
+        if (Result::eSuccess != result)
+        {
+            return result;
+        }
+        std::cerr << "created VkDescriptorPool\n";
+
         std::cerr << "all initialize processes succeeded\n";
         mIsInitialized = true;
 
@@ -237,17 +245,34 @@ namespace Cutlass
         {
             for (const auto& dsl : e.second.mDescriptorSetLayouts)
                 vkDestroyDescriptorSetLayout(mDevice, dsl, nullptr);
-            if (e.second.mDescriptorPool)
-                vkDestroyDescriptorPool(mDevice, e.second.mDescriptorPool.value(), nullptr);
+            //if (e.second.mDescriptorPool)
+            //    vkDestroyDescriptorPool(mDevice, e.second.mDescriptorPool.value(), nullptr);
             if (e.second.mPipelineLayout)
                 vkDestroyPipelineLayout(mDevice, e.second.mPipelineLayout.value(), nullptr);
             if (e.second.mPipeline)
                 vkDestroyPipeline(mDevice, e.second.mPipeline.value(), nullptr);
         }
 
-        for (auto& e : mCommandBufferMap)
+        for (auto& co : mCommandBufferMap)
         {
-            vkFreeCommandBuffers(mDevice, mCommandPool, uint32_t(e.second.mCommandBuffers.size()), e.second.mCommandBuffers.data());
+            if (!co.second.mDescriptorSets.empty())
+            {
+                for (const auto& ds_vec : co.second.mDescriptorSets)
+                {
+                    std::vector<VkDescriptorSet> sets;
+                    sets.reserve(ds_vec.size());
+                    for (const auto& e : ds_vec)
+                        sets.emplace_back(e.value());
+
+
+                    vkFreeDescriptorSets(mDevice, mDescriptorPools[co.second.mDescriptorPoolIndex].second, sets.size(), sets.data());
+                    mDescriptorPools[co.second.mDescriptorPoolIndex].first.uniformBufferCount -= co.second.mUBCount;
+                    mDescriptorPools[co.second.mDescriptorPoolIndex].first.combinedTextureCount -= co.second.mCTCount;
+                }
+            }
+
+            vkFreeCommandBuffers(mDevice, mCommandPool, uint32_t(co.second.mCommandBuffers.size()), co.second.mCommandBuffers.data());
+
         }
 
         std::cerr << "destroyed command buffers(size : " << mCommandBufferMap.size() << ")\n";
@@ -260,6 +285,11 @@ namespace Cutlass
 
         vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
         std::cerr << "destroyed command pool\n";
+
+        for (auto& dp_pair : mDescriptorPools)
+        {
+            vkDestroyDescriptorPool(mDevice, dp_pair.second, nullptr);
+        }
 
         for (auto& so : mWindowMap)
         {
@@ -455,8 +485,8 @@ namespace Cutlass
         for(const auto& dsl : gpo.mDescriptorSetLayouts)
             vkDestroyDescriptorSetLayout(mDevice, dsl, nullptr);
 
-        if (gpo.mDescriptorPool)
-            vkDestroyDescriptorPool(mDevice, gpo.mDescriptorPool.value(), nullptr);
+        //if (gpo.mDescriptorPool)
+        //    vkDestroyDescriptorPool(mDevice, gpo.mDescriptorPool.value(), nullptr);
         if (gpo.mPipelineLayout)
             vkDestroyPipelineLayout(mDevice, gpo.mPipelineLayout.value(), nullptr);
         if (gpo.mPipeline)
@@ -479,30 +509,48 @@ namespace Cutlass
 
         auto& co = mCommandBufferMap[handle];
 
-        if(co.mHGPO)
-        {
-            auto& gpo = mGPMap[co.mHGPO.value()];
+        //if(co.mHGPO)
+        //{
+        //    auto& gpo = mGPMap[co.mHGPO.value()];
 
-            if(gpo.mDescriptorPool)
-            {
-                for(const auto& ds_vec : co.mDescriptorSets)
-                {
-                    std::vector<VkDescriptorSet> sets;
-                    sets.reserve(ds_vec.size());
-                    for(const auto& e : ds_vec)
-                        sets.emplace_back(e.value());
-                    
-                
-                    vkFreeDescriptorSets(mDevice, gpo.mDescriptorPool.value(), sets.size(), sets.data());
-                }
+        //    /*if(gpo.mDescriptorPool)
+        //    {
+        //        for(const auto& ds_vec : co.mDescriptorSets)
+        //        {
+        //            std::vector<VkDescriptorSet> sets;
+        //            sets.reserve(ds_vec.size());
+        //            for(const auto& e : ds_vec)
+        //                sets.emplace_back(e.value());
+        //            
+        //        
+        //            vkFreeDescriptorSets(mDevice, gpo.mDescriptorPool.value(), sets.size(), sets.data());
+        //        }
 
-            }            
+        //    }*/            
 
-            co.mDescriptorSets.clear();
-        }
+        //    co.mDescriptorSets.clear();
+        //}
+
 
         // stop queue before
         vkQueueWaitIdle(mDeviceQueue);
+
+        if (!co.mDescriptorSets.empty())
+        {
+            for (const auto& ds_vec : co.mDescriptorSets)
+            {
+                std::vector<VkDescriptorSet> sets;
+                sets.reserve(ds_vec.size());
+                for(const auto& e : ds_vec)
+                    sets.emplace_back(e.value());
+                
+            
+                vkFreeDescriptorSets(mDevice, mDescriptorPools[co.mDescriptorPoolIndex].second, sets.size(), sets.data());
+                mDescriptorPools[co.mDescriptorPoolIndex].first.uniformBufferCount   -= co.mUBCount;
+                mDescriptorPools[co.mDescriptorPoolIndex].first.combinedTextureCount -= co.mCTCount;
+            }
+        }
+
         vkFreeCommandBuffers(mDevice, mCommandPool, uint32_t(co.mCommandBuffers.size()), co.mCommandBuffers.data());
         
         mCommandBufferMap.erase(handle);
@@ -783,6 +831,41 @@ namespace Cutlass
             }
         }
         return Result::eSuccess;
+    }
+
+    Result Context::addDescriptorPool()
+    {
+        Result result = Result::eSuccess;
+
+        std::array<VkDescriptorPoolSize, 2> sizes;
+
+        sizes[0].descriptorCount = DescriptorPoolInfo::poolUBSize;
+        sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        
+
+        sizes.back().descriptorCount = DescriptorPoolInfo::poolCTSize;
+        sizes.back().type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        
+        VkDescriptorPoolCreateInfo dpci{};
+        dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        dpci.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+
+        dpci.maxSets = DescriptorPoolInfo::poolUBSize + DescriptorPoolInfo::poolCTSize;
+
+        dpci.poolSizeCount = static_cast<uint32_t>(sizes.size());
+        dpci.pPoolSizes = sizes.data();
+        {
+            VkDescriptorPool descriptorPool;
+            result = checkVkResult(vkCreateDescriptorPool(mDevice, &dpci, nullptr, &descriptorPool));
+            if (result != Result::eSuccess)
+            {
+                std::cerr << "failed to create Descriptor Pool\n";
+                return result;
+            }
+            mDescriptorPools.emplace_back(DescriptorPoolInfo(), descriptorPool);
+        }
+
+        return result;
     }
 
     Result Context::createSurface(WindowObject &wo)
@@ -3273,7 +3356,7 @@ namespace Cutlass
             { //DescriptorSetLayout
 
                 std::vector<std::vector<VkDescriptorSetLayoutBinding>> allBindings;
-                allBindings.reserve(5);//おぼろげながら浮かんできたんですよ、5という数字が  TODO
+                allBindings.reserve(8);
                 {//HACK
                     uint8_t nowSet = 255;
                     for(const auto& [sb, srt] : layoutTable)
@@ -3332,44 +3415,44 @@ namespace Cutlass
 
             }
 
-            if (layoutTable.size() > 0)
-            { //DescriptorPool
-                std::vector<VkDescriptorPoolSize> sizes;
-                sizes.reserve(ubcount + ctcount);
+            //if (layoutTable.size() > 0)
+            //{ //DescriptorPool
+            //    std::vector<VkDescriptorPoolSize> sizes;
+            //    sizes.reserve(ubcount + ctcount);
 
-                if(ubcount > 0)
-                {
-                    sizes.emplace_back();
-                    sizes.back().descriptorCount = ubcount * mMaxFrame;//here
-                    sizes.back().type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                }
+            //    if(ubcount > 0)
+            //    {
+            //        sizes.emplace_back();
+            //        sizes.back().descriptorCount = ubcount * mMaxFrame;//here
+            //        sizes.back().type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            //    }
 
-                if(ctcount > 0)
-                {
-                    sizes.emplace_back();
-                    sizes.back().descriptorCount = ctcount * mMaxFrame;//here PART2
-                    sizes.back().type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                }
-                
-                VkDescriptorPoolCreateInfo dpci{};
-                dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-                dpci.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+            //    if(ctcount > 0)
+            //    {
+            //        sizes.emplace_back();
+            //        sizes.back().descriptorCount = ctcount * mMaxFrame;//here PART2
+            //        sizes.back().type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            //    }
+            //    
+            //    VkDescriptorPoolCreateInfo dpci{};
+            //    dpci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+            //    dpci.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
-                dpci.maxSets = layoutTable.size() * mMaxFrame;
-            
-                dpci.poolSizeCount = static_cast<uint32_t>(sizes.size());
-                dpci.pPoolSizes = sizes.data();
-                {
-                    VkDescriptorPool descriptorPool;
-                    result = checkVkResult(vkCreateDescriptorPool(mDevice, &dpci, nullptr, &descriptorPool));
-                    if (result != Result::eSuccess)
-                    {
-                        std::cerr << "failed to create Descriptor Pool\n";
-                        return result;
-                    }
-                    gpo.mDescriptorPool = descriptorPool;
-                }
-            }
+            //    dpci.maxSets = layoutTable.size() * mMaxFrame;
+            //
+            //    dpci.poolSizeCount = static_cast<uint32_t>(sizes.size());
+            //    dpci.pPoolSizes = sizes.data();
+            //    {
+            //        VkDescriptorPool descriptorPool;
+            //        result = checkVkResult(vkCreateDescriptorPool(mDevice, &dpci, nullptr, &descriptorPool));
+            //        if (result != Result::eSuccess)
+            //        {
+            //            std::cerr << "failed to create Descriptor Pool\n";
+            //            return result;
+            //        }
+            //        gpo.mDescriptorPool = descriptorPool;
+            //    }
+            //}
 
             {//pipeline layout
                 VkPipelineLayoutCreateInfo ci{};
@@ -3441,6 +3524,39 @@ namespace Cutlass
 
         CommandObject co;
         co.mPresentFlag = false; //preset
+
+        {//allocate Descriptor from pool
+            for (const auto& commandList : commandLists)
+            {
+                co.mUBCount += commandList.getUniformBufferCount();
+                co.mCTCount += commandList.getCombinedTextureCount();
+            }
+
+            bool poolConfirmed = false;
+            for (size_t i = 0; i < mDescriptorPools.size(); ++i)
+                if
+                    (
+                        co.mUBCount + mDescriptorPools[i].first.uniformBufferCount <= DescriptorPoolInfo::poolUBSize
+                        ||
+                        co.mCTCount + mDescriptorPools[i].first.combinedTextureCount <= DescriptorPoolInfo::poolCTSize
+                        )
+                {
+                    co.mDescriptorPoolIndex = i;
+                    mDescriptorPools[i].first.uniformBufferCount += co.mUBCount;
+                    mDescriptorPools[i].first.combinedTextureCount += co.mCTCount;
+                    poolConfirmed = true;
+                    break;
+                }
+
+            if (!poolConfirmed)
+            {
+                co.mDescriptorPoolIndex = mDescriptorPools.size();
+                addDescriptorPool();
+                mDescriptorPools.back().first.uniformBufferCount += co.mUBCount;
+                mDescriptorPools.back().first.combinedTextureCount += co.mCTCount;
+            }
+
+        }
 
         uint32_t index = 0;
         co.mCommandBuffers.resize(commandLists.size());
@@ -3521,6 +3637,39 @@ namespace Cutlass
         CommandObject co;
         co.mPresentFlag = false; //preset
         co.mSubCommand = true;
+
+        {//allocate Descriptor from pool
+            for (const auto& commandList : subCommandLists)
+            {
+                co.mUBCount += commandList.getUniformBufferCount();
+                co.mCTCount += commandList.getCombinedTextureCount();
+            }
+
+            bool poolConfirmed = false;
+            for (size_t i = 0; i < mDescriptorPools.size(); ++i)
+                if
+                    (
+                        co.mUBCount + mDescriptorPools[i].first.uniformBufferCount <= DescriptorPoolInfo::poolUBSize
+                        ||
+                        co.mCTCount + mDescriptorPools[i].first.combinedTextureCount <= DescriptorPoolInfo::poolCTSize
+                        )
+                {
+                    co.mDescriptorPoolIndex = i;
+                    mDescriptorPools[i].first.uniformBufferCount += co.mUBCount;
+                    mDescriptorPools[i].first.combinedTextureCount += co.mCTCount;
+                    poolConfirmed = true;
+                    break;
+                }
+
+            if (!poolConfirmed)
+            {
+                co.mDescriptorPoolIndex = mDescriptorPools.size();
+                addDescriptorPool();
+                mDescriptorPools.back().first.uniformBufferCount += co.mUBCount;
+                mDescriptorPools.back().first.combinedTextureCount += co.mCTCount;
+            }
+
+        }
 
         uint32_t index = 0;
         co.mCommandBuffers.resize(subCommandLists.size());
@@ -3639,6 +3788,64 @@ namespace Cutlass
                     }
                 }
             }
+            else
+            {
+                vkDeviceWaitIdle(mDevice);
+            }
+        }
+
+        {//free previous descriptor sets
+            if (!co.mDescriptorSets.empty())
+            {
+                for (const auto& ds_vec : co.mDescriptorSets)
+                {
+                    std::vector<VkDescriptorSet> sets;
+                    sets.reserve(ds_vec.size());
+                    for (const auto& e : ds_vec)
+                        sets.emplace_back(e.value());
+
+
+                    vkFreeDescriptorSets(mDevice, mDescriptorPools[co.mDescriptorPoolIndex].second, sets.size(), sets.data());
+                    
+                    auto& ubc = mDescriptorPools[co.mDescriptorPoolIndex].first.uniformBufferCount;
+                    auto& ctc = mDescriptorPools[co.mDescriptorPoolIndex].first.combinedTextureCount;
+                    ubc = ubc == co.mUBCount ? ubc - co.mUBCount : 0;
+                    ubc = ctc == co.mCTCount ? ctc - co.mCTCount : 0;
+                }
+            }
+        }
+
+        {//allocate Descriptor from pool
+            for (const auto& commandList : commandLists)
+            {
+                co.mUBCount += commandList.getUniformBufferCount();
+                co.mCTCount += commandList.getCombinedTextureCount();
+            }
+
+            bool poolConfirmed = false;
+            for (size_t i = 0; i < mDescriptorPools.size(); ++i)
+                if
+                    (
+                        co.mUBCount + mDescriptorPools[i].first.uniformBufferCount <= DescriptorPoolInfo::poolUBSize
+                        ||
+                        co.mCTCount + mDescriptorPools[i].first.combinedTextureCount <= DescriptorPoolInfo::poolCTSize
+                        )
+                {
+                    co.mDescriptorPoolIndex = i;
+                    mDescriptorPools[i].first.uniformBufferCount   += co.mUBCount;
+                    mDescriptorPools[i].first.combinedTextureCount += co.mCTCount;
+                    poolConfirmed = true;
+                    break;
+                }
+
+            if (!poolConfirmed)
+            {
+                co.mDescriptorPoolIndex = mDescriptorPools.size();
+                addDescriptorPool();
+                mDescriptorPools.back().first.uniformBufferCount   += co.mUBCount;
+                mDescriptorPools.back().first.combinedTextureCount += co.mCTCount;
+            }
+
         }
 
         //get internal(public) command info vector
@@ -3711,6 +3918,60 @@ namespace Cutlass
         CommandObject& co = mCommandBufferMap[handle];
         co.mPresentFlag = false;
 
+        {//free previous descriptor sets
+            if (!co.mDescriptorSets.empty())
+            {
+                for (const auto& ds_vec : co.mDescriptorSets)
+                {
+                    std::vector<VkDescriptorSet> sets;
+                    sets.reserve(ds_vec.size());
+                    for (const auto& e : ds_vec)
+                        sets.emplace_back(e.value());
+
+
+                    vkFreeDescriptorSets(mDevice, mDescriptorPools[co.mDescriptorPoolIndex].second, sets.size(), sets.data());
+
+                    auto& ubc = mDescriptorPools[co.mDescriptorPoolIndex].first.uniformBufferCount;
+                    auto& ctc = mDescriptorPools[co.mDescriptorPoolIndex].first.combinedTextureCount;
+                    ubc = ubc == co.mUBCount ? ubc - co.mUBCount : 0;
+                    ubc = ctc == co.mCTCount ? ctc - co.mCTCount : 0;
+                }
+            }
+        }
+
+        {//allocate Descriptor from pool
+            for (const auto& commandList : subCommandLists)
+            {
+                co.mUBCount += commandList.getUniformBufferCount();
+                co.mCTCount += commandList.getCombinedTextureCount();
+            }
+
+            bool poolConfirmed = false;
+            for (size_t i = 0; i < mDescriptorPools.size(); ++i)
+                if
+                    (
+                        co.mUBCount + mDescriptorPools[i].first.uniformBufferCount <= DescriptorPoolInfo::poolUBSize
+                        ||
+                        co.mCTCount + mDescriptorPools[i].first.combinedTextureCount <= DescriptorPoolInfo::poolCTSize
+                        )
+                {
+                    co.mDescriptorPoolIndex = i;
+                    mDescriptorPools[i].first.uniformBufferCount += co.mUBCount;
+                    mDescriptorPools[i].first.combinedTextureCount += co.mCTCount;
+                    poolConfirmed = true;
+                    break;
+                }
+
+            if (!poolConfirmed)
+            {
+                co.mDescriptorPoolIndex = mDescriptorPools.size();
+                addDescriptorPool();
+                mDescriptorPools.back().first.uniformBufferCount += co.mUBCount;
+                mDescriptorPools.back().first.combinedTextureCount += co.mCTCount;
+            }
+
+        }
+
         uint32_t index = 0;
         if(co.mCommandBuffers.size() != subCommandLists.size())
         {
@@ -3734,6 +3995,10 @@ namespace Cutlass
                         return result;
                     }
                 }
+            }
+            else
+            {
+                vkDeviceWaitIdle(mDevice);
             }
         }
 
@@ -3889,11 +4154,11 @@ namespace Cutlass
 
 
         auto& gpo = mGPMap.at(co.mHGPO.value());
-        if(!gpo.mDescriptorPool)
-        {
-            std::cerr << "this render pipeline didn't have descriptor pool!\n";
-            return Result::eFailure;
-        }
+        //if(!gpo.mDescriptorPool)
+        //{
+        //    std::cerr << "this render pipeline didn't have descriptor pool!\n";
+        //    return Result::eFailure;
+        //}
 
         for(const auto& ds_vec : co.mDescriptorSets)
         {
@@ -3902,7 +4167,7 @@ namespace Cutlass
             for(const auto& e : ds_vec)
                 sets.emplace_back(e.value());
             
-            result = checkVkResult(vkFreeDescriptorSets(mDevice, gpo.mDescriptorPool.value(), sets.size(), sets.data()));
+            result = checkVkResult(vkFreeDescriptorSets(mDevice, mDescriptorPools[co.mDescriptorPoolIndex].second, sets.size(), sets.data()));
             if(result != Result::eSuccess)
             {
                 std::cerr << "failed to free descriptor set!\n";
@@ -4086,7 +4351,7 @@ namespace Cutlass
 
         auto& gpo = mGPMap[co.mHGPO.value()];
 
-        if (!gpo.mDescriptorPool)
+        if (mDescriptorPools.size() <= co.mDescriptorPoolIndex)
         {
             std::cerr << "descriptor pool is nothing!\n";
             return Result::eFailure;
@@ -4095,7 +4360,7 @@ namespace Cutlass
         //if already descrioptor set was allocated
         if (co.mDescriptorSets[index].size() >= info.set && co.mDescriptorSets[index][info.set])
         {
-            vkFreeDescriptorSets(mDevice, gpo.mDescriptorPool.value(), 1, &co.mDescriptorSets[index][info.set].value());
+            vkFreeDescriptorSets(mDevice, mDescriptorPools[co.mDescriptorPoolIndex].second, 1, &co.mDescriptorSets[index][info.set].value());
         }
 
         auto&& UBs = info.SRSet.getUniformBuffers();
@@ -4111,7 +4376,7 @@ namespace Cutlass
         {
             VkDescriptorSetAllocateInfo dsai{};
             dsai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-            dsai.descriptorPool = gpo.mDescriptorPool.value();
+            dsai.descriptorPool = mDescriptorPools[co.mDescriptorPoolIndex].second;
             dsai.descriptorSetCount = 1;
             dsai.pSetLayouts = &gpo.mDescriptorSetLayouts[info.set];
             
