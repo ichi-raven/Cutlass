@@ -1433,15 +1433,15 @@ namespace Cutlass
                 break;
             case TextureUsage::eColorTarget:
                 ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-                io.currentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                io.currentLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
                 break;
             case TextureUsage::eDepthStencilTarget:
                 ci.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-                io.currentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                io.currentLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
                 break;
             case TextureUsage::eUnordered:
                 ci.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-                io.currentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                io.currentLayout = VK_IMAGE_LAYOUT_GENERAL;
                 break;
             default:
                 std::cerr << "invalid usage!\n";
@@ -1501,6 +1501,8 @@ namespace Cutlass
         vkBindImageMemory(mDevice, io.mImage.value(), io.mMemory.value(), 0);
       
 
+        //for aspect flag
+        VkImageAspectFlags aspectFlag = VK_IMAGE_ASPECT_COLOR_BIT;
         {
             //view
             VkImageViewCreateInfo ci{};
@@ -1536,6 +1538,7 @@ namespace Cutlass
                 {
                     VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1
                 };
+                aspectFlag = VK_IMAGE_ASPECT_DEPTH_BIT;
                 break;
             default:
                 ci.subresourceRange = io.range = 
@@ -1574,6 +1577,36 @@ namespace Cutlass
             result = checkVkResult(vkCreateSampler(mDevice, &sci, nullptr, &sampler));
 
             io.mSampler = sampler;
+        }
+
+        //set image layout
+        {
+            VkCommandBuffer command;
+            {
+                VkCommandBufferAllocateInfo ai{};
+                ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+                ai.commandBufferCount = 1;
+                ai.commandPool = mCommandPool;
+                ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+                vkAllocateCommandBuffers(mDevice, &ai, &command);
+            }
+
+            VkCommandBufferBeginInfo commandBI{};
+            commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+            vkBeginCommandBuffer(command, &commandBI);
+
+            setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_UNDEFINED, io.currentLayout, aspectFlag);
+            vkEndCommandBuffer(command);
+
+            VkSubmitInfo submitInfo{};
+            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+            submitInfo.commandBufferCount = 1;
+            submitInfo.pCommandBuffers = &command;
+            vkQueueSubmit(mDeviceQueue, 1, &submitInfo, VK_NULL_HANDLE);
+
+            //end copying
+            vkDeviceWaitIdle(mDevice);
+            vkFreeCommandBuffers(mDevice, mCommandPool, 1, &command);
         }
 
         handle_out = mNextTextureHandle++;
@@ -1937,6 +1970,7 @@ namespace Cutlass
             ci.extent.depth = 1;
             ci.mipLevels = 1;
             ci.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+            ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
             ci.samples = VK_SAMPLE_COUNT_1_BIT;
             ci.arrayLayers = 1;
 
@@ -2015,6 +2049,38 @@ namespace Cutlass
 
         io.currentLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         io.usage = TextureUsage::eDepthStencilTarget;
+
+        //set image layout
+        {
+            VkCommandBuffer command;
+            {
+                VkCommandBufferAllocateInfo ai{};
+                ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+                ai.commandBufferCount = 1;
+                ai.commandPool = mCommandPool;
+                ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+                vkAllocateCommandBuffers(mDevice, &ai, &command);
+            }
+
+            VkCommandBufferBeginInfo commandBI{};
+            commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+            vkBeginCommandBuffer(command, &commandBI);
+
+            setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_UNDEFINED, io.currentLayout, VK_IMAGE_ASPECT_DEPTH_BIT);
+            vkEndCommandBuffer(command);
+
+            VkSubmitInfo submitInfo{};
+            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+            submitInfo.commandBufferCount = 1;
+            submitInfo.pCommandBuffers = &command;
+            vkQueueSubmit(mDeviceQueue, 1, &submitInfo, VK_NULL_HANDLE);
+
+            //end copying
+            vkDeviceWaitIdle(mDevice);
+            vkFreeCommandBuffers(mDevice, mCommandPool, 1, &command);
+        }
+
+
         mImageMap.emplace(mNextTextureHandle, io);
         wo.mHDepthBuffer = mNextTextureHandle++;
 
@@ -3788,9 +3854,12 @@ namespace Cutlass
                     
                     auto& ubc = mDescriptorPools[co.mDescriptorPoolIndex].first.uniformBufferCount;
                     auto& ctc = mDescriptorPools[co.mDescriptorPoolIndex].first.combinedTextureCount;
-                    ubc = ubc == co.mUBCount ? ubc - co.mUBCount : 0;
-                    ubc = ctc == co.mCTCount ? ctc - co.mCTCount : 0;
+                    ubc = ubc >= co.mUBCount ? ubc - co.mUBCount : 0;
+                    ctc = ctc >= co.mCTCount ? ctc - co.mCTCount : 0;
                 }
+
+                co.mDescriptorSets.clear();
+
             }
         }
 
@@ -3806,9 +3875,9 @@ namespace Cutlass
                 if
                     (
                         co.mUBCount + mDescriptorPools[i].first.uniformBufferCount <= DescriptorPoolInfo::poolUBSize
-                        ||
+                        &&
                         co.mCTCount + mDescriptorPools[i].first.combinedTextureCount <= DescriptorPoolInfo::poolCTSize
-                        )
+                    )
                 {
                     co.mDescriptorPoolIndex = i;
                     mDescriptorPools[i].first.uniformBufferCount   += co.mUBCount;
@@ -3826,6 +3895,9 @@ namespace Cutlass
             }
 
         }
+
+        //clear barriered textures
+        //co.mBarrieredTextures.clear();
 
         //get internal(public) command info vector
         for (const auto& commandList : commandLists)
@@ -3863,7 +3935,7 @@ namespace Cutlass
             ++index;
         }
 
-        mCommandBufferMap.at(handle) = co;
+        //mCommandBufferMap.at(handle) = co;
 
         return result;
     }
@@ -3912,9 +3984,11 @@ namespace Cutlass
 
                     auto& ubc = mDescriptorPools[co.mDescriptorPoolIndex].first.uniformBufferCount;
                     auto& ctc = mDescriptorPools[co.mDescriptorPoolIndex].first.combinedTextureCount;
-                    ubc = ubc == co.mUBCount ? ubc - co.mUBCount : 0;
-                    ubc = ctc == co.mCTCount ? ctc - co.mCTCount : 0;
+                    ubc = ubc >= co.mUBCount ? ubc - co.mUBCount : 0;
+                    ctc = ctc >= co.mCTCount ? ctc - co.mCTCount : 0;
                 }
+
+                co.mDescriptorSets.clear();
             }
         }
 
@@ -3950,6 +4024,9 @@ namespace Cutlass
             }
 
         }
+
+        //clear barriered textures
+        //co.mBarrieredTextures.clear();
 
         uint32_t index = 0;
         if(co.mCommandBuffers.size() != subCommandLists.size())
@@ -4027,7 +4104,7 @@ namespace Cutlass
             ++index;
         }
 
-        mCommandBufferMap.at(handle) = co;
+        //mCommandBufferMap.at(handle) = co;
 
         return result;
     }
@@ -4094,7 +4171,7 @@ namespace Cutlass
                 if (!std::holds_alternative<CmdRenderImGui>(command.second))
                     return Result::eFailure;
                 result = cmdRenderImGui(co, index);
-            break;
+                break;
             case CommandType::eExecuteSubCommand:
                 if (!std::holds_alternative<CmdExecuteSubCommand>(command.second))
                     return Result::eFailure;
@@ -4173,19 +4250,32 @@ namespace Cutlass
             if (rpo.depthTarget)
             {
                 auto& io = mImageMap[rpo.depthTarget.value()];
-                setImageMemoryBarrier(command, io.mImage.value(), io.currentLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, io.range.aspectMask);
-                vkCmdClearDepthStencilImage(command, io.mImage.value(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearValues[1].depthStencil, 1, &io.range);
-                setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, io.range.aspectMask);
-                io.currentLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                if (io.currentLayout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+                {
+                    setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, io.range.aspectMask);
+                    vkCmdClearDepthStencilImage(command, io.mImage.value(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearValues[1].depthStencil, 1, &io.range);
+                    setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, io.range.aspectMask);
+                    io.currentLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                }
+                else
+                {
+                    setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, io.range.aspectMask);
+                    vkCmdClearDepthStencilImage(command, io.mImage.value(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearValues[1].depthStencil, 1, &io.range);
+                    setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, io.range.aspectMask);
+                    io.currentLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                }
             }
 
             for (const auto& tex : rpo.colorTargets)
             {
                 auto& io = mImageMap[tex];
-                setImageMemoryBarrier(command, io.mImage.value(), io.currentLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+                //VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+
+                setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
                 vkCmdClearColorImage(command, io.mImage.value(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearValues[0].color, 1, &io.range);
                 setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
                 io.currentLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                
             }
         }
         else
@@ -4295,7 +4385,6 @@ namespace Cutlass
 
         std::vector<VkDescriptorBufferInfo> dbi_vec;
         dbi_vec.reserve(UBs.size());
-
         std::vector<VkDescriptorImageInfo> dii_vec;
         dii_vec.reserve(CTs.size());
         std::vector<VkWriteDescriptorSet> writeDescriptors;
@@ -4340,6 +4429,7 @@ namespace Cutlass
                 auto&& wdi = writeDescriptors.emplace_back(VkWriteDescriptorSet{});
                 wdi.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
                 wdi.dstBinding = dub.first;
+                //std::cerr << "buffer dstBinding : " << wdi.dstBinding << "\n";
                 wdi.dstArrayElement = 0;
                 wdi.descriptorCount = 1;
                 wdi.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -4354,11 +4444,14 @@ namespace Cutlass
                 auto&& dii = dii_vec.emplace_back();
                 dii.imageView = cto.mView.value();
                 dii.sampler = cto.mSampler.value();
-                dii.imageLayout = cto.currentLayout;
+                //dii.imageLayout = cto.currentLayout;
+                dii.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                //std::cerr << static_cast<int>(cto.currentLayout) << "\n";
 
                 auto&& wdi = writeDescriptors.emplace_back(VkWriteDescriptorSet{});
                 wdi.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
                 wdi.dstBinding = dct.first;
+                //std::cerr << "image dstBinding : " << wdi.dstBinding << "\n";
                 wdi.dstArrayElement = 0;
                 wdi.descriptorCount = 1;
                 wdi.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -4368,6 +4461,7 @@ namespace Cutlass
 
             vkUpdateDescriptorSets(mDevice, static_cast<uint32_t>(writeDescriptors.size()), writeDescriptors.data(), 0, nullptr);
         }
+
 
         return Result::eSuccess;
     }
@@ -4455,10 +4549,11 @@ namespace Cutlass
         (
             co.mCommandBuffers[index],
             io.mImage.value(),
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            io.currentLayout,
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         );
         io.currentLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        //co.mBarrieredTextures.emplace_back(info.handle);
 
         return Result::eSuccess;
     }
@@ -4547,6 +4642,12 @@ namespace Cutlass
             std::cerr << "this command buffer is sub(secondary)!\n";
             return Result::eFailure;
         }
+
+        //control transition of texture layout by barrier
+        //{
+        //    for (auto& handle : co.mBarrieredTextures)
+        //        mImageMap[handle].currentLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        //}
 
         auto& rpo = mRPMap[co.mHRenderPass.value()];
 

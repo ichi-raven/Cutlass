@@ -261,6 +261,10 @@ namespace Cutlass
         //};
         struct DescriptorPoolInfo
         {
+            DescriptorPoolInfo()
+            : uniformBufferCount(0)
+            , combinedTextureCount(0)
+            {}
             constexpr static uint32_t poolUBSize = 256;
             constexpr static uint32_t poolCTSize = 256;
 
@@ -274,12 +278,15 @@ namespace Cutlass
             : mPresentFlag(false)
             , mSubCommand(false)
             , mDescriptorPoolIndex(0)
+            , mUBCount(0)
+            , mCTCount(0)
             {}
 
             std::vector<VkCommandBuffer> mCommandBuffers;
             std::optional<HRenderPass> mHRenderPass;//同じ内容を描画するウィンドウが複数ある場合
             std::optional<HGraphicsPipeline> mHGPO;
             std::vector<std::vector<std::optional<VkDescriptorSet>>> mDescriptorSets;
+            //std::vector<HTexture> mBarrieredTextures;
             size_t  mDescriptorPoolIndex;
             bool    mPresentFlag;
             bool    mSubCommand;
