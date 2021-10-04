@@ -4473,7 +4473,8 @@ namespace Cutlass
                 auto&& wdi = writeDescriptors.emplace_back(VkWriteDescriptorSet{});
                 wdi.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
                 wdi.dstBinding = dub.first;
-                //std::cerr << "buffer dstBinding : " << wdi.dstBinding << "\n";
+                if(mDebugFlag)
+                    std::cerr << "buffer dstBinding : " << wdi.dstBinding << "\n";
                 wdi.dstArrayElement = 0;
                 wdi.descriptorCount = 1;
                 wdi.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -4495,7 +4496,8 @@ namespace Cutlass
                 auto&& wdi = writeDescriptors.emplace_back(VkWriteDescriptorSet{});
                 wdi.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
                 wdi.dstBinding = dct.first;
-                //std::cerr << "image dstBinding : " << wdi.dstBinding << "\n";
+                if(mDebugFlag)
+                    std::cerr << "image dstBinding : " << wdi.dstBinding << "\n";
                 wdi.dstArrayElement = 0;
                 wdi.descriptorCount = 1;
                 wdi.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
