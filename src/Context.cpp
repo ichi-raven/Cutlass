@@ -4113,8 +4113,12 @@ namespace Cutlass
     {
         Result result = Result::eSuccess;
 
+        uint32_t debug = 0;
+
         for (const auto& command : icl)
         {
+            if (mDebugFlag)
+                std::cerr << "now command : " << debug++ << "\n";
             switch (command.first) //RIP RTTI
             {
             case CommandType::eBegin:
@@ -4215,10 +4219,50 @@ namespace Cutlass
             for(size_t i = 0; i < rpo.colorTargets.size(); ++i)
             {
                 auto&& cv = clearValues.emplace_back();
-                cv.color = 
+                auto& io = mImageMap[rpo.colorTargets[i]];
+                switch (io.format)
                 {
-                    info.ccv[0], info.ccv[1], info.ccv[2], info.ccv[3]
-                };
+                   case VK_FORMAT_R8_UNORM:
+                   case VK_FORMAT_R8G8_UNORM:
+                   case VK_FORMAT_R8G8B8_UNORM:
+                   case VK_FORMAT_R8G8B8A8_UNORM:
+                   case VK_FORMAT_R32_UINT:
+                   case VK_FORMAT_R32G32_UINT:
+                   case VK_FORMAT_R32G32B32_UINT:
+                   case VK_FORMAT_R32G32B32A32_UINT:
+                       cv.color.uint32[0] = static_cast<uint32_t>(info.ccv[0]);
+                       cv.color.uint32[1] = static_cast<uint32_t>(info.ccv[1]);
+                       cv.color.uint32[2] = static_cast<uint32_t>(info.ccv[2]);
+                       cv.color.uint32[3] = static_cast<uint32_t>(info.ccv[3]);
+                       break;
+
+                   case VK_FORMAT_R32_SFLOAT:
+                   case VK_FORMAT_R32G32_SFLOAT:
+                   case VK_FORMAT_R32G32B32_SFLOAT:
+                   case VK_FORMAT_R32G32B32A32_SFLOAT:
+                       cv.color.uint32[0] = info.ccv[0];
+                       cv.color.uint32[1] = info.ccv[1];
+                       cv.color.uint32[2] = info.ccv[2];
+                       cv.color.uint32[3] = info.ccv[3];
+                        break;
+     
+
+                       break;
+                   case VK_FORMAT_R32_SINT:
+                   case VK_FORMAT_R32G32_SINT:
+                   case VK_FORMAT_R32G32B32_SINT:
+                   case VK_FORMAT_R32G32B32A32_SINT:
+                       cv.color.uint32[0] = static_cast<int32_t>(info.ccv[0]);
+                       cv.color.uint32[1] = static_cast<int32_t>(info.ccv[1]);
+                       cv.color.uint32[2] = static_cast<int32_t>(info.ccv[2]);
+                       cv.color.uint32[3] = static_cast<int32_t>(info.ccv[3]);
+                       break;
+                   default:
+                        std::cerr << "invalid type of pixel!\n";
+                        return Result::eFailure;
+                   break;
+                    
+                }
             }
 
             if (rpo.mDepthTestEnable)
