@@ -12,22 +12,30 @@ namespace Cutlass
 {
     void Shader::load(const std::string_view path, const std::string_view entryPoint)
     {
-        mEntryPoint = entryPoint;
-
-        //データロード
+        //load binary data
         std::ifstream infile(path.data(), std::ios::binary);
         assert(infile);
 
         mFileData.resize(uint32_t(infile.seekg(0, std::ifstream::end).tellg()));
         infile.seekg(0, std::ifstream::beg).read(mFileData.data(), mFileData.size());
 
-        //シェーダモジュールロード
+        //load shader module
         SpvReflectShaderModule module = {};
         SpvReflectResult result = spvReflectCreateShaderModule(sizeof(mFileData[0]) * mFileData.size(), mFileData.data(), &module);
         assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
         std::cout << "loaded shader : " << path << "\n";
         std::cout << "stage : "; 
+
+        //entrypoint
+        {
+            if(strcmp(entryPoint.data(), "") == 0)
+                mEntryPoint = std::string(module.entry_point_name);
+            else
+                mEntryPoint = entryPoint;
+            
+        }
+
         switch (module.shader_stage) 
         {
             case SPV_REFLECT_SHADER_STAGE_VERTEX_BIT                   : std::cout << "VS"; break;
@@ -40,7 +48,7 @@ namespace Cutlass
         }
         std::cout << "\n";
 
-        //ディスクリプタセットレイアウト取得
+        //get desecriptor set layout
         {
             std::vector<SpvReflectDescriptorSet*> sets;
             {

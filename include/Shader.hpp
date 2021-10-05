@@ -52,7 +52,9 @@ namespace Cutlass
             load(path, entryPoint);
         }
 
-        void load(const std::string_view path, const std::string_view entryPoint);
+        void load(const std::string_view path, const std::string_view entryPoint = "");
+
+        //void load(const char* path, const std::string_view entryPoint);
 
         enum class ShaderResourceType
         {
@@ -74,7 +76,7 @@ namespace Cutlass
 
     private:
         std::vector<char> mFileData;
-        std::string_view mEntryPoint;
+        std::string mEntryPoint;
 
         //<<set, binding>, resource type>
         std::map<std::pair<uint8_t, uint8_t>, ShaderResourceType> mResourceLayoutTable;
