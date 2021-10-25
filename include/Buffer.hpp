@@ -13,37 +13,35 @@ namespace Cutlass
 
     struct BufferInfo
     {
+
         BufferInfo() {}
 
         BufferInfo(size_t bufferSize, BufferUsage usage, bool isHostVisible)
-            : size(bufferSize)
-            , usage(usage)
-            , isHostVisible(isHostVisible)
+            : size(bufferSize), usage(usage), isHostVisible(isHostVisible)
         {
-
         }
 
-        template<typename VertexType>
+        template <typename VertexType>
         inline void setVertexBuffer(size_t vertexCount)
         {
-            size = vertexCount * sizeof(VertexType);
-            usage = BufferUsage::eVertex;
+            size          = vertexCount * sizeof(VertexType);
+            usage         = BufferUsage::eVertex;
             isHostVisible = true;
         }
 
-        template<typename IndexType>
+        template <typename IndexType>
         inline void setIndexBuffer(size_t indexCount)
         {
-            size = indexCount * sizeof(IndexType);
-            usage = BufferUsage::eIndex;
+            size          = indexCount * sizeof(IndexType);
+            usage         = BufferUsage::eIndex;
             isHostVisible = true;
         }
 
-        template<typename UniformType>
+        template <typename UniformType>
         inline void setUniformBuffer(size_t count = 1, bool _isHostVisible = true)
         {
-            size = count * sizeof(UniformType);
-            usage = BufferUsage::eUniform;
+            size          = count * sizeof(UniformType);
+            usage         = BufferUsage::eUniform;
             isHostVisible = _isHostVisible;
         }
 
@@ -52,4 +50,4 @@ namespace Cutlass
         size_t size;
     };
 
-};
+};  // namespace Cutlass

@@ -1,23 +1,23 @@
 #pragma once
 
-#include "Utility.hpp"
-
-#include <vector>
+#include <cassert>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
-#include <cassert>
-#include <optional>
+#include <vector>
+
+#include "Utility.hpp"
 
 namespace Cutlass
 {
-    // struct ShaderResourceSetLayout
-    // {
-    //     void allocForUniformBuffer(uint8_t binding);
-    //     void allocForCombinedTexture(uint8_t binding);
+    //struct ShaderResourceSetLayout
+    //{
+    //void allocForUniformBuffer(uint8_t binding);
+    //void allocForCombinedTexture(uint8_t binding);
 
-    //     const std::vector<uint8_t>& getUniformBufferBindings() const;
-    //     const std::vector<uint8_t>& getCombinedTextureBindings() const;
+    //const std::vector<uint8_t>& getUniformBufferBindings() const;
+    //const std::vector<uint8_t>& getCombinedTextureBindings() const;
 
     // private:
     //     std::vector<uint8_t> uniformBuffer;
@@ -34,7 +34,7 @@ namespace Cutlass
     {
         void bind(uint8_t binding, const HBuffer& handle);
         void bind(uint8_t binding, const HTexture& handle);
-        
+
         const std::map<uint8_t, HBuffer>& getUniformBuffers() const;
         const std::map<uint8_t, HTexture>& getCombinedTextures() const;
 
@@ -47,14 +47,12 @@ namespace Cutlass
     {
         Shader() {}
 
-        Shader(const std::string_view path, const std::string_view entryPoint)
-        {
-            load(path, entryPoint);
-        }
+        Shader(const std::string_view path, const std::string_view entryPoint) { load(path, entryPoint); }
 
-        void load(const std::string_view path, const std::string_view entryPoint = "");
+        void load(const std::string_view path, const std::string_view entryPoint);
+        void load(const std::string_view path);
 
-        //void load(const char* path, const std::string_view entryPoint);
+        // void load(const char* path, const std::string_view entryPoint);
 
         enum class ShaderResourceType
         {
@@ -64,24 +62,24 @@ namespace Cutlass
         };
 
         const std::vector<char>& getShaderByteCode() const;
-        
+
         const std::string_view getEntryPoint() const;
 
-        //key = <set, binding>, param = resource type
+        // key = <set, binding>, param = resource type
         const std::map<std::pair<uint8_t, uint8_t>, ShaderResourceType>& getLayoutTable() const;
-        //first = type, second = semantic
+        // first = type, second = semantic
         const std::vector<std::pair<ResourceType, std::optional<std::string>>>& getInputVariables() const;
-        //first = type, second = semantic
+        // first = type, second = semantic
         const std::vector<std::pair<ResourceType, std::optional<std::string>>>& getOutputVariables() const;
 
     private:
         std::vector<char> mFileData;
         std::string mEntryPoint;
 
-        //<<set, binding>, resource type>
+        // <<set, binding>, resource type>
         std::map<std::pair<uint8_t, uint8_t>, ShaderResourceType> mResourceLayoutTable;
-        //<type, semantic>
+        // <type, semantic>
         std::vector<std::pair<ResourceType, std::optional<std::string>>> mInputVariables;
         std::vector<std::pair<ResourceType, std::optional<std::string>>> mOutputVariables;
     };
-};
+}  // namespace Cutlass

@@ -1,11 +1,12 @@
 #pragma once
 
 #include <optional>
-#include <variant>
 #include <queue>
 #include <tuple>
-#include "Utility.hpp"
+#include <variant>
+
 #include "GraphicsPipeline.hpp"
+#include "Utility.hpp"
 
 namespace Cutlass
 {
@@ -35,12 +36,10 @@ namespace Cutlass
 
     struct CmdEnd
     {
-
     };
 
     struct CmdPresent
     {
-        
     };
 
     struct CmdBindVB
@@ -75,26 +74,25 @@ namespace Cutlass
 
     struct CmdRenderIndexed
     {
-        uint32_t indexCount;//いくつインデックスを描画するか
-        uint32_t instanceCount;//インスタンシング描画しない場合は1
-        uint32_t firstIndex;//何番目のインデックスから描画を開始するか
-        uint32_t vertexOffset;//描画し終わった頂点だけずらす、普通は0
-        uint32_t firstInstance;//インスタシング描画しないなら0
+        uint32_t indexCount;     //いくつインデックスを描画するか
+        uint32_t instanceCount;  //インスタンシング描画しない場合は1
+        uint32_t firstIndex;     //何番目のインデックスから描画を開始するか
+        uint32_t vertexOffset;   //描画し終わった頂点だけずらす、普通は0
+        uint32_t firstInstance;  //インスタシング描画しないなら0
     };
 
     struct CmdRender
     {
-        uint32_t vertexCount; //描画する頂点の個数
-        uint32_t instanceCount; //インスタンシング描画しない場合は1
-        uint32_t vertexOffset;  //描画し終わった頂点だけずらす、普通は0
-        uint32_t firstInstance; //インスタシング描画しないなら0
+        uint32_t vertexCount;    //描画する頂点の個数
+        uint32_t instanceCount;  //インスタンシング描画しない場合は1
+        uint32_t vertexOffset;   //描画し終わった頂点だけずらす、普通は0
+        uint32_t firstInstance;  //インスタシング描画しないなら0
     };
 
     // struct ImDrawData;
 
     struct CmdRenderImGui
     {
-
     };
 
     struct CmdBarrier
@@ -107,7 +105,6 @@ namespace Cutlass
         HCommandBuffer handle;
     };
 
-    //コマンド追加時はここ
     enum class CommandType
     {
         eBegin,
@@ -124,9 +121,7 @@ namespace Cutlass
         eExecuteSubCommand,
     };
 
-    //とここ
-    using CommandInfoVariant = std::variant
-    <
+    using CommandInfoVariant = std::variant<
         CmdBegin,
         CmdEnd,
         CmdBindGraphicsPipeline,
@@ -138,14 +133,13 @@ namespace Cutlass
         CmdRender,
         CmdRenderImGui,
         CmdBarrier,
-        CmdExecuteSubCommand
-    >;
+        CmdExecuteSubCommand>;
 
     using InternalCommandList = std::vector<std::pair<CommandType, CommandInfoVariant>>;
 
     class SubCommandList
     {
-    public: 
+    public:
         SubCommandList(const HRenderPass& usedInMainCommand);
 
         void bind(const HGraphicsPipeline& handle);
@@ -160,37 +154,34 @@ namespace Cutlass
         //option
         void bindIndexBuffer(const HBuffer& IBHandle);
 
-        void renderIndexed
-        (
-            uint32_t indexCount,    //いくつインデックスを描画するか
-            uint32_t instanceCount = 1, //インスタンシング描画しない場合は1
-            uint32_t firstIndex = 0,    //何番目のインデックスから描画を開始するか
-            uint32_t vertexOffset = 0,  //描画し終わった頂点だけずらす、普通は0
-            uint32_t firstInstance = 0  //インスタンシング描画しないなら0
+        void renderIndexed(
+            uint32_t indexCount,        
+            uint32_t instanceCount = 1, 
+            uint32_t firstIndex    = 0,
+            uint32_t vertexOffset  = 0,
+            uint32_t firstInstance = 0  
         );
-        void render
-        (
-            uint32_t vertexCount,   //描画する頂点の個数
-            uint32_t instanceCount = 1, //インスタンシング描画しない場合は1
-            uint32_t vertexOffset = 0,  //描画し終わった頂点だけずらす、普通は0
-            uint32_t firstInstance = 0 //インスタンシング描画しないなら0
+        void render(
+            uint32_t vertexCount,        
+            uint32_t instanceCount = 1,
+            uint32_t vertexOffset  = 0,
+            uint32_t firstInstance = 0 
         );
 
         void renderImGui();
 
         void barrier(const HTexture& handle);
 
-        //現在のCommandListに接続する
         void append(SubCommandList& commandList);
 
         const InternalCommandList& getInternalCommandData() const;
-            
+
         void clear();
 
         const HRenderPass& getRenderPass() const;
 
         uint32_t getUniformBufferCount() const;
-        
+
         uint32_t getCombinedTextureCount() const;
 
     private:
@@ -202,32 +193,25 @@ namespace Cutlass
         uint32_t combinedTextureCount;
     };
 
-
     class CommandList
     {
     public:
         CommandList()
-        : indexed(false)
-        , begun(false)
-        , graphicsPipeline(false)
-        , useSub(false)
-        , uniformBufferCount(0)
-        , combinedTextureCount(0)
+            : indexed(false), begun(false), graphicsPipeline(false), useSub(false), uniformBufferCount(0), combinedTextureCount(0)
         {
-
         }
 
-        void begin(const HRenderPass& handle, bool clearFlag, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 0.f}, const DepthClearValue dcv = { 1.f, 0 });
-        void begin(const HRenderPass& handle, const DepthClearValue dcv = { 1.f, 0 }, const ColorClearValue ccv = { 0.2f, 0.2f, 0.2f, 1.f });
+        void begin(const HRenderPass& handle, bool clearFlag, const ColorClearValue ccv = {0.2f, 0.2f, 0.2f, 0.f}, const DepthClearValue dcv = {1.f, 0});
+        void begin(const HRenderPass& handle, const DepthClearValue dcv = {1.f, 0}, const ColorClearValue ccv = {0.2f, 0.2f, 0.2f, 1.f});
         void end(bool presentIfRenderedFrameBuffer = true);
-        
+
         //void present();
         //void bindGraphicsPipeline(const HGraphicsPipeline& handle);
         // void bindVertexBuffer(const HBuffer& handle);
         // void bindIndexBuffer(const HBuffer& handle);
 
         // void bindShaderResourceSet(const uint32_t set, const ShaderResourceSet &shaderResourceSet);
-        
+
         void bind(const HGraphicsPipeline& handle);
 
         //bind vertex buffer only
@@ -240,30 +224,26 @@ namespace Cutlass
         //option
         void bindIndexBuffer(const HBuffer& IBHandle);
 
-        void renderIndexed
-        (
-            uint32_t indexCount,    //いくつインデックスを描画するか
-            uint32_t instanceCount  = 1, //インスタンシング描画しない場合は1
-            uint32_t firstIndex     = 0,    //何番目のインデックスから描画を開始するか
-            uint32_t vertexOffset   = 0,  //描画し終わった頂点だけずらす、普通は0
-            uint32_t firstInstance  = 0  //インスタンシング描画しないなら0
+        void renderIndexed(
+            uint32_t indexCount,         
+            uint32_t instanceCount = 1,
+            uint32_t firstIndex    = 0,
+            uint32_t vertexOffset  = 0,
+            uint32_t firstInstance = 0 
         );
-        void render
-        (
-            uint32_t vertexCount,   //描画する頂点の個数
-            uint32_t instanceCount  = 1, //インスタンシング描画しない場合は1
-            uint32_t vertexOffset   = 0,  //描画し終わった頂点だけずらす、普通は0
-            uint32_t firstInstance  = 0 //インスタンシング描画しないなら0
+        void render(
+            uint32_t vertexCount,        
+            uint32_t instanceCount = 1,
+            uint32_t vertexOffset  = 0,
+            uint32_t firstInstance = 0
         );
 
         void renderImGui();
 
         void barrier(const HTexture& handle);
 
-        //サブコマンド(セカンダリコマンド)呼び出し
         void executeSubCommand(const HCommandBuffer& handle);
 
-        //現在のCommandListに接続する
         void append(CommandList& commandList);
 
         void clear();
@@ -285,4 +265,4 @@ namespace Cutlass
         uint32_t uniformBufferCount;
         uint32_t combinedTextureCount;
     };
-}
+}  // namespace Cutlass
