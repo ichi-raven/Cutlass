@@ -93,6 +93,8 @@ namespace Cutlass
 
         //バッファ作成・破棄
         Result createBuffer(const BufferInfo& info, HBuffer& handle_out);
+        Result updateBuffer(const BufferInfo& info, const HBuffer& handle);
+
         Result destroyBuffer(const HBuffer& handle);
 
         //バッファ書き込み
@@ -152,7 +154,7 @@ namespace Cutlass
         uint32_t getKey(const HWindow& handle, const Key& key) const;
 
         //マウス状態取得
-        Result getMousePos(double& x, double& y) const;//第1ウィンドウが前提となります
+        Result getMousePos(double& x, double& y) const;//第1ウィンドウが前提
         Result getMousePos(const HWindow& handle, double& x, double& y) const;
 
         //ウィンドウ終了通知(指定なしで全てのウィンドウの論理和)
@@ -313,6 +315,8 @@ namespace Cutlass
 
         inline Result createSyncObjects(RenderPassObject &rdsto);
         
+        inline Result createBuffer(const BufferInfo& info, const HBuffer& handle);
+
         //描画パスをテクスチャから構築
         //描画対象オブジェクトをスワップチェインから構築
         inline Result createRenderPass(const HWindow& handle, bool depthTestEnable, HRenderPass& handle_out);

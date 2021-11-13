@@ -1167,6 +1167,24 @@ namespace Cutlass
 
     Result Context::createBuffer(const BufferInfo& info, HBuffer& handle_out)
     {
+        const auto out = mNextBufferHandle++;
+        auto&& result = createBuffer(info, out);
+        if (Result::eSuccess != result)
+            return result;
+        handle_out = out;
+        return result;
+    }
+
+    Result Context::updateBuffer(const BufferInfo& info, const HBuffer& handle)
+    {
+        auto&& result = destroyBuffer(handle);
+        if (Result::eSuccess != result)
+            return result;
+        return createBuffer(info, handle);
+    }
+
+    Result Context::createBuffer(const BufferInfo& info, const HBuffer& handle)
+    {
         Result result = Result::eFailure;
         BufferObject bo;
 
@@ -1258,8 +1276,11 @@ namespace Cutlass
             }
         }
 
-        handle_out = mNextBufferHandle++;
-        mBufferMap.emplace(handle_out, bo);
+        if (mBufferMap.count(handle) <= 0)
+            mBufferMap.emplace(handle, bo);
+        else
+            mBufferMap[handle] = bo;
+        
 
         return Result::eSuccess;
     }
