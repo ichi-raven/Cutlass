@@ -133,8 +133,8 @@ namespace Cutlass
         Result updateInput() const;
 
         //キー入力取得
-        uint32_t getKey(const Key& key) const;
-        uint32_t getKey(const HWindow& handle, const Key& key) const;
+        bool getKey(const Key& key) const;
+        bool getKey(const HWindow& handle, const Key& key) const;
 
         //マウス状態取得
         Result getMousePos(double& x, double& y) const;  //第1ウィンドウが前提

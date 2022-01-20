@@ -4763,9 +4763,9 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    uint32_t Context::getKey(const Key& key) const
+    bool Context::getKey(const Key& key) const
     {
-        static uint32_t rtn;
+        static bool rtn;
 
         for (const auto& wo : mWindowMap)
         {
@@ -4773,14 +4773,14 @@ namespace Cutlass
             if (!glfwGetWindowAttrib(wo.second.mpWindow.value(), GLFW_VISIBLE))
                 continue;
 
-            if ((rtn = glfwGetKey(wo.second.mpWindow.value(), static_cast<int>(key))) > 0)
+            if (rtn = glfwGetKey(wo.second.mpWindow.value(), static_cast<int>(key)) > 0)
                 return rtn;
         }
 
-        return 0;
+        return false;
     }
 
-    uint32_t Context::getKey(const HWindow& handle, const Key& key) const
+    bool Context::getKey(const HWindow& handle, const Key& key) const
     {
         if (mDebugFlag && mWindowMap.count(handle) <= 0)
         {
@@ -4789,7 +4789,7 @@ namespace Cutlass
         }
 
         const auto& wo = mWindowMap.at(handle);
-        return glfwGetKey(wo.mpWindow.value(), static_cast<int>(key));
+        return glfwGetKey(wo.mpWindow.value(), static_cast<int>(key)) == GLFW_PRESS;
     }
 
     Result Context::getMousePos(double& x, double& y) const
