@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+#include "Utility.hpp"
+
 namespace Cutlass
 {
     enum class BufferUsage

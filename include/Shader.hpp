@@ -47,10 +47,12 @@ namespace Cutlass
     {
         Shader() {}
 
-        Shader(const std::string_view path, const std::string_view entryPoint) { load(path, entryPoint); }
+        Shader(std::string_view path) { load(path); }
 
-        void load(const std::string_view path, const std::string_view entryPoint);
-        void load(const std::string_view path);
+        Shader(std::string_view path, std::string_view entryPoint) { load(path, entryPoint); }
+
+        void load(std::string_view path, std::string_view entryPoint);
+        void load(std::string_view path);
 
         // void load(const char* path, const std::string_view entryPoint);
 
@@ -63,7 +65,9 @@ namespace Cutlass
 
         const std::vector<char>& getShaderByteCode() const;
 
-        const std::string_view getEntryPoint() const;
+        std::string_view getEntryPoint() const;
+
+        std::string_view getPath() const;
 
         // key = <set, binding>, param = resource type
         const std::map<std::pair<uint8_t, uint8_t>, ShaderResourceType>& getLayoutTable() const;
@@ -75,6 +79,7 @@ namespace Cutlass
     private:
         std::vector<char> mFileData;
         std::string mEntryPoint;
+        std::string mPath;
 
         // <<set, binding>, resource type>
         std::map<std::pair<uint8_t, uint8_t>, ShaderResourceType> mResourceLayoutTable;

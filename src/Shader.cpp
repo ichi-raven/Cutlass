@@ -10,14 +10,16 @@
 
 namespace Cutlass
 {
-    void Shader::load(const std::string_view path)
+    void Shader::load(std::string_view path)
     {
         load(path, "");
     }
 
-    void Shader::load(const std::string_view path, const std::string_view entryPoint)
+    void Shader::load(std::string_view path, std::string_view entryPoint)
     {
         //load binary data
+        mPath = std::string(path);
+
         std::ifstream infile(path.data(), std::ios::binary);
         assert(infile);
 
@@ -283,9 +285,14 @@ namespace Cutlass
         return mFileData;
     }
 
-    const std::string_view Shader::getEntryPoint() const
+    std::string_view Shader::getEntryPoint() const
     {
         return mEntryPoint;
+    }
+
+    std::string_view Shader::getPath() const
+    {
+        return mPath;
     }
 
     const std::map<std::pair<uint8_t, uint8_t>, Shader::ShaderResourceType>& Shader::getLayoutTable() const
