@@ -312,12 +312,12 @@ namespace Cutlass
 
     void ShaderResourceSet::bind(uint8_t binding, const HBuffer& handle)
     {
-        uniformBuffers.emplace(binding, handle);
+        uniformBuffers[binding] = handle;
     }
 
     void ShaderResourceSet::bind(uint8_t binding, const HTexture& handle)
     {
-        combinedTextures.emplace(binding, handle);
+        combinedTextures[binding] = handle;
     }
 
     const std::map<uint8_t, HBuffer>& ShaderResourceSet::getUniformBuffers() const

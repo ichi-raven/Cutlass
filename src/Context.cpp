@@ -54,21 +54,21 @@ namespace Cutlass
 
     Context::Context()
     {
-        mIsInitialized        = false;
-        mMaxFrame             = 0;
+        mIsInitialized = false;
+        mMaxFrame      = 0;
         mNextWindowHandle.setID(1);
         mNextBufferHandle.setID(1);
         mNextTextureHandle.setID(1);
         mNextRenderPassHandle.setID(1);
         mNextGPHandle.setID(1);
         mNextCBHandle.setID(1);
-        mAppName              = std::string("CutlassApp");
+        mAppName = std::string("CutlassApp");
     }
 
     Context::Context(std::string_view appName, bool debugFlag, Result& result_out)
     {
-        mIsInitialized        = false;
-        mMaxFrame             = 0;
+        mIsInitialized = false;
+        mMaxFrame      = 0;
         mNextWindowHandle.setID(1);
         mNextBufferHandle.setID(1);
         mNextTextureHandle.setID(1);
@@ -83,7 +83,7 @@ namespace Cutlass
     {
         if (mIsInitialized)
         {
-            std::cerr << "You forgot destroying context explicitly!\n";
+            // std::cerr << "You forgot destroying context explicitly!\n";
             destroy();
         }
     }
@@ -259,9 +259,13 @@ namespace Cutlass
                     for (const auto& e : ds_vec)
                         sets.emplace_back(e.value());
 
-                    vkFreeDescriptorSets(
-                        mDevice, mDescriptorPools[co.second.mDescriptorPoolIndex].second,
-                        sets.size(), sets.data());
+                    if (!sets.empty())
+                    {
+                        vkFreeDescriptorSets(
+                            mDevice, mDescriptorPools[co.second.mDescriptorPoolIndex].second,
+                            sets.size(), sets.data());
+                    }
+
                     mDescriptorPools[co.second.mDescriptorPoolIndex]
                         .first.uniformBufferCount -= co.second.mUBCount;
                     mDescriptorPools[co.second.mDescriptorPoolIndex]
@@ -3284,7 +3288,7 @@ namespace Cutlass
                     viewport.minDepth = info.viewport.value()[0][2];
 
                     viewport.width    = info.viewport.value()[1][0];
-                    viewport.height   = -1.f * info.viewport.value()[1][1];
+                    viewport.height   = info.viewport.value()[1][1];
                     viewport.maxDepth = info.viewport.value()[1][2];
                 }
                 else
@@ -3906,9 +3910,7 @@ namespace Cutlass
         return result;
     }
 
-    Result
-    Context::updateCommandBuffer(const std::vector<CommandList>& commandLists,
-                                 const HCommandBuffer& handle)
+    Result Context::updateCommandBuffer(const std::vector<CommandList>& commandLists, const HCommandBuffer& handle)
     {
         if (!mIsInitialized)
         {
@@ -4059,22 +4061,17 @@ namespace Cutlass
         return result;
     }
 
-    Result Context::updateCommandBuffer(const CommandList& commandList,
-                                        const HCommandBuffer& handle)
+    Result Context::updateCommandBuffer(const CommandList& commandList, const HCommandBuffer& handle)
     {
         return updateCommandBuffer(std::vector<CommandList>(1, commandList), handle);
     }
 
-    Result Context::updateSubCommandBuffer(const SubCommandList& subCommandList,
-                                           const HCommandBuffer& handle)
+    Result Context::updateSubCommandBuffer(const SubCommandList& subCommandList, const HCommandBuffer& handle)
     {
-        return updateSubCommandBuffer(std::vector<SubCommandList>(1, subCommandList),
-                                      handle);
+        return updateSubCommandBuffer(std::vector<SubCommandList>(1, subCommandList), handle);
     }
 
-    Result Context::updateSubCommandBuffer(
-        const std::vector<SubCommandList>& subCommandLists,
-        const HCommandBuffer& handle)
+    Result Context::updateSubCommandBuffer(const std::vector<SubCommandList>& subCommandLists, const HCommandBuffer& handle)
     {
         if (!mIsInitialized)
         {
@@ -4246,15 +4243,14 @@ namespace Cutlass
 
         for (const auto& command : icl)
         {
-            if (mDebugFlag)
-                std::cerr << "now command : " << debug++ << "\n";
+            // if (mDebugFlag)
+            // std::cerr << "now command : " << debug++ << "\n";
             switch (command.first)  // RIP RTTI
             {
                 case CommandType::eBegin:
                     if (!std::holds_alternative<CmdBegin>(command.second))
                         return Result::eFailure;
-                    result =
-                        cmdBegin(co, index, std::get<CmdBegin>(command.second), useSecondary);
+                    result = cmdBegin(co, index, std::get<CmdBegin>(command.second), useSecondary);
                     break;
                 case CommandType::eEnd:
                     if (!std::holds_alternative<CmdEnd>(command.second))
@@ -4328,8 +4324,7 @@ namespace Cutlass
         return Result::eSuccess;
     }
 
-    Result Context::cmdBegin(CommandObject& co, size_t frameBufferIndex,
-                             const CmdBegin& info, const bool useSecondary)
+    Result Context::cmdBegin(CommandObject& co, size_t frameBufferIndex, const CmdBegin& info, const bool useSecondary)
     {
         Result result = Result::eSuccess;
 
@@ -4423,8 +4418,8 @@ namespace Cutlass
                 if (io.currentLayout !=
                     VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
                 {
-                    vkCmdClearDepthStencilImage(command, io.mImage.value(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                                &clearValues[1].depthStencil, 1, &io.range);
+                    // vkCmdClearDepthStencilImage(command, io.mImage.value(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                    //                             &clearValues[1].depthStencil, 1, &io.range);
 
                     setImageMemoryBarrier(command, io.mImage.value(), io.currentLayout,
                                           VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
@@ -4456,9 +4451,9 @@ namespace Cutlass
                 // setImageMemoryBarrier(command, io.mImage.value(),
                 // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                 // VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-                vkCmdClearColorImage(command, io.mImage.value(),
-                                     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                     &clearValues[0].color, 1, &io.range);
+                // vkCmdClearColorImage(command, io.mImage.value(),
+                //                      VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                //                      &clearValues[0].color, 1, &io.range);
                 // setImageMemoryBarrier(command,
                 //  io.mImage.value(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                 //  VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -4503,11 +4498,12 @@ namespace Cutlass
             for (const auto& img : rpo.colorTargets)
             {
                 auto& io = mImageMap[img];
-                if (io.currentLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
-                    continue;
-                setImageMemoryBarrier(command, io.mImage.value(), io.currentLayout,
-                                      VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-                io.currentLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                if (io.currentLayout != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+                {
+                    setImageMemoryBarrier(command, io.mImage.value(), io.currentLayout,
+                                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+                    io.currentLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                }
             }
         }
 
@@ -4851,8 +4847,8 @@ namespace Cutlass
         //        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         //}
 
-        vkQueueWaitIdle(mDeviceQueue);
-        vkDeviceWaitIdle(mDevice);
+        // vkQueueWaitIdle(mDeviceQueue);
+        // vkDeviceWaitIdle(mDevice);
 
         auto& rpo = mRPMap[co.mHRenderPass.value()];
 
