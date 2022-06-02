@@ -160,7 +160,7 @@ namespace Cutlass
         }
         std::cerr << "created VkCommandPool\n";
 
-        // command pool
+        // descriptor pool
         result = addDescriptorPool();
         if (Result::eSuccess != result)
         {
@@ -260,11 +260,10 @@ namespace Cutlass
                         sets.emplace_back(e.value());
 
                     if (!sets.empty())
-                    {
                         vkFreeDescriptorSets(
                             mDevice, mDescriptorPools[co.second.mDescriptorPoolIndex].second,
                             sets.size(), sets.data());
-                    }
+                    
 
                     mDescriptorPools[co.second.mDescriptorPoolIndex]
                         .first.uniformBufferCount -= co.second.mUBCount;
@@ -526,7 +525,8 @@ namespace Cutlass
                 for (const auto& e : ds_vec)
                     sets.emplace_back(e.value());
 
-                vkFreeDescriptorSets(mDevice,
+                if (!sets.empty())
+                    vkFreeDescriptorSets(mDevice,
                                      mDescriptorPools[co.mDescriptorPoolIndex].second,
                                      sets.size(), sets.data());
                 mDescriptorPools[co.mDescriptorPoolIndex].first.uniformBufferCount -=
@@ -860,6 +860,7 @@ namespace Cutlass
             }
             mDescriptorPools.emplace_back(DescriptorPoolInfo(), descriptorPool);
         }
+
 
         return result;
     }
@@ -1590,7 +1591,7 @@ namespace Cutlass
             switch (info.usage)
             {
                 case TextureUsage::eDepthStencilTarget:
-                    aspectFlag          = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+                    aspectFlag = VK_IMAGE_ASPECT_DEPTH_BIT;// | VK_IMAGE_ASPECT_STENCIL_BIT;
                     ci.subresourceRange = io.range = {aspectFlag, 0, 1, 0, 1};
                     break;
                 default:
@@ -2089,7 +2090,8 @@ namespace Cutlass
                 VK_COMPONENT_SWIZZLE_B,
                 VK_COMPONENT_SWIZZLE_A,
             };
-            ci.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1};
+            //ci.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1};
+            ci.subresourceRange = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 };
 
             VkImageView imageView;
             result =
@@ -2122,8 +2124,10 @@ namespace Cutlass
             commandBI.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
             vkBeginCommandBuffer(command, &commandBI);
 
+            //setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_UNDEFINED,
+            //                      io.currentLayout, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
             setImageMemoryBarrier(command, io.mImage.value(), VK_IMAGE_LAYOUT_UNDEFINED,
-                                  io.currentLayout, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
+                io.currentLayout, VK_IMAGE_ASPECT_DEPTH_BIT);
             vkEndCommandBuffer(command);
 
             VkSubmitInfo submitInfo{};
@@ -3963,6 +3967,7 @@ namespace Cutlass
         {  // free previous descriptor sets
             if (!co.mDescriptorSets.empty())
             {
+                uint32_t time = 0;
                 for (const auto& ds_vec : co.mDescriptorSets)
                 {
                     std::vector<VkDescriptorSet> sets;
@@ -3970,19 +3975,20 @@ namespace Cutlass
                     for (const auto& e : ds_vec)
                         sets.emplace_back(e.value());
 
-                    vkFreeDescriptorSets(mDevice,
+                    if (!sets.empty())
+                        vkFreeDescriptorSets(mDevice,
                                          mDescriptorPools[co.mDescriptorPoolIndex].second,
                                          sets.size(), sets.data());
 
-                    auto& ubc =
-                        mDescriptorPools[co.mDescriptorPoolIndex].first.uniformBufferCount;
-                    auto& ctc = mDescriptorPools[co.mDescriptorPoolIndex]
-                                    .first.combinedTextureCount;
-                    ubc = ubc >= co.mUBCount ? ubc - co.mUBCount : 0;
-                    ctc = ctc >= co.mCTCount ? ctc - co.mCTCount : 0;
+                    auto& ubc = mDescriptorPools[co.mDescriptorPoolIndex].first.uniformBufferCount;
+                    auto& ctc = mDescriptorPools[co.mDescriptorPoolIndex].first.combinedTextureCount;
+                    ubc = (ubc >= co.mUBCount) ? ubc - co.mUBCount : 0;
+                    ctc = (ctc >= co.mCTCount) ? ctc - co.mCTCount : 0;
+
+                    co.mUBCount = 0;
+                    co.mCTCount = 0;
                 }
 
-                // co.mDescriptorSets.clear();
             }
         }
 
@@ -4100,6 +4106,7 @@ namespace Cutlass
                     for (const auto& e : ds_vec)
                         sets.emplace_back(e.value());
 
+                    if (!sets.empty())
                     vkFreeDescriptorSets(mDevice,
                                          mDescriptorPools[co.mDescriptorPoolIndex].second,
                                          sets.size(), sets.data());
@@ -4652,8 +4659,8 @@ namespace Cutlass
                 auto&& wdi     = writeDescriptors.emplace_back(VkWriteDescriptorSet{});
                 wdi.sType      = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
                 wdi.dstBinding = dub.first;
-                if (mDebugFlag)
-                    std::cerr << "buffer dstBinding : " << wdi.dstBinding << "\n";
+                //if (mDebugFlag)
+                //    std::cerr << "buffer dstBinding : " << wdi.dstBinding << "\n";
                 wdi.dstArrayElement = 0;
                 wdi.descriptorCount = 1;
                 wdi.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -4675,8 +4682,8 @@ namespace Cutlass
                 auto&& wdi     = writeDescriptors.emplace_back(VkWriteDescriptorSet{});
                 wdi.sType      = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
                 wdi.dstBinding = dct.first;
-                if (mDebugFlag)
-                    std::cerr << "image dstBinding : " << wdi.dstBinding << "\n";
+                //if (mDebugFlag)
+                //    std::cerr << "image dstBinding : " << wdi.dstBinding << "\n";
                 wdi.dstArrayElement = 0;
                 wdi.descriptorCount = 1;
                 wdi.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
